@@ -152,6 +152,15 @@ const AdvisorSlotSchema = z.object({
   generatedAtIso: z.string(),
   provider: z.string(),
   latencyMs: z.number().int().nonnegative(),
+  /**
+   * ZERO-MIX (language-engineering canon): the locale the model was PINNED
+   * to author `insight` + `action` in. The wire stays honest — the FE
+   * attributes the prose with this `lang` so a Swahili-pinned advisor note
+   * never renders as an un-attributed English block on a Swahili surface
+   * (and vice-versa). Defaults to `en` for back-compat with snapshots
+   * persisted before locale-pinning shipped.
+   */
+  lang: z.enum(['en', 'sw']).default('en'),
 });
 
 export const OwnerBriefSchema = z.object({
@@ -238,11 +247,21 @@ export async function getCockpitDecisions(
   // Decisions queue is union of: open high-severity incidents + licence
   // expiry risks. Bounded to 25 items so the home page stays under the
   // one-screen budget per owner-status-sota.md.
+  //
+  // ZERO-MIX / LOCALE-NEUTRAL WIRE (language-engineering canon): the row's
+  // `incident.kind` is a STABLE machine enum (`safety`, `equipment`, …) — we
+  // surface it as the `summary` so the FE (AlertQueuePanel) maps it to SOTA
+  // per-locale copy at render. We DELIBERATELY do NOT select the free-form
+  // `incidents.description` column: it is user-authored prose of UNKNOWN /
+  // arbitrary language, and emitting it as `summary` rendered it RAW on a
+  // localized panel (an EN/SW split-brain on every Swahili surface). The
+  // wire carries only the code; only the render is localized.
   try {
     const result = await db.execute(
       sql`
-        SELECT id::text, 'incident' AS kind,
-               COALESCE(description, kind, 'incident') AS summary,
+        SELECT id::text,
+               'incident' AS kind,
+               COALESCE(kind, 'incident') AS summary,
                severity
           FROM incidents
          WHERE tenant_id = ${tenantId}
@@ -261,7 +280,8 @@ export async function getCockpitDecisions(
     const items = rows.map((r) => ({
       id: String(r.id ?? ''),
       kind: String(r.kind ?? 'incident'),
-      summary: String(r.summary ?? ''),
+      // `summary` is the locale-neutral incident-kind TOKEN, never prose.
+      summary: String(r.summary ?? 'incident'),
       severity: r.severity == null ? null : String(r.severity),
     }));
     return { pendingCount: items.length, items };
@@ -436,9 +456,18 @@ export async function getLicenceHealth(
 // composeOwnerBrief — single fan-out used by both BFF and cron.
 // ----------------------------------------------------------------------------
 
+/**
+ * Active locale the brief's model-authored advisor slice is pinned to.
+ * Resolved from the owner's active cockpit locale (the `borjie_locale`
+ * cookie, falling back to `Accept-Language`). EN default — the cron path
+ * and older callers pass nothing and get the English advisor note.
+ */
+export type BriefLocale = 'en' | 'sw';
+
 export async function composeOwnerBrief(
   db: any,
   tenantId: string,
+  locale: BriefLocale = 'en',
 ): Promise<OwnerBrief> {
   // mfr-9: fan out the seven slots with Promise.allSettled so ONE
   // transient slot failure (e.g. a flaky decisions query) degrades only
@@ -521,6 +550,7 @@ export async function composeOwnerBrief(
       licenceHealth,
     },
     tenantId,
+    locale,
   ).catch((err) => {
     moduleLogger.warn('advisor slice failed', {
       tenantId,
@@ -555,7 +585,7 @@ async function composeAdvisorSlice(slots: {
   readonly cliffStatus: z.infer<typeof CliffStatusSlotSchema>;
   readonly openHighIncidents: z.infer<typeof OpenHighIncidentsSlotSchema>;
   readonly licenceHealth: z.infer<typeof LicenceHealthSlotSchema>;
-}, tenantId: string): Promise<z.infer<typeof AdvisorSlotSchema> | null> {
+}, tenantId: string, locale: BriefLocale = 'en'): Promise<z.infer<typeof AdvisorSlotSchema> | null> {
   // Lazy import so the brain-call helper isn't required when this file
   // is bundled for the cron worker (which sets no API keys).
   const { callBrainOnce } = await import('./brain-call.js');
@@ -571,8 +601,16 @@ async function composeAdvisorSlice(slots: {
     licencesAtRisk: slots.licenceHealth.atRiskCount,
     licencesTotal: slots.licenceHealth.totalCount,
   });
+  // ZERO-MIX (language-engineering canon): the advisor slice is genuine
+  // model-authored prose rendered RAW on the localized owner cockpit. PIN
+  // the output to the owner's active locale — a single language per reply,
+  // never a bilingual / code-switched note — so the Swahili owner gets a
+  // Swahili insight and the English owner an English one. Same en/sw
+  // system-prompt branch idiom as routes/owner/docs.hono.ts /explain.
   const systemPrompt =
-    'You are Mr. Mwikila, the Borjie strategic advisor for a Tanzanian mining owner. Read the JSON brief and respond with EXACTLY two compact lines: line 1 is your strategic insight (≤2 sentences, no preamble), line 2 starts with "ACTION:" followed by ONE concrete next action under 14 words. No emoji, no markdown, no provider chatter.';
+    locale === 'sw'
+      ? 'Wewe ni Bwana Mwikila, mshauri mkuu wa kimkakati wa Borjie kwa mmiliki wa mgodi nchini Tanzania. Soma muhtasari wa JSON na ujibu KWA KISWAHILI TU kwa mistari miwili mifupi KAMILI: mstari wa 1 ni ufahamu wako wa kimkakati (sentensi ≤2, bila utangulizi), mstari wa 2 unaanza na "ACTION:" ukifuatwa na hatua MOJA halisi inayofuata yenye maneno chini ya 14. Usichanganye lugha nyingine yoyote. Bila emoji, bila markdown, bila maelezo ya mtoa-huduma.'
+      : 'You are Mr. Mwikila, the Borjie strategic advisor for a Tanzanian mining owner. Read the JSON brief and respond IN ENGLISH ONLY with EXACTLY two compact lines: line 1 is your strategic insight (≤2 sentences, no preamble), line 2 starts with "ACTION:" followed by ONE concrete next action under 14 words. Do not mix in any other language. No emoji, no markdown, no provider chatter.';
   const userPrompt = `Today's owner brief slots (JSON):\n${summary}`;
   let result: { text: string; provider: string; latencyMs: number };
   try {
@@ -583,6 +621,8 @@ async function composeAdvisorSlice(slots: {
       // LANE B5 — admin control-plane routing for this tenant's advisor slice.
       tenantId,
       useCase: 'casual_chat',
+      // Single-language refusal/guard copy follows the same pinned locale.
+      lang: locale,
     });
   } catch {
     return null;
@@ -603,6 +643,8 @@ async function composeAdvisorSlice(slots: {
     generatedAtIso: new Date().toISOString(),
     provider: 'brain',
     latencyMs: result.latencyMs,
+    // The locale the prose was authored in — the FE attributes it with this.
+    lang: locale,
   };
 }
 
@@ -815,6 +857,15 @@ export function createOwnerBriefRouter(): Hono {
       );
     }
 
+    // ZERO-MIX: the owner's ACTIVE cockpit locale. Drives the advisor LLM
+    // pin AND gates whether a cached advisor note (authored once per
+    // tenant/day, possibly by the 06:00 cron in a different language) may be
+    // served — a wrong-language note is mixing, so it is withheld.
+    const locale = resolveBriefLocale(
+      c.req.header('cookie'),
+      c.req.header('accept-language'),
+    );
+
     try {
       const cached = await readTodaysSnapshot(db, auth.tenantId);
       if (cached) {
@@ -822,7 +873,13 @@ export function createOwnerBriefRouter(): Hono {
           {
             success: true,
             data: {
-              brief: cached.brief,
+              // The non-advisor slots are locale-neutral (stable codes the FE
+              // localizes); only the advisor prose is language-bearing. If the
+              // cached note was authored in another locale, withhold it (null)
+              // rather than render it raw on the active-locale surface — the FE
+              // simply hides the advisor chip. The owner's next on-demand
+              // compose re-authors it in their language.
+              brief: briefForLocale(cached.brief, locale),
               source: cached.source,
               generatedAt: cached.generatedAtIso,
               cached: true,
@@ -832,7 +889,7 @@ export function createOwnerBriefRouter(): Hono {
         );
       }
 
-      const brief = await composeOwnerBrief(db, auth.tenantId);
+      const brief = await composeOwnerBrief(db, auth.tenantId, locale);
       const persisted = await persistSnapshot(db, {
         tenantId: auth.tenantId,
         brief,
@@ -880,6 +937,46 @@ export default ownerBriefRouter;
 // ----------------------------------------------------------------------------
 // Helpers
 // ----------------------------------------------------------------------------
+
+/**
+ * Resolve the owner's ACTIVE cockpit locale for the advisor LLM pin.
+ *
+ * The single source of truth is the `borjie_locale` cookie the owner-web
+ * locale toggle writes (forwarded via `credentials: 'include'`). It is the
+ * active SURFACE locale — which `Accept-Language` (the browser default) is
+ * NOT. We therefore prefer the cookie and fall back to `Accept-Language`,
+ * defaulting to `en`. Returns only the two supported locales so the model
+ * is pinned to a single language (zero-mix canon).
+ */
+function resolveBriefLocale(
+  cookieHeader: string | null | undefined,
+  acceptLanguage: string | null | undefined,
+): BriefLocale {
+  if (typeof cookieHeader === 'string' && cookieHeader.length > 0) {
+    const m = cookieHeader.match(/(?:^|;\s*)borjie_locale=([^;]+)/);
+    const cookieVal = m?.[1]?.trim().toLowerCase();
+    if (cookieVal === 'sw') return 'sw';
+    if (cookieVal === 'en') return 'en';
+  }
+  if (typeof acceptLanguage === 'string' && acceptLanguage.length > 0) {
+    const first = acceptLanguage.split(',')[0]?.trim().toLowerCase() ?? '';
+    if (first.startsWith('sw')) return 'sw';
+  }
+  return 'en';
+}
+
+/**
+ * ZERO-MIX gate on a CACHED brief: the advisor slice is the only
+ * language-bearing slot. If its authored `lang` does not match the owner's
+ * active locale, strip it (the FE hides the chip) so a cached note never
+ * renders in the wrong language. All other slots are locale-neutral and
+ * pass through untouched. Immutable — returns a new object, never mutates.
+ */
+function briefForLocale(brief: OwnerBrief, locale: BriefLocale): OwnerBrief {
+  const advisorLang = brief.advisor?.lang ?? 'en';
+  if (!brief.advisor || advisorLang === locale) return brief;
+  return { ...brief, advisor: null };
+}
 
 function rowsOf(result: unknown): ReadonlyArray<Record<string, unknown>> {
   if (Array.isArray(result)) {

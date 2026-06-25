@@ -9,6 +9,7 @@ import { useMintAuditPack } from '@/lib/internal/queries/audit-pack';
 import { Toast } from '../Toast';
 import { useTenantsQuery } from '@/lib/internal/queries/tenants';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
 
 /**
  * Native `<select>` styled with DS tokens. The DS `Select` export is a Radix
@@ -90,7 +91,7 @@ export function MintPackForm({
           onError: (err) =>
             setToast(
               `${pickByLocale(locale, S.failed)}: ${
-                err instanceof Error ? err.message : pickByLocale(locale, S.unknown)
+                localizeApiError(err, locale)
               }`,
             ),
         }),

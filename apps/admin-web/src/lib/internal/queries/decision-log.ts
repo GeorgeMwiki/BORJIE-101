@@ -12,7 +12,7 @@
  * `error` channel.
  */
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, toApiError } from '@/lib/api-client';
 import type { DecisionLogRow } from '@/lib/internal/types';
 
 const KEY = ['internal', 'decision-log'] as const;
@@ -58,7 +58,7 @@ export function useDecisionLogQuery() {
     queryKey: KEY,
     queryFn: async (): Promise<DecisionLogResult> => {
       const res = await apiClient.get<ReadonlyArray<RawTraceRow>>('/decision-log');
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return { rows: res.data.map(adaptTrace), source: 'live' };
     },
   });

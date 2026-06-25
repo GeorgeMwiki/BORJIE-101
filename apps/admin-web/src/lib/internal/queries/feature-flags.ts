@@ -12,7 +12,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, toApiError } from '@/lib/api-client';
 
 const FLAGS_KEY = ['internal', 'feature-flags'] as const;
 
@@ -50,7 +50,7 @@ export function useFeatureFlagsQuery() {
     queryKey: FLAGS_KEY,
     queryFn: async (): Promise<FlagsResult> => {
       const res = await apiClient.get<ReadonlyArray<RawFlag>>('/feature-flags');
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return { rows: res.data.map(adaptFlag), source: 'live' };
     },
   });
@@ -69,7 +69,7 @@ export function useToggleFeatureFlag() {
         `/feature-flags/${encodeURIComponent(flagKey)}/rollout`,
         { defaultEnabled },
       );
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return adaptFlag(res.data);
     },
     onMutate: async ({ flagKey, defaultEnabled }) => {

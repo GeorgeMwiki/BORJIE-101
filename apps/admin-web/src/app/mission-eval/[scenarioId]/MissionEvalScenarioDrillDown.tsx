@@ -41,10 +41,13 @@ import {
   type BadgeProps,
 } from '@borjie/design-system';
 import { api } from '@/lib/api';
-import { useLocale, pickByLocale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
+import { toCatalogError } from '@/lib/api-client';
 
 export interface MissionEvalScenarioDrillDownProps {
   readonly scenarioId: string;
+  readonly initialLocale?: Locale;
 }
 
 interface CotSample {
@@ -129,8 +132,9 @@ function rubricColour(value: number): string {
 
 export function MissionEvalScenarioDrillDown({
   scenarioId,
+  initialLocale,
 }: MissionEvalScenarioDrillDownProps): JSX.Element {
-  const locale = useLocale();
+  const locale = useLocale(initialLocale);
   const [samples, setSamples] = useState<ReadonlyArray<CotSample>>([]);
   const [total, setTotal] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
@@ -149,7 +153,7 @@ export function MissionEvalScenarioDrillDown({
       setSamples(res.data?.samples ?? []);
       setTotal(res.data?.total ?? 0);
     } catch (err) {
-      setError(err instanceof Error ? err.message : pickByLocale(locale, S.loadFailed));
+      setError(localizeApiError(toCatalogError(err), locale));
     } finally {
       setLoading(false);
     }

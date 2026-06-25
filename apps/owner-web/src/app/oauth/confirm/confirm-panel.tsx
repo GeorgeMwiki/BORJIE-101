@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { getCsrfHeaders } from '@/lib/csrf';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeError } from '@/lib/api-client';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
 import { Button } from '@borjie/design-system';
 
@@ -50,10 +51,14 @@ function scopeLabel(scope: string, locale: Locale): string {
   return entry ? pickByLocale(locale, entry) : scope;
 }
 
-export function OAuthConfirmPanel() {
+export function OAuthConfirmPanel({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+} = {}) {
   const router = useRouter();
   const params = useSearchParams();
-  const locale = useLocale();
+  const locale = useLocale(initialLocale);
   const userCode = params.get('code') ?? '';
 
   const [phase, setPhase] = useState<Phase>(
@@ -88,13 +93,9 @@ export function OAuthConfirmPanel() {
         setPhase({ kind: 'ready', details: json });
       } catch (err) {
         if (cancelled) return;
-        setPhase({
-          kind: 'error',
-          message:
-            err instanceof Error
-              ? err.message
-              : pickByLocale(locale, S.oauthConfirm.networkRetry),
-        });
+        // Localize by stable CODE — never the raw English `.message` under
+        // `sw` (language MIXING).
+        setPhase({ kind: 'error', message: localizeError(err, locale) });
       }
     })();
     return () => {
@@ -156,13 +157,8 @@ export function OAuthConfirmPanel() {
       }
       setPhase({ kind: 'approved', countdown: 5 });
     } catch (err) {
-      setPhase({
-        kind: 'error',
-        message:
-          err instanceof Error
-            ? err.message
-            : pickByLocale(locale, S.oauthConfirm.networkError),
-      });
+      // Localize by stable CODE — never the raw English `.message` under `sw`.
+      setPhase({ kind: 'error', message: localizeError(err, locale) });
     }
   }
 
@@ -189,13 +185,8 @@ export function OAuthConfirmPanel() {
       }
       setPhase({ kind: 'denied' });
     } catch (err) {
-      setPhase({
-        kind: 'error',
-        message:
-          err instanceof Error
-            ? err.message
-            : pickByLocale(locale, S.oauthConfirm.networkError),
-      });
+      // Localize by stable CODE — never the raw English `.message` under `sw`.
+      setPhase({ kind: 'error', message: localizeError(err, locale) });
     }
   }
 

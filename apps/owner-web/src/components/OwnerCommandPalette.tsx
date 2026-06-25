@@ -31,6 +31,10 @@ const OWNER_NAV_ROUTES: ReadonlyArray<{
   { route: '/counterparties', labelKey: 'nav.counterparties' },
   { route: '/documents', labelKey: 'nav.documents' },
   { route: '/estate', labelKey: 'nav.estate' },
+  { route: '/estate/entities', labelKey: 'nav.estateEntities' },
+  { route: '/estate/assets', labelKey: 'nav.estateAssets' },
+  { route: '/estate/capital-movements', labelKey: 'nav.estateCapitalMovements' },
+  { route: '/estate/succession', labelKey: 'nav.estateSuccession' },
   { route: '/chain-of-custody', labelKey: 'nav.chainOfCustody' },
   { route: '/mwikila/inbox', labelKey: 'nav.inbox' },
 ];

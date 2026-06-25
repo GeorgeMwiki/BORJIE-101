@@ -93,6 +93,14 @@ export interface AdvisorSlot {
   readonly provider: string;
   readonly latencyMs: number;
   /**
+   * ZERO-MIX: the locale the advisor prose (`insight` + `action`) was
+   * PINNED to by the gateway. Render the prose under `lang={advisor.lang}`
+   * so it is attributed honestly and matches the owner's active locale
+   * (the gateway withholds a wrong-language cached note). `'en'` default
+   * for wire compat with snapshots authored before locale-pinning.
+   */
+  readonly lang?: 'en' | 'sw';
+  /**
    * R1 — inline citations. Each `¹²³` superscript glyph inside `insight`
    * maps to the evidence id at the same 1-based index in this array.
    * Optional for wire compatibility: older gateway versions emit no

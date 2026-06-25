@@ -81,6 +81,11 @@ function HomeChatInner({ initialLocale }: { readonly initialLocale?: Locale }) {
   } = useAskBorjie({
     initialThreadId,
     onThreadCreated: handleThreadCreated,
+    // Pin the brain reply to the operator's active locale (zero-mix
+    // canon): the gateway derives its reply language from
+    // `Accept-Language`, so without this a Swahili operator gets ENGLISH
+    // AI replies under the Swahili surface.
+    language: locale,
   });
 
   const [draft, setDraft] = useState('');

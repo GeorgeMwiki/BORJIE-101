@@ -30,8 +30,6 @@ export interface AdminSkillOutcome<T> {
 
 /** Numeric thresholds — above which the action must be user-confirmed. */
 export const HIGH_RISK_THRESHOLDS = Object.freeze({
-  /** Rent adjustment above this triggers approval (KES). */
-  arrearsAdjustmentKes: 20_000,
   /** Bid total above this triggers approval (KES). */
   tenderBidKes: 500_000,
   /** Offtake renewal price-change percentage triggering approval. */

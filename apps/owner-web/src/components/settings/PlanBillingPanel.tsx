@@ -4,7 +4,8 @@ import { Button, Skeleton } from '@borjie/design-system';
 import { useTenantCurrent } from '@/lib/queries/tenant';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { useT } from '@/i18n/t.client';
-import type { Locale } from '@/lib/locale';
+import { useLocale, type Locale } from '@/lib/locale';
+import { localizeError } from '@/lib/api-client';
 
 /**
  * Plan + billing panel — wired to the LIVE current-tenant read
@@ -37,6 +38,7 @@ interface PlanBillingPanelProps {
 
 export function PlanBillingPanel({ initialLocale }: PlanBillingPanelProps = {}) {
   const t = useT(initialLocale);
+  const locale = useLocale(initialLocale);
   const { data, isLoading, isError, error, refetch } = useTenantCurrent();
 
   if (isLoading) {
@@ -47,7 +49,7 @@ export function PlanBillingPanel({ initialLocale }: PlanBillingPanelProps = {}) 
       <EmptyState
         title={t('planBilling.loadErrorTitle')}
         description={
-          error instanceof Error ? error.message : t('planBilling.tryAgain')
+          error ? localizeError(error, locale) : t('planBilling.tryAgain')
         }
         hint="GET /api/v1/tenants/current"
         action={

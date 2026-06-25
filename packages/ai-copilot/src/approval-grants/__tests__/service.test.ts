@@ -37,7 +37,7 @@ describe('ApprovalGrantService — issuance', () => {
     const { svc, events } = makeService();
     const grant = await svc.grantStanding(TENANT, {
       domain: 'finance',
-      actionCategory: 'send_rent_reminder',
+      actionCategory: 'send_royalty_reminder',
       scope: { amountCeilingMinorUnits: 500_000 },
       createdBy: HEAD,
     });
@@ -108,7 +108,7 @@ describe('ApprovalGrantService — issuance', () => {
 describe('ApprovalGrantService — checkAuthorization', () => {
   it('returns mustRequestApproval=true when no grant exists', async () => {
     const { svc } = makeService();
-    const res = await svc.checkAuthorization(TENANT, 'send_rent_reminder', {
+    const res = await svc.checkAuthorization(TENANT, 'send_royalty_reminder', {
       domain: 'finance',
     });
     expect(res.authorized).toBe(false);
@@ -145,11 +145,11 @@ describe('ApprovalGrantService — checkAuthorization', () => {
     const { svc } = makeService();
     await svc.grantStanding(TENANT, {
       domain: 'finance',
-      actionCategory: 'send_rent_reminder',
+      actionCategory: 'send_royalty_reminder',
       scope: { amountCeilingMinorUnits: 300_000 },
       createdBy: HEAD,
     });
-    const ok = await svc.checkAuthorization(TENANT, 'send_rent_reminder', {
+    const ok = await svc.checkAuthorization(TENANT, 'send_royalty_reminder', {
       domain: 'finance',
       amountMinorUnits: 250_000,
     });
@@ -161,11 +161,11 @@ describe('ApprovalGrantService — checkAuthorization', () => {
     const { svc } = makeService();
     await svc.grantStanding(TENANT, {
       domain: 'finance',
-      actionCategory: 'send_rent_reminder',
+      actionCategory: 'send_royalty_reminder',
       scope: { amountCeilingMinorUnits: 100_000 },
       createdBy: HEAD,
     });
-    const res = await svc.checkAuthorization(TENANT, 'send_rent_reminder', {
+    const res = await svc.checkAuthorization(TENANT, 'send_royalty_reminder', {
       domain: 'finance',
       amountMinorUnits: 500_000,
     });
@@ -233,20 +233,20 @@ describe('ApprovalGrantService — checkAuthorization', () => {
     const { svc } = makeService(() => now);
     await svc.grantStanding(TENANT, {
       domain: 'finance',
-      actionCategory: 'send_rent_reminder',
+      actionCategory: 'send_royalty_reminder',
       scope: {},
       validFrom: '2026-04-19T00:00:00.000Z',
       validTo: '2026-04-20T11:00:00.000Z',
       createdBy: HEAD,
     });
     // Before expiry — authorized.
-    let res = await svc.checkAuthorization(TENANT, 'send_rent_reminder', {
+    let res = await svc.checkAuthorization(TENANT, 'send_royalty_reminder', {
       domain: 'finance',
     });
     expect(res.authorized).toBe(true);
     // Advance clock past expiry.
     now = new Date('2026-04-20T12:00:00.000Z');
-    res = await svc.checkAuthorization(TENANT, 'send_rent_reminder', {
+    res = await svc.checkAuthorization(TENANT, 'send_royalty_reminder', {
       domain: 'finance',
     });
     expect(res.authorized).toBe(false);
@@ -256,13 +256,13 @@ describe('ApprovalGrantService — checkAuthorization', () => {
     const { svc } = makeService();
     await svc.grantStanding(TENANT, {
       domain: 'finance',
-      actionCategory: 'send_rent_reminder',
+      actionCategory: 'send_royalty_reminder',
       scope: {},
       createdBy: HEAD,
     });
     const res = await svc.checkAuthorization(
       OTHER_TENANT,
-      'send_rent_reminder',
+      'send_royalty_reminder',
       { domain: 'finance' },
     );
     expect(res.authorized).toBe(false);
@@ -274,7 +274,7 @@ describe('ApprovalGrantService — consume', () => {
     const { svc } = makeService();
     const g = await svc.grantStanding(TENANT, {
       domain: 'finance',
-      actionCategory: 'send_rent_reminder',
+      actionCategory: 'send_royalty_reminder',
       scope: {},
       createdBy: HEAD,
     });
@@ -288,7 +288,7 @@ describe('ApprovalGrantService — consume', () => {
     const { svc } = makeService();
     const g = await svc.grantStanding(TENANT, {
       domain: 'finance',
-      actionCategory: 'send_rent_reminder',
+      actionCategory: 'send_royalty_reminder',
       scope: {},
       createdBy: HEAD,
     });
@@ -303,7 +303,7 @@ describe('ApprovalGrantService — consume', () => {
     const { svc } = makeService();
     const g = await svc.grantStanding(TENANT, {
       domain: 'finance',
-      actionCategory: 'send_rent_reminder',
+      actionCategory: 'send_royalty_reminder',
       scope: {},
       createdBy: HEAD,
     });

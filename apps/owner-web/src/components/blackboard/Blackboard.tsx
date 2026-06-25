@@ -13,7 +13,7 @@
  * Export / Clear controls. Body holds the stacked elements in
  * emission order.
  *
- * Parity: equivalent to LitFin's `BlackboardScene` host plus its
+ * Parity: equivalent to the reference `BlackboardScene` host plus its
  * artifact persistence layer, but with a Borjie navy/gold skin and
  * mining-estate vocabulary in the empty state.
  */

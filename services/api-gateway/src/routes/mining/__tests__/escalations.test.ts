@@ -216,6 +216,7 @@ describe('mining escalations router', () => {
           sourceKind: 'incident',
           sourceId: null,
           contextSw: 'Tatizo kwenye mtambo',
+          context: { contextEn: 'Equipment fault' },
           severity: 'warning',
           status: 'open',
           createdAt: new Date(),
@@ -255,6 +256,18 @@ describe('mining escalations router', () => {
     expect(body.success).toBe(true);
     const ids = body.data.map((r) => r.id).sort();
     expect(ids).toEqual(['e1', 'e3']);
+    // Locale-neutral projection: every row carries a `context: { en, sw }`
+    // pair and NEVER the raw single-language `contextSw` column.
+    const e1 = body.data.find((r) => r.id === 'e1');
+    expect(e1.contextSw).toBeUndefined();
+    expect(e1.context).toEqual({
+      en: 'Equipment fault',
+      sw: 'Tatizo kwenye mtambo',
+    });
+    // Legacy row e3 has no captured English narrative → `en` is null so the
+    // cockpit renders a localized placeholder, never the Swahili prose.
+    const e3 = body.data.find((r) => r.id === 'e3');
+    expect(e3.context).toEqual({ en: null, sw: 'Tahadhari' });
   });
 
   it('POST / rejects when neither toUserId nor toRole provided (validation)', async () => {
@@ -303,6 +316,7 @@ describe('mining escalations router', () => {
       body: JSON.stringify({
         toRole: 'manager',
         sourceKind: 'safety',
+        contextEn: 'Fuel has spilled',
         contextSw: 'Mafuta yamemwagika',
         severity: 'critical',
       }),
@@ -315,6 +329,36 @@ describe('mining escalations router', () => {
     expect(body.data.toRole).toBe('manager');
     expect(body.data.status).toBe('open');
     expect(db.rows()).toHaveLength(1);
+    // Locale-neutral wire: the row carries BOTH narratives, never raw
+    // single-language `contextSw`.
+    expect(body.data.contextSw).toBeUndefined();
+    expect(body.data.context).toEqual({
+      en: 'Fuel has spilled',
+      sw: 'Mafuta yamemwagika',
+    });
+    // The English narrative is persisted into the additive `context` jsonb
+    // side-channel (no schema change), Swahili on the NOT-NULL column.
+    expect(db.rows()[0]?.contextSw).toBe('Mafuta yamemwagika');
+    expect(db.rows()[0]?.context).toEqual({ contextEn: 'Fuel has spilled' });
+  });
+
+  it('POST / rejects a single-language body (contextEn required)', async () => {
+    setAuth({ userId: WORKER_USER_ID, role: 'worker' });
+    setDb(createFakeDb());
+    const app = buildApp();
+    const res = await app.request('/', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        toRole: 'manager',
+        sourceKind: 'safety',
+        contextSw: 'Mafuta yamemwagika',
+        severity: 'critical',
+      }),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: { code: string } };
+    expect(body.error.code).toBe('VALIDATION_ERROR');
   });
 
   it('POST /:id/acknowledge forbids non-addressee', async () => {

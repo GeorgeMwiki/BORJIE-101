@@ -85,6 +85,10 @@ export function EstateMetricStrip({ locale }: EstateMetricStripProps) {
   })();
 
   // 30-day capital flows — useEstateCapitalMovements returns {success,data:{movements,count}}
+  // Movements may span multiple ISO currencies; summing across distinct
+  // codes into one figure (and labelling it TZS) is invalid. Group the net
+  // per currency code and render each separately; collapse to a single
+  // figure only when every row shares one code.
   const capitalFlowValue: string = (() => {
     if (movementsQuery.isLoading) return '…';
     if (movementsQuery.isError) return '—';
@@ -93,11 +97,16 @@ export function EstateMetricStrip({ locale }: EstateMetricStripProps) {
       | undefined;
     const rows = raw?.data?.movements;
     if (!rows || rows.length === 0) return '—';
-    const net = rows.reduce(
-      (sum, m) => sum + (parseFloat(String(m.amount)) || 0),
-      0,
-    );
-    return net !== 0 ? formatLargeMoney(Math.abs(net), LAUNCH_CURRENCY, locale) : '—';
+    const netByCurrency = rows.reduce<Record<string, number>>((acc, m) => {
+      const code = (m.currency || LAUNCH_CURRENCY).trim().toUpperCase();
+      const amount = parseFloat(String(m.amount)) || 0;
+      return { ...acc, [code]: (acc[code] ?? 0) + amount };
+    }, {});
+    const parts = Object.entries(netByCurrency)
+      .filter(([, net]) => net !== 0)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([code, net]) => formatLargeMoney(Math.abs(net), code, locale));
+    return parts.length > 0 ? parts.join(' · ') : '—';
   })();
 
   // Succession plan status — useSuccessionPlans returns {success,data:{plans,count}}

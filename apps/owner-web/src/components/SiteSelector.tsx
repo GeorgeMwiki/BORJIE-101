@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { ChevronDown, MapPin } from 'lucide-react';
 import type { SiteSummary } from '@/lib/session';
+import { useLocale } from '@/lib/locale';
+import { enumLabel } from '@/components/owner-os/panels/enum-label';
 
 interface SiteSelectorProps {
   readonly sites: ReadonlyArray<SiteSummary>;
@@ -20,6 +22,7 @@ interface SiteSelectorProps {
  * server component still owns session resolution.
  */
 export function SiteSelector({ sites, activeSiteId }: SiteSelectorProps) {
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [selectedId, setSelectedId] = useState(activeSiteId);
   const selected = sites.find((s) => s.id === selectedId) ?? sites[0];
@@ -58,7 +61,8 @@ export function SiteSelector({ sites, activeSiteId }: SiteSelectorProps) {
                   <span className="flex-1">
                     <span className="block font-medium">{site.name}</span>
                     <span className="block text-xs text-neutral-500">
-                      {site.region} · {site.mineral} · {site.status}
+                      {site.region} · {site.mineral} ·{' '}
+                      {enumLabel('siteStatus', site.status, locale)}
                     </span>
                   </span>
                 </button>

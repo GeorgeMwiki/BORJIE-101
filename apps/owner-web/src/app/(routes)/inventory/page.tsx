@@ -24,8 +24,8 @@ export default async function InventoryPage() {
     <>
       <ScreenHeader slug="inventory" />
       <div className="space-y-6 px-8 py-6">
-        <InventorySurface />
-        <ProcurementCoordinationSurface />
+        <InventorySurface initialLocale={session.languagePreference} />
+        <ProcurementCoordinationSurface initialLocale={session.languagePreference} />
         <ProcurementPanel
           tabId="route:inventory"
           context={{}}

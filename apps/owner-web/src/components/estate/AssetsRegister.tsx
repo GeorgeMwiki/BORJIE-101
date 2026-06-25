@@ -24,10 +24,16 @@ import {
 import { SectionCard } from '@/components/shared/SectionCard';
 import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
 import { MetricStrip } from '@/components/shared/MetricStrip';
-import { formatMoney, formatLargeMoney, LAUNCH_CURRENCY } from '@/lib/format';
+import {
+  formatMoney,
+  formatLargeMoney,
+  fmtDateForLocale,
+  LAUNCH_CURRENCY,
+} from '@/lib/format';
 import { pickByLocale } from '@/lib/locale-shared';
 import type { Locale } from '@/lib/locale-shared';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
+import { estateLabels, labelFor } from '@/i18n/strings/estate-lmbm';
 
 interface AssetsRegisterProps {
   readonly locale: Locale;
@@ -218,16 +224,16 @@ export function AssetsRegister({ locale }: AssetsRegisterProps) {
                 <TableRow key={a.id}>
                   <TableCell className="text-foreground">{a.descriptor}</TableCell>
                   <TableCell className="text-muted-foreground">
-                    {a.assetClass}
+                    {labelFor(estateLabels.assetClass, a.assetClass, locale)}
                   </TableCell>
                   <TableCell className="text-right font-medium text-foreground">
                     {formatLargeMoney(Number(a.currentValueTzs), LAUNCH_CURRENCY, locale)}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {a.valuationMethod}
+                    {labelFor(estateLabels.valuationMethod, a.valuationMethod, locale)}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {new Date(a.valuationAt).toISOString().slice(0, 10)}
+                    {fmtDateForLocale(a.valuationAt, locale)}
                   </TableCell>
                 </TableRow>
               ))}

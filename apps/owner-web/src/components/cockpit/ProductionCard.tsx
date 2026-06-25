@@ -4,6 +4,7 @@ import { Card } from '@borjie/design-system';
 
 import { StatusPill } from '@/components/shared/StatusPill';
 import { useLocale, pickByLocale } from '@/lib/locale';
+import { bcp47For } from '@/lib/format';
 import { cockpitClusterStrings as S } from '@/i18n/strings/cockpit-cluster';
 
 interface ProductionCardProps {
@@ -25,6 +26,7 @@ export function ProductionCard({
   grammesTargetMtd,
 }: ProductionCardProps) {
   const locale = useLocale();
+  const bcp47 = bcp47For(locale);
   const dayPct = pct(grammesToday, grammesTargetToday);
   const mtdPct = pct(grammesMtd, grammesTargetMtd);
   const dayTone: 'green' | 'amber' | 'red' =
@@ -35,7 +37,7 @@ export function ProductionCard({
         {pickByLocale(locale, S.production.title)}
       </div>
       <div className="cockpit-card-value">
-        {pickByLocale(locale, S.production.grammes(grammesToday.toLocaleString()))}
+        {pickByLocale(locale, S.production.grammes(grammesToday.toLocaleString(bcp47)))}
       </div>
       <div className="mt-2 flex items-center gap-2">
         <StatusPill
@@ -47,8 +49,8 @@ export function ProductionCard({
         {pickByLocale(
           locale,
           S.production.mtd(
-            grammesMtd.toLocaleString(),
-            grammesTargetMtd.toLocaleString(),
+            grammesMtd.toLocaleString(bcp47),
+            grammesTargetMtd.toLocaleString(bcp47),
             mtdPct,
           ),
         )}

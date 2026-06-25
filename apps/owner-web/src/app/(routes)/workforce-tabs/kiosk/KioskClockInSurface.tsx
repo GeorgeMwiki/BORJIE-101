@@ -16,6 +16,8 @@
 
 import { useCallback, useState } from 'react';
 import { WebAuthnClockIn } from '@/components/workforce/WebAuthnClockIn';
+import { fmtTimeForLocale } from '@/lib/format';
+import type { Locale } from '@/lib/locale-shared';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
 
 interface SiteOption {
@@ -32,19 +34,25 @@ export function KioskClockInSurface({
   sites,
   isSw,
 }: KioskClockInSurfaceProps): JSX.Element {
+  // The host already resolved the user's language server-side (the `isSw`
+  // prop). Derive the active `Locale` from it so SSR and first client paint
+  // agree — threaded into the now-locale-aware `WebAuthnClockIn` child and
+  // used for locale-correct time formatting below.
+  const locale: Locale = isSw ? 'sw' : 'en';
   const [siteId, setSiteId] = useState<string>(sites[0]?.id ?? '');
   const [employeeId, setEmployeeId] = useState<string>('');
   const [recent, setRecent] = useState<ReadonlyArray<string>>([]);
 
   const onClockedIn = useCallback(
     (eventId: string): void => {
+      const stamp = fmtTimeForLocale(new Date().toISOString(), locale);
       setRecent((prev) => [
-        `${new Date().toLocaleTimeString()} · ${employeeId} · ${eventId}`,
+        `${stamp} · ${employeeId} · ${eventId}`,
         ...prev,
       ].slice(0, 10));
       setEmployeeId('');
     },
-    [employeeId],
+    [employeeId, locale],
   );
 
   return (
@@ -101,6 +109,7 @@ export function KioskClockInSurface({
           <WebAuthnClockIn
             employeeId={employeeId}
             siteId={siteId}
+            locale={locale}
             onClockedIn={onClockedIn}
           />
         ) : (

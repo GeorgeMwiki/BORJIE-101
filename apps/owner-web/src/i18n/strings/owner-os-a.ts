@@ -27,7 +27,7 @@ export const ownerOsAStrings = {
   // ── components/owner-os/OwnerOSChatPanel.tsx ──────────────────────
   chatPanel: {
     dropHint: {
-      sw: 'Vuta hati hapa — Mr. Mwikila atazisoma, kuziainisha, na kuzifungua kwa mazungumzo',
+      sw: 'Vuta hati hapa — Bw. Mwikila atazisoma, kuziainisha, na kuzifungua kwa mazungumzo',
       en: 'Drop documents here — Mr. Mwikila reads, files, and opens them for conversation',
     },
     /** Followed at the call site by the count, then `filedDoneSuffix`. */
@@ -87,6 +87,34 @@ export const ownerOsAStrings = {
       sw: 'Eleza',
       en: 'Explain',
     },
+    loading: {
+      sw: 'Inapakia…',
+      en: 'Loading…',
+    },
+    // Localized fallbacks shown when a fetch/explain fails and the gateway
+    // gives no usable detail — never an English literal under an SW surface.
+    loadFailed: {
+      sw: 'Imeshindwa kupakia hati.',
+      en: 'Could not load documents.',
+    },
+    explainFailed: {
+      sw: 'Imeshindwa kueleza hati hii.',
+      en: 'Could not explain this document.',
+    },
+  },
+
+  // ── components/owner-os/OwnerOSDraftsPanel.tsx ────────────────────
+  draftsPanel: {
+    // Localized fallbacks shown when template load / draft compose fails
+    // and the gateway gives no usable detail.
+    loadFailed: {
+      sw: 'Imeshindwa kupakia violezo.',
+      en: 'Could not load templates.',
+    },
+    draftFailed: {
+      sw: 'Imeshindwa kuandika fomu.',
+      en: 'Could not draft the form.',
+    },
   },
 
   // ── components/owner-os/OwnerOSInsightsPanel.tsx ──────────────────
@@ -98,6 +126,24 @@ export const ownerOsAStrings = {
     unavailable: {
       sw: 'Akili haijapatikana sasa. Jaribu tena baadaye.',
       en: 'Brain ladder unavailable right now. Try again shortly.',
+    },
+    // Localised loading + section labels + the catch-all load error. The
+    // raw fetch error is logged via the trace sink, NEVER rendered raw.
+    loading: {
+      sw: 'Inapakia…',
+      en: 'Loading…',
+    },
+    insightLabel: {
+      sw: 'Ufahamu',
+      en: 'Insight',
+    },
+    actionLabel: {
+      sw: 'Hatua',
+      en: 'Action',
+    },
+    loadError: {
+      sw: 'Ushauri haupatikani sasa. Jaribu tena baadaye.',
+      en: 'Advisor note unavailable right now. Try again shortly.',
     },
   },
 

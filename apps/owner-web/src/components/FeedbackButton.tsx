@@ -15,7 +15,7 @@
  * choose whether to mount it (we never auto-mount on every page —
  * pilot scope is opt-in by the page owner).
  *
- * LitFin DNA: trigger is the signal-gold CTA, modal sits inside our
+ * By design, the trigger is the signal-gold CTA, modal sits inside our
  * standard `bg-card border-border` panel with the same rounded-xl
  * inputs as the auth surfaces. Stars become tinted icon buttons.
  *
@@ -28,6 +28,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MessageSquarePlus, Star, X } from 'lucide-react';
 import { Button } from '@borjie/design-system';
+import { localizeApiError } from '@borjie/error-catalog';
+
 import { apiRequest, ApiError } from '@/lib/api-client';
 import { dictionaries } from '@/i18n/dictionaries';
 import { makeT } from '@/i18n/resolve';
@@ -123,18 +125,17 @@ export function FeedbackButton({
       await submitter(submission);
       reset();
     } catch (cause) {
-      const msg =
-        cause instanceof ApiError
-          ? cause.message
-          : cause instanceof Error
-            ? cause.message
-            : t('feedback.error');
+      // Localise from the gateway CODE (ApiError) or the generic localised
+      // fallback; never render raw English `cause.message` under `sw`.
+      const msg = cause instanceof ApiError
+        ? localizeApiError(cause, lang)
+        : t('feedback.error');
       setError(msg);
       setOpen(true);
     } finally {
       setSubmitting(false);
     }
-  }, [rating, message, screenId, sessionContext, submitting, submitter, t, reset]);
+  }, [rating, message, screenId, sessionContext, submitting, submitter, t, reset, lang]);
 
   return (
     <>

@@ -54,6 +54,22 @@ export interface OptimisticStreamConfig {
   readonly onTtft?: (ttftMs: number) => void;
 }
 
+/**
+ * Idle-watchdog tuning. A half-open socket leaves `reader.read()`
+ * awaiting forever, so the chat spins indefinitely with no error. We
+ * arm a timer that resets on every chunk; if no byte lands within the
+ * window we abort the read and emit a visible `stream_error` so the UI
+ * degrades to an error/retry affordance (FAILURE ≠ EMPTINESS).
+ */
+export interface StreamWatchdogConfig {
+  /**
+   * Max silence (ms) between chunks before the stream is declared
+   * stalled. Default: 30_000ms — comfortably longer than a slow first
+   * token, short enough that a dead socket surfaces quickly.
+   */
+  readonly idleTimeoutMs?: number;
+}
+
 export interface StreamOptions {
   readonly path: string;
   readonly body: unknown;
@@ -64,13 +80,30 @@ export interface StreamOptions {
    * stream with zero synthetic frames.
    */
   readonly optimistic?: OptimisticStreamConfig;
+  /**
+   * Idle-watchdog behaviour. Omit to use the default 30s stall window;
+   * pass `{ idleTimeoutMs: 0 }` to disable the watchdog entirely (e.g.
+   * tests that drive a synchronous mock reader).
+   */
+  readonly watchdog?: StreamWatchdogConfig;
 }
 
 /** Synthetic event names. Kept out of the gateway taxonomy on purpose. */
 export const TURN_START_EVENT = 'turn_start';
 export const SKELETON_BUBBLE_EVENT = 'skeleton_bubble';
 
+/**
+ * Error event emitted when the stream stalls (no chunk within the idle
+ * window) or the underlying read rejects. Consumers MUST treat this as a
+ * failure (show error/retry), never as an honest-empty completion — a
+ * stalled stream is a FAILURE, not an EMPTY result.
+ */
+export const STREAM_ERROR_EVENT = 'stream_error';
+
 const DEFAULT_SKELETON_AFTER_MS = 100;
+
+/** Default idle window before a silent stream is declared stalled. */
+const DEFAULT_IDLE_TIMEOUT_MS = 30_000;
 
 /**
  * Event names that count as "real first content" for TTFT and for
@@ -115,6 +148,7 @@ export async function* streamSse(opts: StreamOptions): AsyncGenerator<SseEvent> 
   const config = opts.optimistic ?? {};
   const optimisticEnabled = config.enabled !== false;
   const skeletonAfterMs = Math.max(0, config.skeletonAfterMs ?? DEFAULT_SKELETON_AFTER_MS);
+  const idleTimeoutMs = Math.max(0, opts.watchdog?.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS);
 
   const startedAtMs = nowMs();
   let sawContentful = false;
@@ -182,7 +216,30 @@ export async function* streamSse(opts: StreamOptions): AsyncGenerator<SseEvent> 
       // network is still silent (the perceptual win).
       yield* maybeYieldSkeleton();
 
-      const { value, done } = await reader.read();
+      // Race the read against an idle watchdog. A half-open socket never
+      // resolves `reader.read()`, so without this the chat spins forever.
+      // On stall we abort the reader and emit a VISIBLE error frame so the
+      // UI degrades to error/retry — never an honest-empty silent end.
+      const outcome = await readWithIdleWatchdog(reader, idleTimeoutMs);
+      if (outcome.kind === 'stalled') {
+        yield {
+          event: STREAM_ERROR_EVENT,
+          data: {
+            reason: 'idle-timeout',
+            idleTimeoutMs,
+            message: 'stream stalled: no data received within the idle window',
+          },
+        };
+        return;
+      }
+      if (outcome.kind === 'error') {
+        yield {
+          event: STREAM_ERROR_EVENT,
+          data: { reason: 'read-failed', message: outcome.message },
+        };
+        return;
+      }
+      const { value, done } = outcome.result;
       if (done) return;
       buffer += decoder.decode(value, { stream: true });
       const blocks = buffer.split('\n\n');
@@ -204,6 +261,59 @@ export async function* streamSse(opts: StreamOptions): AsyncGenerator<SseEvent> 
     // TTFT measurement so callers always get exactly one reading.
     reportTtft();
   }
+}
+
+/** Outcome of a single watchdog-guarded read. */
+type ReadOutcome =
+  | { readonly kind: 'chunk'; readonly result: ReadableStreamReadResult<Uint8Array> }
+  | { readonly kind: 'stalled' }
+  | { readonly kind: 'error'; readonly message: string };
+
+/**
+ * Await one `reader.read()`, but bounded by an idle timer. When
+ * `idleTimeoutMs` elapses before a chunk lands the reader is cancelled
+ * (releasing the half-open socket) and `{ kind: 'stalled' }` is returned
+ * so the caller can surface a visible error. A rejected read maps to
+ * `{ kind: 'error' }`. `idleTimeoutMs <= 0` disables the watchdog.
+ */
+async function readWithIdleWatchdog(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  idleTimeoutMs: number,
+): Promise<ReadOutcome> {
+  if (idleTimeoutMs <= 0) {
+    try {
+      return { kind: 'chunk', result: await reader.read() };
+    } catch (error) {
+      return { kind: 'error', message: errorMessage(error) };
+    }
+  }
+
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const idle = new Promise<'stalled'>((resolve) => {
+    timer = setTimeout(() => resolve('stalled'), idleTimeoutMs);
+  });
+
+  try {
+    const winner = await Promise.race([
+      reader.read().then((result) => ({ result }) as const),
+      idle.then(() => 'stalled' as const),
+    ]);
+    if (winner === 'stalled') {
+      // Release the half-open socket so the read promise can settle and
+      // the connection is not leaked.
+      await reader.cancel('idle-timeout').catch(() => undefined);
+      return { kind: 'stalled' };
+    }
+    return { kind: 'chunk', result: winner.result };
+  } catch (error) {
+    return { kind: 'error', message: errorMessage(error) };
+  } finally {
+    if (timer !== null) clearTimeout(timer);
+  }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'stream read failed';
 }
 
 function parseSseBlock(block: string): SseEvent | null {

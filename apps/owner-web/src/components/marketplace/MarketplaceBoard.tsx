@@ -14,25 +14,26 @@ import {
   useInboundRfbs,
   useMarketplaceListings,
 } from '@/lib/queries/marketplace';
-import { formatMoney } from '@/lib/format';
+import { formatMoney, LAUNCH_CURRENCY } from '@/lib/format';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
 import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
+import { BidsInbox } from '@/components/marketplace/BidsInbox';
 import { dataBStrings as S } from '@/i18n/strings/data-b';
+import { marketplaceBoardStrings as B } from '@/i18n/strings/marketplace-board';
 
 interface MarketplaceBoardProps {
   readonly locale?: 'sw' | 'en';
   /**
-   * Owner's site coordinates — RFBs within the seller's geo-radius
-   * land in the inbound column. Defaults to Geita town centroid for
-   * the mock session; the real owner-shell threads the active site's
-   * coordinates here once the session shim is replaced.
+   * Owner's REAL active-site coordinates. The inbound buyer-RFB column is
+   * a geo-radius query keyed on the seller's centroid, so these MUST be
+   * threaded from the resolved site (PostGIS POINT) — never defaulted to a
+   * fabricated town centroid. When absent (no site location on record) the
+   * inbound query stays disabled and the column renders an HONEST
+   * "location not set" empty state rather than a made-up geofence.
    */
   readonly siteLat?: number;
   readonly siteLon?: number;
 }
-
-const GEITA_DEFAULT_LAT = -2.872;
-const GEITA_DEFAULT_LON = 32.158;
 
 /**
  * Marketplace board — outbound (sell) + inbound (buy) twin columns
@@ -41,17 +42,28 @@ const GEITA_DEFAULT_LON = 32.158;
  * Outbound rows come from the live
  * `/api/v1/mining/marketplace/listings` endpoint via the
  * `useMarketplaceListings` query and surface LBMA grade + match
- * clock for each open parcel. Inbound stays mock-only (no gateway
- * endpoint yet — LATER(#20), see KI-DEBT-003).
+ * clock for each open parcel. Inbound rows come from the cross-tenant
+ * geo-nearby RFB endpoint, keyed on the owner's real site coordinates.
  */
 export function MarketplaceBoard({
   locale = 'en',
-  siteLat = GEITA_DEFAULT_LAT,
-  siteLon = GEITA_DEFAULT_LON,
+  siteLat,
+  siteLon,
 }: MarketplaceBoardProps): JSX.Element {
   const isSw = locale === 'sw';
   const query = useMarketplaceListings();
-  const inboundQuery = useInboundRfbs(siteLat, siteLon);
+  const hasSiteLocation =
+    siteLat != null &&
+    siteLon != null &&
+    Number.isFinite(siteLat) &&
+    Number.isFinite(siteLon);
+  // Pass NaN when no real coordinate is known so the hook's
+  // `enabled: Number.isFinite(...)` guard keeps the inbound query OFF —
+  // we never fabricate a centroid to force a result.
+  const inboundQuery = useInboundRfbs(
+    hasSiteLocation ? siteLat : Number.NaN,
+    hasSiteLocation ? siteLon : Number.NaN,
+  );
   const data = query.data;
   const inboundRfbs = inboundQuery.data ?? [];
 
@@ -183,7 +195,17 @@ export function MarketplaceBoard({
               </p>
             </div>
           </header>
-          {inboundQuery.isPending ? (
+          {!hasSiteLocation ? (
+            <div className="px-5 py-6">
+              <ScreenEmptyState
+                icon={<Inbox className="h-6 w-6" />}
+                title={isSw ? B.inboundNoLocationTitle.sw : B.inboundNoLocationTitle.en}
+                description={
+                  isSw ? B.inboundNoLocationBody.sw : B.inboundNoLocationBody.en
+                }
+              />
+            </div>
+          ) : inboundQuery.isPending ? (
             <div className="space-y-3 px-5 py-4">
               {Array.from({ length: 3 }).map((_, i) => (
                 <Skeleton key={i} className="h-16 rounded-xl border border-border" />
@@ -206,9 +228,14 @@ export function MarketplaceBoard({
               {inboundRfbs.map((rfb) => {
                 const tonnage = Number(rfb.tonnageMin);
                 const unitTzs = Number(rfb.unitPriceTzs);
-                const totalTzs = Number.isFinite(tonnage * unitTzs)
-                  ? tonnage * unitTzs
-                  : 0;
+                // The RFB row is TZS-denominated by schema (the `unit_price_tzs`
+                // column), so the launch-primary code is passed as the currency
+                // ARGUMENT — never a hardcoded `'TZS'` literal the regime can't
+                // move. A future per-row currency would thread through here.
+                const total =
+                  Number.isFinite(tonnage) && Number.isFinite(unitTzs)
+                    ? tonnage * unitTzs
+                    : 0;
                 const distance =
                   rfb.distanceKm != null && Number.isFinite(rfb.distanceKm)
                     ? `${rfb.distanceKm.toFixed(0)} km`
@@ -226,7 +253,7 @@ export function MarketplaceBoard({
                           {rfb.mineralKind} · {tonnage} t
                         </div>
                         <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
-                          <span className="font-mono">{formatMoney(totalTzs, 'TZS', locale)}</span>
+                          <span className="font-mono">{formatMoney(total, LAUNCH_CURRENCY, locale)}</span>
                           <span className="rounded-full border border-border bg-background px-1.5 text-tiny">
                             {distance}
                           </span>
@@ -249,6 +276,11 @@ export function MarketplaceBoard({
           )}
         </div>
       </div>
+
+      {/* Seller leg — the incoming-bids inbox. Buyers bid on the outbound
+          listings above; those bids land here for the owner to accept (which
+          crystallizes the binding offtake contract) or decline. */}
+      <BidsInbox locale={locale} />
     </div>
   );
 }

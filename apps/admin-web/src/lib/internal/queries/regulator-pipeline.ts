@@ -11,7 +11,7 @@
  * query's `error` channel.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, toApiError } from '@/lib/api-client';
 import type {
   CitationSource,
   RegulatorChange,
@@ -48,9 +48,17 @@ function ageHoursOf(iso: string | undefined): number {
   return Math.max(0, Math.round((Date.now() - dt) / 3_600_000));
 }
 
-function adaptRegulator(raw: RawRegulatorRow): RegulatorChange {
+/**
+ * Adapt a live row into the kanban shape. Returns `null` for a row with no
+ * server id: that id is the PATCH key for a stage move, so fabricating one
+ * (the old `reg_<random>`) would present a fake id as real and then move a
+ * row the server has never heard of. An id-less row is unactionable, so it
+ * is dropped from the board rather than shown with a counterfeit handle.
+ */
+function adaptRegulator(raw: RawRegulatorRow): RegulatorChange | null {
+  if (!raw.id) return null;
   return {
-    id: raw.id ?? `reg_${Math.random().toString(36).slice(2)}`,
+    id: raw.id,
     source: raw.source ? SOURCE_LABELS[raw.source] : 'Gazette',
     title: raw.title ?? 'Untitled change',
     stage: raw.status ?? 'incoming',
@@ -63,8 +71,11 @@ export function useRegulatorPipelineQuery() {
     queryKey: KEY,
     queryFn: async (): Promise<PipelineResult> => {
       const res = await apiClient.get<ReadonlyArray<RawRegulatorRow>>('/regulator-pipeline');
-      if (!res.ok) throw new Error(res.message);
-      return { rows: res.data.map(adaptRegulator), source: 'live' };
+      if (!res.ok) throw toApiError(res);
+      const rows = res.data
+        .map(adaptRegulator)
+        .filter((r): r is RegulatorChange => r !== null);
+      return { rows, source: 'live' };
     },
   });
 }
@@ -82,8 +93,11 @@ export function useMoveRegulatorChange() {
         `/regulator-pipeline/${id}/stage`,
         { stage },
       );
-      if (!res.ok) throw new Error(res.message);
-      return adaptRegulator(res.data);
+      if (!res.ok) throw toApiError(res);
+      const moved = adaptRegulator(res.data);
+      // The server echoes the row it just moved, so it always carries an id;
+      // fall back to the optimistic shape rather than fabricate one.
+      return moved ?? { id, source: 'Gazette', title: 'Untitled change', stage, ageHours: 0 };
     },
     onMutate: async ({ id, stage }) => {
       await qc.cancelQueries({ queryKey: KEY });

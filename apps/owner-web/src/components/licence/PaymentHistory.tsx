@@ -46,7 +46,10 @@ export function PaymentHistory({ payments }: PaymentHistoryProps) {
                 {formatMoney(p.amountTzs, LAUNCH_CURRENCY, locale)}
               </td>
               <td className="py-1.5 text-right">
-                <StatusPill tone={STATUS_TONE[p.status]} label={p.status} />
+                <StatusPill
+                  tone={STATUS_TONE[p.status]}
+                  label={S.payments.status[p.status][locale]}
+                />
               </td>
             </tr>
           ))}

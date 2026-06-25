@@ -30,7 +30,7 @@ export default async function NotificationsPage() {
           {pickByLocale(locale, S.subtitle)}
         </p>
       </header>
-      <NotificationsInbox />
+      <NotificationsInbox initialLocale={locale} />
     </div>
   );
 }

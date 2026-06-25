@@ -1,6 +1,7 @@
 import { getOwnerSession } from '@/lib/session';
 import { CockpitGrid } from '@/components/cockpit/CockpitGrid';
 import { CockpitLivePulse } from '@/components/cockpit/CockpitLivePulse';
+import { EstateLoadErrorNotice } from '@/components/cockpit/EstateLoadErrorNotice';
 import { routesAStrings as S } from '@/i18n/strings/routes-a';
 
 /**
@@ -34,10 +35,24 @@ export default async function CockpitPage() {
         <h1 className="font-display text-3xl text-foreground">
           {greeting}, {session.salutation}.
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {session.tenant.legalName} · {session.tenant.region} ·{' '}
-          {sitesLabel} · {planLabel}: {session.tenant.plan}
-        </p>
+        {/* FAILURE vs EMPTINESS: when the estate/sites read FAILED, the
+            sites count would lie as "0 sites" — drop it from the subline and
+            render a retry affordance instead. A genuine empty estate (no
+            error) keeps the honest count. */}
+        {session.estateLoadError ? (
+          <>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {session.tenant.legalName} · {session.tenant.region} ·{' '}
+              {planLabel}: {session.tenant.plan}
+            </p>
+            <EstateLoadErrorNotice initialLocale={session.languagePreference} />
+          </>
+        ) : (
+          <p className="mt-1 text-sm text-muted-foreground">
+            {session.tenant.legalName} · {session.tenant.region} ·{' '}
+            {sitesLabel} · {planLabel}: {session.tenant.plan}
+          </p>
+        )}
       </header>
       {/* R6 — live cockpit SSE pulse. Opens an EventSource against
           /api/v1/cockpit/stream and toasts every push (6 event kinds). */}

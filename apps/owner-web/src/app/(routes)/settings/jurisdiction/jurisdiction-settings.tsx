@@ -5,7 +5,8 @@ import { Button, Skeleton, Alert } from '@borjie/design-system';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
 import { jurisdictionSettingsStrings as JS } from '@/i18n/strings/jurisdiction-settings';
-import { useLocale, pickByLocale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { ApiError, localizeError } from '@/lib/api-client';
 
 type Regulators = {
   readonly mineral: string;
@@ -42,8 +43,12 @@ function gatewayBaseUrl(): string {
  * Live-data client component. Calls GET /api/v1/me/jurisdiction
  * (JA-7 endpoint) and renders the resolved snapshot.
  */
-export function JurisdictionSettings() {
-  const locale = useLocale();
+export function JurisdictionSettings({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+}) {
+  const locale = useLocale(initialLocale);
   const [state, setState] = useState<State>({ kind: 'loading' });
 
   const load = useCallback(async () => {
@@ -57,20 +62,28 @@ export function JurisdictionSettings() {
         | { success?: false; error?: { code: string; message: string } }
         | null;
       if (!res.ok || !json || !('success' in json) || !json.success) {
-        const message =
+        // Localize by the stable gateway CODE — never the raw English
+        // envelope `message` (rendering that under `sw` is language MIXING).
+        const code =
+          (json && 'error' in json && json.error?.code) || undefined;
+        const devMessage =
           (json && 'error' in json && json.error?.message) ||
           `HTTP ${res.status}`;
-        setState({ kind: 'error', message });
+        setState({
+          kind: 'error',
+          message: localizeError(
+            new ApiError(devMessage, res.status, code),
+            locale,
+          ),
+        });
         return;
       }
       setState({ kind: 'ready', snapshot: json.data });
     } catch (err) {
-      setState({
-        kind: 'error',
-        message: err instanceof Error ? err.message : 'Network error',
-      });
+      // Localize the network/parse error too (no raw English under `sw`).
+      setState({ kind: 'error', message: localizeError(err, locale) });
     }
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     void load();

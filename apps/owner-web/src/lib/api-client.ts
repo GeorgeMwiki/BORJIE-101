@@ -18,8 +18,11 @@
  * empty-state when the data is unavailable.
  */
 
+import { localizeApiError, type CatalogLocale } from '@borjie/error-catalog';
+
 import { createSupabaseBrowserClient } from './supabase/client';
 import { requirePublicBaseUrl } from './env-guard';
+import { readLocaleFromDocument } from './locale-shared';
 
 // Resolved at module load. In production builds requirePublicBaseUrl
 // throws when NEXT_PUBLIC_API_GATEWAY_URL is unset — we want a loud boot
@@ -44,6 +47,22 @@ const DEFAULT_REQUEST_TIMEOUT_MS = 5_000;
  */
 export const LLM_REQUEST_TIMEOUT_MS = 90_000;
 
+/**
+ * Resolve the owner's active language as an `Accept-Language` header.
+ *
+ * LANGUAGE-ENGINEERING CANON (AI-OUTPUT-LOCALE): the gateway — and in
+ * particular `POST /brain/turn` — must answer in the owner's CHOSEN locale,
+ * not a server default. The browser owns the toggle via the `borjie_locale`
+ * cookie; reading it per-request means a mid-session flip is honoured on the
+ * very next call (e.g. the AI reply switches to `sw`) with no reload. SSR has
+ * no document, so this is a no-op on the server (the gateway resolves the
+ * locale from the authenticated session there instead).
+ */
+function localeHeaders(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  return { 'Accept-Language': readLocaleFromDocument() };
+}
+
 async function authHeaders(): Promise<Record<string, string>> {
   if (typeof window === 'undefined') return {};
   try {
@@ -58,13 +77,92 @@ async function authHeaders(): Promise<Record<string, string>> {
   }
 }
 
+/**
+ * Normalized gateway error.
+ *
+ * LANGUAGE-ENGINEERING CANON: the gateway emits a locale-NEUTRAL envelope
+ * `{ success:false, error:{ code, message } }` where `code` is a stable
+ * UPPER_SNAKE token and `message` is raw English DEV copy. Rendering that
+ * English `message` under an `sw` session is language MIXING — so the
+ * user-facing string is NEVER `err.message`; callers localize the stable
+ * `code` through `localizeApiError(err, locale)` (@borjie/error-catalog).
+ *
+ * This class therefore CARRIES the parsed `code` (the thing callers
+ * localize) and keeps the raw English body only as `message` (a
+ * dev/Sentry field — surfaced to logs, never to the user). When the body
+ * is the gateway JSON envelope we parse it; otherwise the raw text is
+ * retained verbatim as the dev message with `code` left undefined (the
+ * catalog then maps to its generic localized fallback).
+ */
 export class ApiError extends Error {
   readonly status: number;
-  constructor(message: string, status: number) {
+  /**
+   * The stable, locale-neutral gateway error code (UPPER_SNAKE) when the
+   * body was the JSON envelope; `undefined` for a bare-text / network
+   * error. THIS is what `localizeApiError` resolves — never `message`.
+   */
+  readonly code?: string;
+  constructor(message: string, status: number, code?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    // Assign only when present so the OPTIONAL `code` stays structurally
+    // compatible with the catalog's `ApiErrorLike` under
+    // `exactOptionalPropertyTypes` (a required `code: string | undefined`
+    // would not be assignable to an optional `code?: string | null`).
+    if (code !== undefined) this.code = code;
   }
+}
+
+/**
+ * Localize an UNKNOWN caught error to user-safe copy in the active locale.
+ *
+ * The catch-binding in a `try/catch` is typed `unknown`; this narrows it to
+ * the shape the shared catalog accepts and delegates to `localizeApiError`,
+ * so call sites can write `setError(localizeError(err, locale))` without an
+ * `instanceof ApiError` dance at every site. An `ApiError` keeps its stable
+ * `code` (→ the localized catalog message); anything else resolves to the
+ * generic localized fallback. NEVER returns the raw English `err.message`.
+ */
+export function localizeError(err: unknown, locale: CatalogLocale): string {
+  if (err instanceof ApiError) return localizeApiError(err, locale);
+  return localizeApiError(undefined, locale);
+}
+
+/**
+ * Parse a non-2xx response body into `{ code, devMessage }`.
+ *
+ * Prefers the gateway JSON envelope `{ error: { code, message } }` so the
+ * stable `code` reaches the catalog; falls back to the raw text body (kept
+ * only as the dev/Sentry message) when the body is not that envelope.
+ */
+function parseErrorBody(
+  rawBody: string,
+  status: number,
+): { readonly code: string | undefined; readonly devMessage: string } {
+  if (rawBody) {
+    try {
+      const parsed = JSON.parse(rawBody) as {
+        error?: { code?: unknown; message?: unknown };
+      };
+      const errEnvelope = parsed?.error;
+      if (errEnvelope && typeof errEnvelope === 'object') {
+        const code =
+          typeof errEnvelope.code === 'string' ? errEnvelope.code : undefined;
+        const devMessage =
+          typeof errEnvelope.message === 'string'
+            ? errEnvelope.message
+            : rawBody;
+        return { code, devMessage };
+      }
+    } catch {
+      // Not JSON — fall through to the raw-text branch.
+    }
+  }
+  return {
+    code: undefined,
+    devMessage: rawBody || `request failed with HTTP ${status}`,
+  };
 }
 
 interface RequestOptions {
@@ -120,6 +218,11 @@ export async function apiRequest<T>(
     signal,
     headers: {
       Accept: 'application/json',
+      // AI-OUTPUT-LOCALE: carry the owner's active language on EVERY gateway
+      // call so the brain turn (and any localized gateway copy) answers in
+      // the chosen locale. An explicit per-call `options.headers` override
+      // still wins (spread last).
+      ...localeHeaders(),
       ...auth,
       ...(options.body ? { 'Content-Type': 'application/json' } : {}),
       ...(options.headers ?? {}),
@@ -133,8 +236,11 @@ export async function apiRequest<T>(
   try {
     response = await fetch(url, init);
   } catch (err) {
+    // Network-layer failure (DNS / offline / abort). Carry a stable code so
+    // the render localizes through the catalog rather than showing the raw
+    // English fetch message under `sw`. The raw message stays dev-only.
     const message = err instanceof Error ? err.message : 'network unreachable';
-    throw new ApiError(message, 0);
+    throw new ApiError(message, 0, 'NETWORK_UNREACHABLE');
   } finally {
     cancel();
   }
@@ -146,10 +252,11 @@ export async function apiRequest<T>(
     } catch {
       body = response.statusText;
     }
-    throw new ApiError(
-      body || `request failed with HTTP ${response.status}`,
-      response.status,
-    );
+    // Carry the stable gateway `code` (what callers localize) and keep the
+    // raw English body only as the dev/Sentry message — never the rendered
+    // string. See ApiError / parseErrorBody above for the canon.
+    const { code, devMessage } = parseErrorBody(body, response.status);
+    throw new ApiError(devMessage, response.status, code);
   }
   if (response.status === 204) return undefined as T;
   const parsed = (await response.json()) as { success?: boolean; data?: T } | T;

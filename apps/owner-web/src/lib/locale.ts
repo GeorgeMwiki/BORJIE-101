@@ -17,8 +17,9 @@
  *   const msg = pickByLocale(lang, { en: '…', sw: '…' })
  */
 
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 
+import { LocaleSeedContext } from './locale-context';
 import {
   DEFAULT_LOCALE,
   LOCALE_COOKIE,
@@ -48,7 +49,14 @@ export { pickByLocale } from './locale-shared';
  * effect below corrects it on mount.
  */
 export function useLocale(initialLocale?: Locale): Locale {
-  const [locale, setLocale] = useState<Locale>(initialLocale ?? DEFAULT_LOCALE);
+  // Seed precedence: an explicit prop (most specific) > the root
+  // server-seeded LocaleProvider context > the project default. The context
+  // seed is what makes an UNSEEDED `useLocale()` paint the correct language
+  // on the first frame, app-wide, with no per-caller threading.
+  const seededLocale = useContext(LocaleSeedContext);
+  const [locale, setLocale] = useState<Locale>(
+    initialLocale ?? seededLocale ?? DEFAULT_LOCALE,
+  );
   useEffect(() => {
     setLocale(readLocaleFromDocument());
     const interval = window.setInterval(() => {

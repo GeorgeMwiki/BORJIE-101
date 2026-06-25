@@ -23,7 +23,14 @@ const PLAYBACK_SPEEDS: ReadonlyArray<number> = [0.8, 1, 1.25, 1.5];
 
 interface ReportPlayerProps {
   readonly report: ReportAudioPayload;
-  readonly lang?: Lang;
+  /**
+   * Active locale, threaded from the panel (which seeds it from the
+   * server-resolved cookie). Required — there is no default, so the
+   * player can never silently render a language other than the user's
+   * (the zero-mix canon: previously this defaulted to `'sw'` and showed
+   * Swahili to EN owners).
+   */
+  readonly lang: Lang;
   readonly shareUrl?: string;
 }
 
@@ -43,7 +50,7 @@ interface ReportPlayerProps {
  * Immutability: chapters / speeds are readonly props; player state
  * lives in refs / hooks. No mutation of the `report` payload.
  */
-export function ReportPlayer({ report, lang = 'sw', shareUrl }: ReportPlayerProps) {
+export function ReportPlayer({ report, lang, shareUrl }: ReportPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const plyrRef = useRef<PlyrInstance | null>(null);
   const [currentTime, setCurrentTime] = useState(0);

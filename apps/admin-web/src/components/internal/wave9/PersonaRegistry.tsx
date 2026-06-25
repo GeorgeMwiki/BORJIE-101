@@ -13,6 +13,7 @@ import {
   useDeletePersona,
 } from '@/lib/internal/wave9/queries';
 import type { Persona } from '@/lib/internal/wave9/api';
+import { localizeApiError } from '@borjie/error-catalog';
 
 /**
  * Persona registry (I-W-25, SUPER_ADMIN / ADMIN).
@@ -34,6 +35,10 @@ const S = {
   deleteTitle: { en: 'Remove persona', sw: 'Ondoa mtu binafsi' },
   deleteConfirm: { en: 'Delete persona', sw: 'Futa mtu binafsi' },
   taboos: { en: 'taboos', sw: 'miiko' },
+  refreshed: { en: 'Persona registry refreshed from DB.', sw: 'Rejista ya watu binafsi imeonyeshwa upya kutoka DB.' },
+  refreshFailed: { en: 'Refresh failed', sw: 'Kuonyesha upya kumeshindwa' },
+  removed: { en: 'removed', sw: 'ameondolewa' },
+  deleteFailed: { en: 'Delete failed', sw: 'Kufuta kumeshindwa' },
 } as const;
 
 export function PersonaRegistry({
@@ -56,8 +61,9 @@ export function PersonaRegistry({
 
   function onRefresh() {
     refresh.mutate(undefined, {
-      onSuccess: () => announce('Persona registry refreshed from DB.', 'success'),
-      onError: (err) => announce(`Refresh failed: ${err.message}`, 'danger'),
+      onSuccess: () => announce(pickByLocale(locale, S.refreshed), 'success'),
+      onError: (err) =>
+        announce(`${pickByLocale(locale, S.refreshFailed)}: ${localizeApiError(err, locale)}`, 'danger'),
     });
   }
 
@@ -66,10 +72,11 @@ export function PersonaRegistry({
     const p = target;
     remove.mutate(p.id, {
       onSuccess: () => {
-        announce(`Persona '${p.id}' removed.`, 'success');
+        announce(`${p.displayName} (${p.id}) ${pickByLocale(locale, S.removed)}`, 'success');
         setTarget(null);
       },
-      onError: (err) => announce(`Delete failed: ${err.message}`, 'danger'),
+      onError: (err) =>
+        announce(`${pickByLocale(locale, S.deleteFailed)}: ${localizeApiError(err, locale)}`, 'danger'),
     });
   }
 
@@ -82,7 +89,7 @@ export function PersonaRegistry({
     );
   }
   if (query.isError) {
-    return <Alert variant="error">{query.error.message}</Alert>;
+    return <Alert variant="error">{localizeApiError(query.error, locale)}</Alert>;
   }
 
   const personas = query.data ?? [];

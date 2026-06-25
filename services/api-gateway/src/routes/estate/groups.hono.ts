@@ -17,6 +17,7 @@ import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { createLogger } from '../../utils/logger';
 import { appendOpsAuditEntry } from '../ops/audit-helper';
+import { requireEstateOwner } from './estate-authz';
 
 const moduleLogger = createLogger('estate-groups');
 
@@ -36,6 +37,9 @@ const updateSchema = createSchema.partial();
 export function createEstateGroupsRouter(): Hono {
   const app = new Hono();
   app.use('*', authMiddleware);
+  // Owner-only estate data: fail CLOSED for any non-owner-class principal
+  // BEFORE binding the DB / touching tenant rows.
+  app.use('*', requireEstateOwner());
   app.use('*', databaseMiddleware);
 
   app.get('/', async (c: any) => {

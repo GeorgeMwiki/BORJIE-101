@@ -45,7 +45,7 @@ export const SHIPPED_DOMAINS: ReadonlyArray<AgentDomain> = [
     riskClass: 'high',
     defaultAutonomyLevel: 'L3',
     allowedTools: [
-      'send_rent_reminder',
+      'send_royalty_reminder',
       'reconcile_mpesa_payment',
       'reconcile_bank_payment',
       'mark_invoice_paid',

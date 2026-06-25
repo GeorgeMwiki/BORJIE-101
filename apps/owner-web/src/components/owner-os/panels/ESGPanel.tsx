@@ -10,6 +10,7 @@ import {
 import { PanelHero } from './PanelHero';
 import { PanelDataTable, type PanelColumn } from './PanelDataTable';
 import { AskMwikilaCta } from './AskMwikilaCta';
+import { enumLabelSw } from './enum-label';
 import type { OwnerOSPanelProps } from './types';
 import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 import { ownerOsPanelsStrings as P } from '@/i18n/strings/owner-os-panels';
@@ -71,7 +72,7 @@ function esgColumns(
     {
       key: 'status',
       header: isSw ? B.esg.colStatus.sw : B.esg.colStatus.en,
-      render: (r) => r.status,
+      render: (r) => enumLabelSw('communityMeetingStatus', r.status, isSw),
     },
     {
       key: 'attendees',

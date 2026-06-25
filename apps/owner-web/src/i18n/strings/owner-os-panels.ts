@@ -26,7 +26,7 @@ export const ownerOsPanelsStrings = {
       en: 'Could not load data',
     },
     errorBody: {
-      sw: 'Jaribu tena baadaye. Ikiendelea, mwambie Mr. Mwikila aangalie muunganisho.',
+      sw: 'Jaribu tena baadaye. Ikiendelea, mwambie Bw. Mwikila aangalie muunganisho.',
       en: 'Try again shortly. If it persists, ask Mr. Mwikila to check the connection.',
     },
     retry: { sw: 'Jaribu tena', en: 'Retry' },
@@ -48,7 +48,7 @@ export const ownerOsPanelsStrings = {
     colPrincipal: { sw: 'Mwenye hisa mkuu', en: 'Principal owner' },
     emptyTitle: { sw: 'Hakuna kundi la umiliki bado', en: 'No holding groups yet' },
     emptyBody: {
-      sw: 'Mwambie Mr. Mwikila aweke muundo wa kundi lako la familia ili kuanza.',
+      sw: 'Mwambie Bw. Mwikila aweke muundo wa kundi lako la familia ili kuanza.',
       en: 'Ask Mr. Mwikila to set up your family group structure to get started.',
     },
     ask: {
@@ -78,7 +78,7 @@ export const ownerOsPanelsStrings = {
     colStatus: { sw: 'Hali', en: 'Status' },
     emptyTitle: { sw: 'Hakuna kampuni za tanzu bado', en: 'No subsidiaries yet' },
     emptyBody: {
-      sw: 'Mwambie Mr. Mwikila aandikishe kampuni yako ya kwanza ya tanzu.',
+      sw: 'Mwambie Bw. Mwikila aandikishe kampuni yako ya kwanza ya tanzu.',
       en: 'Ask Mr. Mwikila to register your first subsidiary entity.',
     },
     ask: {
@@ -99,7 +99,7 @@ export const ownerOsPanelsStrings = {
     colFounded: { sw: 'Mwaka', en: 'Founded' },
     emptyTitle: { sw: 'Hakuna ofisi ya familia bado', en: 'No family office yet' },
     emptyBody: {
-      sw: 'Mwambie Mr. Mwikila aanzishe ofisi ya familia yako na wenye hisa wake.',
+      sw: 'Mwambie Bw. Mwikila aanzishe ofisi ya familia yako na wenye hisa wake.',
       en: 'Ask Mr. Mwikila to set up your family office and its principals.',
     },
     ask: {
@@ -121,7 +121,7 @@ export const ownerOsPanelsStrings = {
     colNextReview: { sw: 'Tathmini ijayo', en: 'Next review' },
     emptyTitle: { sw: 'Hakuna mpango wa urithi bado', en: 'No succession plan yet' },
     emptyBody: {
-      sw: 'Mwambie Mr. Mwikila atengeneze mpango wa urithi kulinda urithi wa familia.',
+      sw: 'Mwambie Bw. Mwikila atengeneze mpango wa urithi kulinda urithi wa familia.',
       en: 'Ask Mr. Mwikila to draft a succession plan to protect your legacy.',
     },
     ask: {
@@ -143,7 +143,7 @@ export const ownerOsPanelsStrings = {
     colMethod: { sw: 'Njia ya tathmini', en: 'Valuation method' },
     emptyTitle: { sw: 'Hakuna mali iliyosajiliwa bado', en: 'No assets registered yet' },
     emptyBody: {
-      sw: 'Mwambie Mr. Mwikila aandikishe mali yako ya kwanza kwenye daftari.',
+      sw: 'Mwambie Bw. Mwikila aandikishe mali yako ya kwanza kwenye daftari.',
       en: 'Ask Mr. Mwikila to register your first asset in the register.',
     },
     ask: {
@@ -186,7 +186,7 @@ export const ownerOsPanelsStrings = {
     colGenerated: { sw: 'Imezalishwa', en: 'Generated' },
     emptyTitle: { sw: 'Hakuna ripoti bado', en: 'No reports yet' },
     emptyBody: {
-      sw: 'Mwambie Mr. Mwikila azalishe pakiti yako ya kwanza ya ripoti ya mwezi.',
+      sw: 'Mwambie Bw. Mwikila azalishe pakiti yako ya kwanza ya ripoti ya mwezi.',
       en: 'Ask Mr. Mwikila to generate your first monthly report pack.',
     },
     ask: {
@@ -225,7 +225,7 @@ export const ownerOsPanelsStrings = {
     colStatus: { sw: 'Hali', en: 'Status' },
     emptyTitle: { sw: 'Hakuna mpango wa CSR bado', en: 'No CSR plans yet' },
     emptyBody: {
-      sw: 'Mwambie Mr. Mwikila aweke ahadi yako ya kwanza ya CSR ya kijiji.',
+      sw: 'Mwambie Bw. Mwikila aweke ahadi yako ya kwanza ya CSR ya kijiji.',
       en: 'Ask Mr. Mwikila to log your first village CSR pledge.',
     },
     ask: {
@@ -268,6 +268,280 @@ export const ownerOsPanelsStrings = {
 
   // ── Shared CTA affordance label ─────────────────────────────────────
   cta: {
-    askMwikila: { sw: 'Uliza Mr. Mwikila', en: 'Ask Mr. Mwikila' },
+    askMwikila: { sw: 'Uliza Bw. Mwikila', en: 'Ask Mr. Mwikila' },
+  },
+
+  // ── Enum-token labels (raw-enum-render class) ───────────────────────
+  // DB enum tokens (UPPER/snake_case codes) MUST NOT render verbatim in a
+  // table cell: the raw English-ish token (`active`, `processing_plant`)
+  // is invisible to source-literal scanners yet leaks under `sw`. Each
+  // bounded vocabulary below maps every token the BFF can emit to one
+  // canonical `{ sw, en }` label, resolved at the cell via `enumLabel()`
+  // (see components/owner-os/panels/enum-label.ts). One canonical term per
+  // concept (glossary): e.g. `status:active` is always "Inafanya kazi".
+  //
+  // Vocabularies are faithful copies of the gateway/database source of
+  // truth; the contract test (panels/__tests__/enum-label-contract.test.ts)
+  // pins them so a server-side vocabulary change forces a label here.
+  enumLabels: {
+    // estate_entities.kind — ESTATE_ENTITY_KINDS
+    entityKind: {
+      mine_licence_holder: { sw: 'Mwenye leseni ya mgodi', en: 'Mine licence holder' },
+      processing_plant: { sw: 'Kiwanda cha uchakataji', en: 'Processing plant' },
+      transport_co: { sw: 'Kampuni ya usafiri', en: 'Transport company' },
+      equipment_rental: { sw: 'Ukodishaji wa vifaa', en: 'Equipment rental' },
+      camp_catering: { sw: 'Huduma ya chakula kambini', en: 'Camp catering' },
+      fuel_station: { sw: 'Kituo cha mafuta', en: 'Fuel station' },
+      retail_at_site: { sw: 'Rejareja eneoni', en: 'Retail at site' },
+      real_estate: { sw: 'Mali isiyohamishika', en: 'Real estate' },
+      agriculture: { sw: 'Kilimo', en: 'Agriculture' },
+      forestry: { sw: 'Misitu', en: 'Forestry' },
+      tourism: { sw: 'Utalii', en: 'Tourism' },
+      security_co: { sw: 'Kampuni ya ulinzi', en: 'Security company' },
+      insurance_brokerage: { sw: 'Udalali wa bima', en: 'Insurance brokerage' },
+      consulting_firm: { sw: 'Kampuni ya ushauri', en: 'Consulting firm' },
+      training_school: { sw: 'Shule ya mafunzo', en: 'Training school' },
+      subsidiary_holding: { sw: 'Umiliki wa tanzu', en: 'Subsidiary holding' },
+      joint_venture: { sw: 'Ubia', en: 'Joint venture' },
+      other: { sw: 'Nyingine', en: 'Other' },
+    },
+    // estate_entities.status — ESTATE_ENTITY_STATUSES
+    entityStatus: {
+      active: { sw: 'Inafanya kazi', en: 'Active' },
+      dormant: { sw: 'Imelala', en: 'Dormant' },
+      divested: { sw: 'Imeuzwa', en: 'Divested' },
+      wound_up: { sw: 'Imefungwa', en: 'Wound up' },
+    },
+    // estate_groups.holding_type — ESTATE_HOLDING_TYPES
+    holdingType: {
+      family_office: { sw: 'Ofisi ya familia', en: 'Family office' },
+      investment_co: { sw: 'Kampuni ya uwekezaji', en: 'Investment company' },
+      trust: { sw: 'Dhamana', en: 'Trust' },
+      sole_proprietor: { sw: 'Mmiliki pekee', en: 'Sole proprietor' },
+      jv: { sw: 'Ubia', en: 'Joint venture' },
+      cooperative_apex: { sw: 'Umoja wa ushirika', en: 'Cooperative apex' },
+    },
+    // estate_assets.asset_class — ESTATE_ASSET_CLASSES
+    assetClass: {
+      mining_licence: { sw: 'Leseni ya uchimbaji', en: 'Mining licence' },
+      land_parcel: { sw: 'Kipande cha ardhi', en: 'Land parcel' },
+      building: { sw: 'Jengo', en: 'Building' },
+      plant_equipment: { sw: 'Mitambo na vifaa', en: 'Plant & equipment' },
+      vehicle: { sw: 'Gari', en: 'Vehicle' },
+      inventory: { sw: 'Bidhaa ghalani', en: 'Inventory' },
+      financial_instrument: { sw: 'Chombo cha kifedha', en: 'Financial instrument' },
+      intellectual_property: { sw: 'Hakimiliki', en: 'Intellectual property' },
+      goodwill: { sw: 'Sifa njema', en: 'Goodwill' },
+      crypto: { sw: 'Sarafu ya kidijitali', en: 'Crypto' },
+      other: { sw: 'Nyingine', en: 'Other' },
+    },
+    // estate_assets.valuation_method — ESTATE_VALUATION_METHODS
+    valuationMethod: {
+      book_value: { sw: 'Thamani ya kitabu', en: 'Book value' },
+      market_value: { sw: 'Thamani ya soko', en: 'Market value' },
+      replacement_cost: { sw: 'Gharama ya kubadilisha', en: 'Replacement cost' },
+      appraised: { sw: 'Iliyokadiriwa', en: 'Appraised' },
+      discounted_cash_flow: { sw: 'Mtiririko wa fedha uliopunguzwa', en: 'Discounted cash flow' },
+      other: { sw: 'Nyingine', en: 'Other' },
+    },
+    // csr_plans.category — education|water|health|roads|markets|land_rehab|youth|other
+    csrCategory: {
+      education: { sw: 'Elimu', en: 'Education' },
+      water: { sw: 'Maji', en: 'Water' },
+      health: { sw: 'Afya', en: 'Health' },
+      roads: { sw: 'Barabara', en: 'Roads' },
+      markets: { sw: 'Masoko', en: 'Markets' },
+      land_rehab: { sw: 'Urejeshaji wa ardhi', en: 'Land rehabilitation' },
+      youth: { sw: 'Vijana', en: 'Youth' },
+      other: { sw: 'Nyingine', en: 'Other' },
+    },
+    // csr_plans.status — draft|approved|in_progress|completed|cancelled
+    csrStatus: {
+      draft: { sw: 'Rasimu', en: 'Draft' },
+      approved: { sw: 'Imeidhinishwa', en: 'Approved' },
+      in_progress: { sw: 'Inaendelea', en: 'In progress' },
+      completed: { sw: 'Imekamilika', en: 'Completed' },
+      cancelled: { sw: 'Imeghairiwa', en: 'Cancelled' },
+    },
+    // community_meetings.status — scheduled|held|cancelled|deferred (ESG panel)
+    communityMeetingStatus: {
+      scheduled: { sw: 'Imepangwa', en: 'Scheduled' },
+      held: { sw: 'Imefanyika', en: 'Held' },
+      cancelled: { sw: 'Imeghairiwa', en: 'Cancelled' },
+      deferred: { sw: 'Imeahirishwa', en: 'Deferred' },
+    },
+    // legal contract status (contracts library — future table). Mirrors the
+    // legal-draft lifecycle the contracts route will expose.
+    legalContractStatus: {
+      draft: { sw: 'Rasimu', en: 'Draft' },
+      under_review: { sw: 'Inakaguliwa', en: 'Under review' },
+      negotiating: { sw: 'Inajadiliwa', en: 'Negotiating' },
+      executed: { sw: 'Imesainiwa', en: 'Executed' },
+      active: { sw: 'Inatumika', en: 'Active' },
+      expired: { sw: 'Imeisha muda', en: 'Expired' },
+      terminated: { sw: 'Imesitishwa', en: 'Terminated' },
+    },
+    // ancillary business status (side-business table — future). Reuses the
+    // estate-entity lifecycle so the vocabulary stays canonical.
+    ancillaryStatus: {
+      active: { sw: 'Inafanya kazi', en: 'Active' },
+      dormant: { sw: 'Imelala', en: 'Dormant' },
+      divested: { sw: 'Imeuzwa', en: 'Divested' },
+      wound_up: { sw: 'Imefungwa', en: 'Wound up' },
+    },
+    // interactive_reports.render_kind ∪ renderer_kind (document render jobs).
+    renderKind: {
+      html_bundle: { sw: 'Kifurushi cha HTML', en: 'HTML bundle' },
+      html_with_video: { sw: 'HTML yenye video', en: 'HTML with video' },
+      html_with_charts: { sw: 'HTML yenye chati', en: 'HTML with charts' },
+      print_pdf_fallback: { sw: 'PDF ya kuchapisha', en: 'Printable PDF' },
+      text: { sw: 'Maandishi', en: 'Text' },
+      docxtemplater: { sw: 'Hati ya Word', en: 'Word document' },
+      'react-pdf': { sw: 'PDF', en: 'PDF' },
+      typst: { sw: 'Typst', en: 'Typst' },
+    },
+    // audit_events.actor_kind — ACTOR_KIND_ENUM
+    auditActorKind: {
+      ai_autonomous: { sw: 'AI inayojiendesha', en: 'AI (autonomous)' },
+      ai_proposal: { sw: 'Pendekezo la AI', en: 'AI proposal' },
+      ai_execution: { sw: 'Utekelezaji wa AI', en: 'AI execution' },
+      human_approval: { sw: 'Idhini ya mtu', en: 'Human approval' },
+      human_override: { sw: 'Ubadilishaji wa mtu', en: 'Human override' },
+      human_action: { sw: 'Kitendo cha mtu', en: 'Human action' },
+      system: { sw: 'Mfumo', en: 'System' },
+    },
+    // ── Non-owner-os surfaces (raw-enum-render sweep, round 11) ──────────
+    // These extend the enum-label apparatus to the cockpit surfaces that
+    // were rendering DB tokens verbatim. Same canon: one `{ sw, en }` per
+    // token, resolved via enumLabel(); the contract test pins each domain.
+
+    // sites.status (SiteSummary.status) — lifecycle string off the gateway
+    // sites row. The column is a free string (default 'unknown'), so the
+    // vocabulary covers the known lifecycle values and the helper humanises
+    // anything else rather than leaking a raw token under `sw`.
+    siteStatus: {
+      active: { sw: 'Inafanya kazi', en: 'Active' },
+      planned: { sw: 'Imepangwa', en: 'Planned' },
+      exploration: { sw: 'Uchunguzi', en: 'Exploration' },
+      development: { sw: 'Maendeleo', en: 'Development' },
+      production: { sw: 'Uzalishaji', en: 'Production' },
+      suspended: { sw: 'Imesimamishwa', en: 'Suspended' },
+      'care_and_maintenance': { sw: 'Uangalizi na matengenezo', en: 'Care & maintenance' },
+      rehabilitation: { sw: 'Urejeshaji', en: 'Rehabilitation' },
+      closed: { sw: 'Imefungwa', en: 'Closed' },
+      dormant: { sw: 'Imelala', en: 'Dormant' },
+      unknown: { sw: 'Haijajulikana', en: 'Unknown' },
+      unspecified: { sw: 'Haijabainishwa', en: 'Unspecified' },
+    },
+    // lmbm graph node.kind — LmbmNodeKind (lib/types/lmbm.ts)
+    lmbmNodeKind: {
+      company: { sw: 'Kampuni', en: 'Company' },
+      licence: { sw: 'Leseni', en: 'Licence' },
+      site: { sw: 'Eneo', en: 'Site' },
+      document: { sw: 'Hati', en: 'Document' },
+      person: { sw: 'Mtu', en: 'Person' },
+      event: { sw: 'Tukio', en: 'Event' },
+    },
+    // market-intelligence disruption_alerts.kind
+    disruptionKind: {
+      logistics: { sw: 'Usafirishaji', en: 'Logistics' },
+      regulatory: { sw: 'Udhibiti', en: 'Regulatory' },
+      weather: { sw: 'Hali ya hewa', en: 'Weather' },
+      geopolitics: { sw: 'Siasa za kimataifa', en: 'Geopolitics' },
+    },
+    // Shared alert severity — disruption_alerts.severity ∪ expansion
+    // recommendation.severity. One canonical scale across both surfaces.
+    alertSeverity: {
+      info: { sw: 'Taarifa', en: 'Info' },
+      low: { sw: 'Chini', en: 'Low' },
+      medium: { sw: 'Wastani', en: 'Medium' },
+      high: { sw: 'Juu', en: 'High' },
+      critical: { sw: 'Hatari kubwa', en: 'Critical' },
+    },
+    // capacity-expansion scenario.kind — ExpansionKind (hyphenated tokens)
+    expansionKind: {
+      'new-shaft': { sw: 'Shimo jipya', en: 'New shaft' },
+      'new-site': { sw: 'Eneo jipya', en: 'New site' },
+      'processing-upgrade': { sw: 'Uboreshaji wa uchakataji', en: 'Processing upgrade' },
+    },
+    // head-briefing escalation.priority — 'P1' | 'P2' | 'P3'
+    escalationPriority: {
+      P1: { sw: 'Kipaumbele P1', en: 'Priority P1' },
+      P2: { sw: 'Kipaumbele P2', en: 'Priority P2' },
+      P3: { sw: 'Kipaumbele P3', en: 'Priority P3' },
+    },
+    // head-briefing pending-approval.urgency — 'low' | 'medium' | 'high'
+    approvalUrgency: {
+      low: { sw: 'Si ya haraka', en: 'Low' },
+      medium: { sw: 'Ya wastani', en: 'Medium' },
+      high: { sw: 'Ya haraka', en: 'High' },
+    },
+    // owner-os reminders.status (dispatch lifecycle)
+    reminderStatus: {
+      scheduled: { sw: 'Imepangwa', en: 'Scheduled' },
+      sending: { sw: 'Inatumwa', en: 'Sending' },
+      sent: { sw: 'Imetumwa', en: 'Sent' },
+      acknowledged: { sw: 'Imepokelewa', en: 'Acknowledged' },
+      failed: { sw: 'Imeshindikana', en: 'Failed' },
+      cancelled: { sw: 'Imeghairiwa', en: 'Cancelled' },
+    },
+    // owner-os reminders.channel (delivery channel)
+    reminderChannel: {
+      email: { sw: 'Barua pepe', en: 'Email' },
+      sms: { sw: 'SMS', en: 'SMS' },
+      slack: { sw: 'Slack', en: 'Slack' },
+      whatsapp: { sw: 'WhatsApp', en: 'WhatsApp' },
+    },
+    // head-briefing notable-action.domain — AutonomyDomain (autonomy/types.ts)
+    autonomyDomain: {
+      finance: { sw: 'Fedha', en: 'Finance' },
+      offtake: { sw: 'Ununuzi wa madini', en: 'Offtake' },
+      maintenance: { sw: 'Matengenezo', en: 'Maintenance' },
+      compliance: { sw: 'Uzingatiaji', en: 'Compliance' },
+      communications: { sw: 'Mawasiliano', en: 'Communications' },
+      marketing: { sw: 'Masoko', en: 'Marketing' },
+      hr: { sw: 'Rasilimali watu', en: 'HR' },
+      procurement: { sw: 'Ununuzi', en: 'Procurement' },
+      insurance: { sw: 'Bima', en: 'Insurance' },
+      'legal_proceedings': { sw: 'Kesi za kisheria', en: 'Legal proceedings' },
+      'community_welfare': { sw: 'Ustawi wa jamii', en: 'Community welfare' },
+    },
+    // md-agentic sandbox-writes status (staged-write lifecycle)
+    sandboxWriteStatus: {
+      pending: { sw: 'Inasubiri', en: 'Pending' },
+      committed: { sw: 'Imethibitishwa', en: 'Committed' },
+      rejected: { sw: 'Imekataliwa', en: 'Rejected' },
+    },
+    // md-agentic sandbox-writes operation (the staged DB verb)
+    sandboxOperation: {
+      insert: { sw: 'Kuongeza', en: 'Insert' },
+      update: { sw: 'Kusasisha', en: 'Update' },
+      delete: { sw: 'Kufuta', en: 'Delete' },
+      upsert: { sw: 'Kuongeza/kusasisha', en: 'Upsert' },
+    },
+
+    // audit_events.action_category — ACTION_CATEGORY_ENUM (incl. legacy aliases)
+    auditActionCategory: {
+      finance: { sw: 'Fedha', en: 'Finance' },
+      offtake: { sw: 'Ununuzi wa madini', en: 'Offtake' },
+      royalty_collection: { sw: 'Ukusanyaji wa mrabaha', en: 'Royalty collection' },
+      licence_suspension: { sw: 'Kusimamisha leseni', en: 'Licence suspension' },
+      counterparty_welfare: { sw: 'Ustawi wa mshirika', en: 'Counterparty welfare' },
+      maintenance: { sw: 'Matengenezo', en: 'Maintenance' },
+      compliance: { sw: 'Uzingatiaji', en: 'Compliance' },
+      communications: { sw: 'Mawasiliano', en: 'Communications' },
+      marketing: { sw: 'Masoko', en: 'Marketing' },
+      hr: { sw: 'Rasilimali watu', en: 'HR' },
+      procurement: { sw: 'Ununuzi', en: 'Procurement' },
+      insurance: { sw: 'Bima', en: 'Insurance' },
+      legal: { sw: 'Sheria', en: 'Legal' },
+      other: { sw: 'Nyingine', en: 'Other' },
+      // Deprecated legacy aliases — retained so immutable historical
+      // hash-chained entries still resolve to a localized label.
+      leasing: { sw: 'Ukodishaji', en: 'Leasing' },
+      rent_collection: { sw: 'Ukusanyaji wa kodi', en: 'Rent collection' },
+      tenant_welfare: { sw: 'Ustawi wa mpangaji', en: 'Tenant welfare' },
+      eviction: { sw: 'Kufukuza', en: 'Eviction' },
+    },
   },
 } as const;

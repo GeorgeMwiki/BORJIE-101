@@ -13,6 +13,42 @@
  * Lives under `i18n/` so the locale-purity scanner exempts the Swahili.
  */
 
+import type { Locale } from '@/lib/locale-shared';
+
+type Pair = { readonly en: string; readonly sw: string };
+
+/**
+ * Localized labels for the compliance-pack EXPORT status the gateway hands
+ * the surface as a raw English token (`generated` / `failed` / `pending`
+ * / `queued`). Rendering the token verbatim shows English under a Swahili
+ * surface (mixing) AND leaks an implementation token to the owner.
+ */
+const EXPORT_STATUS_LABELS: Readonly<Record<string, Pair>> = {
+  generated: { en: 'Generated', sw: 'Imetengenezwa' },
+  failed: { en: 'Failed', sw: 'Imeshindwa' },
+  pending: { en: 'Pending', sw: 'Inasubiri' },
+  queued: { en: 'Queued', sw: 'Imepangwa' },
+  processing: { en: 'Processing', sw: 'Inachakatwa' },
+};
+
+/**
+ * Resolve a raw export-pack status token to its active-locale label.
+ * Unknown tokens humanize to a Title-Cased form — still single-language,
+ * never the raw token and never a cross-language fallback.
+ */
+export function exportStatusLabel(
+  token: string | null | undefined,
+  locale: Locale,
+): string {
+  if (!token) return locale === 'sw' ? 'Haijabainishwa' : 'Unspecified';
+  const hit = EXPORT_STATUS_LABELS[token];
+  if (hit) return locale === 'sw' ? hit.sw : hit.en;
+  return token
+    .split('_')
+    .map((w) => (w ? w[0]!.toUpperCase() + w.slice(1) : w))
+    .join(' ');
+}
+
 export const complianceSurfaceStrings = {
   /** Honest per-regulator status when no live checklist feed exists. */
   statusPending: { en: 'Pending live feed', sw: 'Inasubiri mlisho hai' },

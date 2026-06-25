@@ -18,11 +18,11 @@
 export const askComposerStrings = {
   placeholder: {
     en: 'Ask Mr. Mwikila — Swahili or English. Enter to send, Shift+Enter for a new line.',
-    sw: 'Muulize Mr. Mwikila — Kiswahili au Kiingereza. Enter kutuma, Shift+Enter mstari mpya.',
+    sw: 'Muulize Bw. Mwikila — Kiswahili au Kiingereza. Enter kutuma, Shift+Enter mstari mpya.',
   },
   textareaAria: {
     en: 'Ask Mr. Mwikila',
-    sw: 'Muulize Mr. Mwikila',
+    sw: 'Muulize Bw. Mwikila',
   },
   stopAria: {
     en: 'Stop generating',

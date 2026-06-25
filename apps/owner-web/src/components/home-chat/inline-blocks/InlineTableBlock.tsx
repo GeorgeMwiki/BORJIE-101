@@ -8,7 +8,7 @@
  * visible rows. Row click fires `onAction` with the row id so the host
  * can open an in-chat drawer per row.
  *
- * LitFin rhythm: low-chrome border, tabular-nums numerics, status pills
+ * Institutional rhythm: low-chrome border, tabular-nums numerics, status pills
  * for the `status_pill` kind.
  */
 

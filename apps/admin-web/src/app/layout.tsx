@@ -19,6 +19,7 @@ import { FeedbackButton } from '@/components/FeedbackButton';
 import { ThemeProvider, BORJIE_THEME_BOOTSTRAP_SCRIPT } from '@borjie/design-system';
 import { readLocaleFromServerCookies } from '@/lib/locale.server';
 import { pickByLocale } from '@/lib/locale-shared';
+import { LocaleProvider } from '@/lib/locale-context';
 
 // Title template is locale-aware so a SW per-page title doesn't get a hardcoded
 // EN suffix appended ('Ingia — Konsoli ya Borjie — Borjie Console' was a
@@ -68,7 +69,7 @@ export const viewport: Viewport = {
   themeColor: '#17100A',
   width: 'device-width',
   initialScale: 1,
-  colorScheme: 'dark',
+  colorScheme: 'light',
 };
 
 export default async function RootLayout({
@@ -96,7 +97,7 @@ export default async function RootLayout({
             sw: 'Ruka hadi maudhui makuu',
           })}
         </a>
-        <ThemeProvider defaultTheme="dark" enableSystem>
+        <ThemeProvider defaultTheme="light" enableSystem>
           {/* Central Command Phase A — C4 Sensorium / Brain Skin.
               Wires the 14-event sensory bus to every page in the portal so
               the brain (Mr. Mwikila) senses what the operator is doing in
@@ -104,9 +105,10 @@ export default async function RootLayout({
           {/* Central Command Phase B — B5 Session Replay (rrweb cold store).
               Held SEPARATELY from the sensorium taxonomy: mouse-move replay
               at ≈20Hz lives here; it is NEVER fed into the LLM context. */}
+          <LocaleProvider value={locale}>
           <SessionReplayProvider surface="admin-web">
             <SensoriumProvider surface="admin-web">
-              {/* LitFin admin-portal parity — wrap every authenticated
+              {/* Admin-portal parity — wrap every authenticated
                   route in the AdminShell (left rail + sticky top bar +
                   wide content frame). Auth + error routes opt out via
                   AdminShellGate so they render bare. */}
@@ -137,6 +139,7 @@ export default async function RootLayout({
               <FeedbackButton lang={locale} />
             </SensoriumProvider>
           </SessionReplayProvider>
+          </LocaleProvider>
         </ThemeProvider>
       </body>
     </html>

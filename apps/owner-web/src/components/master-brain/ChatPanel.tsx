@@ -52,6 +52,7 @@ export function ChatPanel({ initialLocale }: ChatPanelProps = {}) {
         <BreadcrumbStrip
           breadcrumbs={state.streamingBreadcrumbs}
           streaming={state.streaming}
+          locale={locale}
         />
         <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
           {state.messages.map((message) => (
@@ -90,6 +91,7 @@ export function ChatPanel({ initialLocale }: ChatPanelProps = {}) {
           onClick={jumpToLatest}
         />
         <Composer
+          locale={locale}
           busy={state.streaming}
           onAbort={abort}
           onSubmit={(content) => {

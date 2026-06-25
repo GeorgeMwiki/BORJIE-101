@@ -95,6 +95,7 @@ export function EntityTimelineDrawer({
         <div className="flex-1 overflow-y-auto px-4 py-4">
           <EntityTimeline
             events={events}
+            locale={locale}
             title={locale === 'sw' ? S.entityTimelineDrawer.events.sw : S.entityTimelineDrawer.events.en}
             hideLegacy={hideLegacy}
           />

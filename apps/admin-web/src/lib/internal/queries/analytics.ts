@@ -11,7 +11,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, toApiError } from '@/lib/api-client';
 
 const FUNNEL_KEY = ['internal', 'analytics', 'funnel'] as const;
 const COHORTS_KEY = ['internal', 'analytics', 'cohorts'] as const;
@@ -52,7 +52,7 @@ export function useActivationFunnelQuery(days = 90) {
       const res = await apiClient.get<RawFunnel>(
         `/analytics/funnel?days=${encodeURIComponent(String(days))}`,
       );
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return adaptFunnel(res.data);
     },
   });
@@ -93,7 +93,7 @@ export function useCohortsQuery() {
     queryKey: COHORTS_KEY,
     queryFn: async (): Promise<CohortsPayload> => {
       const res = await apiClient.get<RawCohorts>('/analytics/cohorts');
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return adaptCohorts(res.data);
     },
   });

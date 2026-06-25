@@ -62,10 +62,10 @@ describe('voice-persona-dna — profiles registry', () => {
     ).toBe(true);
   });
 
-  it('tenant profile code-switches into Swahili for EA rapport', () => {
-    expect(TENANT_PROFILE.codeSwitching).toBeDefined();
-    expect(TENANT_PROFILE.codeSwitching?.allowedInserts).toContain('sw-KE');
-    expect(TENANT_PROFILE.codeSwitching?.allowedInserts).toContain('sw-TZ');
+  it('no profile enables code-switching (zero-mix canon — single active locale)', () => {
+    for (const p of ALL_PROFILES) {
+      expect(p.codeSwitching).toBeUndefined();
+    }
   });
 
   it('vendor profile has no code-switching rules', () => {

@@ -54,6 +54,43 @@ function statusTone(status: MaintenanceEvent['status']): 'green' | 'amber' | 're
   return 'red';
 }
 
+/**
+ * Map the closed status enum to a localized label so the Status pill never
+ * renders a raw token. Exhaustive over `MaintenanceEvent['status']`.
+ */
+function statusLabel(status: MaintenanceEvent['status'], locale: Locale): string {
+  switch (status) {
+    case 'open':
+      return pickByLocale(locale, S.statusOpen);
+    case 'in_progress':
+      return pickByLocale(locale, S.statusInProgress);
+    case 'completed':
+      return pickByLocale(locale, S.statusCompleted);
+    case 'cancelled':
+      return pickByLocale(locale, S.statusCancelled);
+    default:
+      return pickByLocale(locale, S.statusOpen);
+  }
+}
+
+/**
+ * Map the gateway `kind` (free-form string; in practice the closed
+ * `scheduled_service | repair | inspection` vocabulary) to a localized label.
+ * Unknown values fall back to a localized "Other" — never a raw token.
+ */
+function kindLabel(kind: string, locale: Locale): string {
+  switch (kind) {
+    case 'scheduled_service':
+      return pickByLocale(locale, S.kindScheduledService);
+    case 'repair':
+      return pickByLocale(locale, S.kindRepair);
+    case 'inspection':
+      return pickByLocale(locale, S.kindInspectionEnum);
+    default:
+      return pickByLocale(locale, S.kindUnknown);
+  }
+}
+
 interface PredictiveFlag {
   readonly tone: 'amber' | 'red' | 'neutral';
   readonly label: string;
@@ -137,13 +174,13 @@ function GroupRows({ group, locale }: { readonly group: AssetGroup; readonly loc
         return (
           <TableRow key={row.id}>
             <TableCell className="text-muted-foreground">{row.assetId}</TableCell>
-            <TableCell className="text-foreground">{row.kind}</TableCell>
+            <TableCell className="text-foreground">{kindLabel(row.kind, locale)}</TableCell>
             <TableCell className="text-muted-foreground">
               {(row.startedAt ?? row.createdAt).slice(0, 10)}
             </TableCell>
             <TableCell className="text-foreground">{durationLabel(row)}</TableCell>
             <TableCell>
-              <StatusPill tone={statusTone(row.status)} label={row.status} />
+              <StatusPill tone={statusTone(row.status)} label={statusLabel(row.status, locale)} />
             </TableCell>
             <TableCell className="text-right text-foreground">
               {row.costTzs ? formatMoney(Number(row.costTzs), LAUNCH_CURRENCY, locale) : '—'}

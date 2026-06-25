@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 import { Skeleton, Alert, Badge, type BadgeProps } from '@borjie/design-system';
+import { localizeApiError } from '@borjie/error-catalog';
 import { apiRequest, ApiError } from '@/lib/api-client';
 import { formatMoney, LAUNCH_CURRENCY } from '@/lib/format';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
@@ -137,14 +138,28 @@ export function RoyaltyDraftPanel({
   const { data, isLoading, isError, error } = useRoyaltyDrafts();
   const drafts = data ?? [];
 
-  const totals = useMemo(() => {
-    return drafts.reduce(
-      (acc, row) => ({
-        royalty: acc.royalty + (row.royaltyAmount ?? 0),
-      }),
-      { royalty: 0 },
-    );
+  // Group royalty totals PER currency-code — never sum across distinct ISO
+  // codes into one figure. Renders one total when every draft shares a
+  // currency, or a per-currency breakdown when they differ.
+  const royaltyByCurrency = useMemo(() => {
+    const byCcy = new Map<string, number>();
+    for (const row of drafts) {
+      if (row.royaltyAmount === null) continue;
+      const ccy = (row.currency ?? LAUNCH_CURRENCY).trim().toUpperCase();
+      byCcy.set(ccy, (byCcy.get(ccy) ?? 0) + row.royaltyAmount);
+    }
+    return byCcy;
   }, [drafts]);
+
+  const royaltyTotalDisplay = useMemo(() => {
+    const entries = [...royaltyByCurrency.entries()].filter(
+      ([, amount]) => amount > 0,
+    );
+    if (entries.length === 0) return '—';
+    return entries
+      .map(([ccy, amount]) => formatMoney(amount, ccy, locale))
+      .join(' · ');
+  }, [royaltyByCurrency, locale]);
 
   const draftCount = drafts.filter(
     (r) => r.status === 'draft' || r.status === 'reviewing',
@@ -156,7 +171,7 @@ export function RoyaltyDraftPanel({
   const metrics: readonly MetricTile[] = [
     {
       label: isSw ? S.royaltyMetricRoyaltyLabel.sw : S.royaltyMetricRoyaltyLabel.en,
-      value: totals.royalty > 0 ? formatMoney(totals.royalty, LAUNCH_CURRENCY, locale) : '—',
+      value: royaltyTotalDisplay,
       sub: isSw ? S.royaltyMetricRoyaltySub.sw : S.royaltyMetricRoyaltySub.en,
       icon: Calculator,
       tone: 'warning',
@@ -214,7 +229,7 @@ export function RoyaltyDraftPanel({
           <div className="px-5 py-6">
             <Alert variant="error">
               {error instanceof ApiError
-                ? error.message
+                ? localizeApiError(error, locale)
                 : pickByLocale(locale, RB.sharedClientStrings.couldNotLoadRoyaltyDrafts)}
             </Alert>
           </div>
@@ -271,7 +286,11 @@ export function RoyaltyDraftPanel({
                     </div>
                     <div className="col-span-3 text-right font-mono text-sm font-medium text-foreground">
                       {row.royaltyAmount !== null
-                        ? formatMoney(row.royaltyAmount, LAUNCH_CURRENCY, locale)
+                        ? formatMoney(
+                            row.royaltyAmount,
+                            row.currency ?? LAUNCH_CURRENCY,
+                            locale,
+                          )
                         : '—'}
                     </div>
                     <div className="col-span-3 flex justify-start md:justify-end">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, toApiError } from '@/lib/api-client';
 
 /**
  * Bindings for `/api/v1/mining/internal/daily-brief-overview` — the
@@ -52,7 +52,7 @@ export function useAdminDailyBriefOverview() {
       const res = await apiClient.get<DailyBriefOverview>(
         '/daily-brief-overview',
       );
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return res.data;
     },
     staleTime: 60_000,

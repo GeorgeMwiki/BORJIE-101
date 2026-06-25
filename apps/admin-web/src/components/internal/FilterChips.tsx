@@ -5,6 +5,14 @@ interface FilterChipsProps<T extends string> {
   readonly options: ReadonlyArray<T>;
   readonly active: ReadonlySet<T>;
   readonly onToggle: (value: T) => void;
+  /**
+   * Optional value→visible-label mapper. The filter VALUE stays the raw
+   * option key (English carrier literal); only the displayed chip text is
+   * remapped. Omit it and the raw option renders unchanged (backward
+   * compatible). Callers pass an already-localized label so a non-English
+   * locale never shows the raw English key (which would be language mixing).
+   */
+  readonly renderLabel?: (value: T) => string;
 }
 
 /**
@@ -18,6 +26,7 @@ export function FilterChips<T extends string>({
   options,
   active,
   onToggle,
+  renderLabel,
 }: FilterChipsProps<T>): JSX.Element {
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -36,7 +45,7 @@ export function FilterChips<T extends string>({
                 : 'bg-surface border-border text-neutral-300 hover:border-signal-500/40'
             }`}
           >
-            {opt}
+            {renderLabel ? renderLabel(opt) : opt}
           </button>
         );
       })}

@@ -442,3 +442,235 @@ customer-facing or fatal one. Owner/marketing surfaces are single-locale
 (verified live).
 
 End of register. **Open KI count: 0 user-reachable customer-facing; 1 incomplete feature (KI-017); 1 internal-console canon residual (KI-018, nav fixed).**
+
+---
+
+## TIER-2 CLEANUP REGISTER — review-door gauntlet (branch `fix/review-door-tier1`)
+
+> **Compiled, not fixed — owner-gated.** Per the fix-ordering canon (engineering
+> governing-law corollary 4: "Tier-1 runs the gauntlet to dry; Tier-2 is
+> compiled-not-fixed, then ask-gated"), these are the **non-user-facing** findings
+> the gauntlet surfaced while driving the customer-facing tier to dry. They are
+> deliberately NOT fixed during the gauntlet (fixing them advances nothing toward
+> Tier-1 dry). Each is `file:line` + fix-ready so the cleanup tier is trivially
+> actionable once the owner unlocks it. **Do not start any T2 item without owner
+> go.** This register is appended each gauntlet round.
+
+### Round 0 harvest (2026-06-25)
+
+- **T2-01 · Endpoint tests for the new internal tenant-detail invoice/billing routes**
+  (test-debt; review #42). `services/api-gateway/src/routes/mining/internal/tenants.hono.ts`
+  has zero tests on the new `GET /:id`, invoices, and billing endpoints. Add: 403 for
+  non-admin, count assertions, one-row-per-fee mapping, the `status:'Posted'` contract,
+  and the DEBIT/PLATFORM_REVENUE leg filter (no double-count). Held to the prod test bar
+  (mutation-prove the barrier).
+- **T2-02 · CI copy-lint: anti-em-dash on i18n string VALUES** (review #52 follow-up).
+  The em-dashes were stripped from the 16 values this round; add a gating lint that
+  flags `—` inside i18n string VALUES (not keys/comments) so the class cannot recur.
+- **T2-03 · CI glossary gate: `sw:` honorific** (review #27 follow-up). The `Mr.`→`Bw.`
+  sw sweep is done; add a CI grep asserting zero `sw:.*Mr\. Mwikila` (and the general
+  glossary-drift set) so a future regression fails the build.
+- **T2-04 · DataTable required-`emptyState` build-gate** (review #9 follow-up). The
+  `'No results.'` fallback is now localized via an optional prop; the stronger
+  fix is to make the empty-state prop REQUIRED so an omitting caller fails the
+  build. `packages/design-system/src/components/data/DataTable.tsx`.
+- **T2-05 · RouteSkeleton multi-variant rebuild** (review #49 follow-up). The
+  doc-claim was softened to be honest; the real fix is 2-3 skeleton variants
+  (cards / form / table) so per-route `loading.tsx` body geometry matches and the
+  zero-CLS claim becomes true. `apps/owner-web/src/components/shared/RouteSkeleton.tsx`.
+- **T2-06 · Re-export `decimalsForCurrency` from `@borjie/domain-models` root**
+  (Stream 1 residual). The money-core fix used the public `CURRENCY_DECIMALS`
+  table (same canonical ISO-4217 data) because `decimalsForCurrency` is not
+  re-exported from the package root. Add the one-line re-export in
+  `packages/domain-models/src/index.ts` so callers can use the named symbol.
+- **T2-07 · api-gateway `typecheck` script heap bump** (Stream 1 residual / build env).
+  `pnpm --filter @borjie/api-gateway run typecheck` OOMs under the default Node heap on
+  the 8 GB ceiling (passes clean with `--max-old-space-size=6144`). Bake the heap raise
+  into the package `typecheck` script / CI so the gate completes without a manual flag.
+- **T2-08 · Dead code: `ListingActions.tsx` + `RefreshModelMetrics.tsx`**
+  (Stream 3 residual). Both under `apps/admin-web/src/components/internal/{marketplace,models}/`
+  have ZERO call sites (localized this round for completeness but unrendered). Either
+  wire them to their surface or delete them.
+
+### Round 1 harvest (2026-06-25 — residual-closing pass)
+
+- **T2-09 · Type the shift-planner `structured` payload** (Stream SC residual).
+  `apps/owner-web/src/lib/queries/shift-planner.ts` `ShiftPlanResult` does not type the
+  new `data.structured` field, so `ShiftPlannerPanel` reads it via an `as unknown as`
+  cast. Add the typed structured shape to `ShiftPlanResult` and drop the cast.
+- **T2-10 · Drop the legacy English shift-planner wire fields**
+  (Stream SC residual). The gateway still ships the pre-rendered English
+  `plan.unassignedTasks[].reason`, `plan.rotationAlerts[].label`,
+  `compliance.results[].ruleLabel/.detail`, and `compliance.blockingFailures[]` strings
+  (additive, no longer rendered by the cockpit which now uses the structured keys).
+  Remove them from `services/api-gateway/.../shift-planner.hono.ts` once no consumer reads them.
+
+- **T2-11 · `Docs/` tree LitFin sibling-reference scrub** (D24 project-independence, WARNING — internal only).
+  The owner instruction's verify scope was `apps/{owner,admin}-web/src` (now ZERO `litfin` — done, comment-only).
+  OUT of that scope, the `Docs/` tree still advertises the sibling to maintainers: the
+  `Docs/DESIGN/LITFIN_*.md` family (`LITFIN_DNA.md`, `LITFIN_STEPPER_LEARNING_SPEC.md`,
+  `LITFIN_BLACKBOARD_SPEC.md`, `LITFIN_MEASURED_SPEC.md`, `LITFIN_WEB_PORTAL_SPEC.md`,
+  `LITFIN_MOBILE_DNA_SPEC.md`, `LITFIN_MARKETING_SECONDARY_SPEC.md`) and
+  `Docs/research/litfin-harvest.md` + `Docs/research/RENDER_DECISION_AND_THOUGHT_TREND.md`.
+  Not user-facing, does not shape AI output → WARNING not blocker. Fix: rename the design
+  docs to Borjie-neutral names (or fold them into a single neutral `Docs/DESIGN/` spec) and
+  scrub the `litfin` token from their content + the research docs; the src comments already
+  use neutral descriptions, so no src re-link is required. (Dev-only docs; no behavior.)
+
+### Round 2 harvest (2026-06-25 — gauntlet round 1 full re-hunt; 6 Tier-2 of 39 confirmed)
+
+- **T2-12 · AiCostsClient stale docstring** (D17 docs). `apps/admin-web/src/app/ai-costs/AiCostsClient.tsx:18-20`
+  claims "no server-seeded locale prop" but the page now does seed one. Update the comment to match.
+- **T2-13 · admin-web locale-default formatting** (D6 formatting, internal console). `AiCostsClient.tsx:235`
+  formats numbers/dates with the runtime default locale; `apps/admin-web/src/lib/api.ts:114-133`
+  `formatCurrency`/`formatDate` default `locale='en'` and are called without the active locale. Thread the
+  resolved locale into the formatters (low — internal admin surface).
+- **T2-14 · backend worker narratives hardcode 'TZS'** (currency-canon, non-user-facing worker text).
+  `services/.../outcome-resolvers.ts:223-225` and `decision-retrospective-worker.ts:167-168` hardcode `'TZS'`
+  + locale-less `toLocaleString()` in narrative strings. Route through `formatCurrency(amount, currencyCode)`.
+  (Worker narrative, not a direct user render → Tier-2, but it IS a currency-canon violation; fix in the cleanup pass.)
+- NOTE: `packages/.../locale-purity.test.ts` is RED on this branch, but that is a SYMPTOM of the Tier-1
+  CounterpartiesShell hardcoded-Swahili finding — it turns GREEN when that Tier-1 fix lands (round 2), so it is
+  NOT a separate Tier-2 item.
+- **T2-15 · Pre-existing admin persona-drift test fails (request-context)** (test-debt, not introduced this session).
+  `apps/admin-web/src/app/persona-drift/__tests__/page.test.tsx` — `PersonaDriftPage` calls
+  `readLocaleFromServerCookies()` → `cookies()` outside a Next request context (Next E251), so the test errors.
+  Fix: wrap the server-component render in a request-context test harness (or mock `cookies()`). Pre-dates the
+  gauntlet; surfaced by the full admin vitest run.
+- **T2-16 · Multi-currency MRR tile can overflow at the smallest width** (D25 responsive, admin subscriptions).
+  `SubscriptionsClient.tsx` Total-MRR tile now renders per-currency totals joined by ' · ' in a
+  `font-display text-2xl` StatTile; many distinct currencies could overflow at the min width. Not clipped/ellipsis
+  today, but a multi-currency-tile design pass is worth it. Low.
+
+### Round 3 harvest (2026-06-25 — close remaining Tier-1; 2 register items)
+
+- **T2-17 · Inventory on-hand-value endpoint carries no ISO currency (multi-region readiness)** (region×language canon).
+  `services/api-gateway/src/routes/mining/inventory.hono.ts` (`GET .../inventory/analytics/on-hand-value`)
+  returns `byCategoryValueCents`/`totalValueCents` with NO ISO-4217 currency; `OnHandValueSchema` in
+  `apps/owner-web/src/lib/queries/inventory.ts` has no `currency` field. The FE now self-labels with the tenant
+  `LAUNCH_CURRENCY` — CORRECT for TZ launch tenants, WRONG for KE/UG/NG expansion tenants (currency must follow
+  the detected region per the new locale=language×region canon). Add an explicit `currency` field to the payload +
+  schema and render it. Not launch-blocking (TZ-only launch); required before multi-region.
+- **T2-18 · sw linguist/glossary QA pass on engineer-authored translations** (language quality).
+  The new `intentSw` (37 screens) + other sw copy added this gauntlet are faithful + single-language-correct (no
+  mixing, full parity) but were authored by an engineer, not a native-speaker linguist. Queue a glossary/linguist
+  review pass. Non-blocking polish (zero-mix + parity already hold).
+
+### Research-hardening CI gates (2026-06-25 — deep-research delta; construction-level prevention, owner-gated)
+
+These are the standing CI gates from the strategy-hardening research — each retires an invisible defect-class
+this gauntlet surfaced, BY CONSTRUCTION. They are Tier-2 (CI/tooling), parked for the owner's go.
+
+- **T2-19 · Error-handling integrity gates** — enable `@typescript-eslint` type-aware rules project-wide
+  (`no-floating-promises`, `no-misused-promises`, `no-empty {allowEmptyCatch:false}`, `only-throw-error`);
+  add `eslint-plugin-neverthrow must-use-result`; author a new `borjie/no-failure-as-success` rule (sibling to
+  `no-jurisdictional-literal`/`require-csrf-headers`) flagging a Supabase/HTTP write whose result isn't
+  destructured-with-`.error`/Result-consumed before a success side-effect.
+- **T2-20 · Server-side i18n / wire-neutral gates** — `eslint-plugin-i18n-json identical-keys` (hard key-parity)
+  + a parity-diff failing on sw==en byte-identical values; `@formatjs/eslint-plugin-formatjs` (no-invalid-icu,
+  enforce-plural-rules, no-literal-string-in-jsx); typed i18n keys so a missing `t()` key is a compile error;
+  a `*_en/*_sw` prose-column + human-sentence-on-the-wire scanner (allowlist-ratchet).
+- **T2-21 · AuthZ gates** — `route-detect` per-route authz allowlist as a deny-by-default ratchet; a doc-vs-code
+  guard-reconciliation check; Next.js `>=14.2.25/15.2.3` pin + `x-middleware-subrequest` strip assertion;
+  a cross-identity IDOR/BOLA replay CI suite (A-on-B across GET/PUT/PATCH/DELETE → assert 401/403/404);
+  pgTAP RLS proof gate (`relforcerowsecurity=true` for every tenant table + cross-tenant invisibility).
+- **T2-22 · Resilience/numeric gates** — timeout-census + SSE-heartbeat-presence + finite-guard +
+  currency/threshold magic-literal scanners as four allowlist-ratchet checks (same shape as the existing
+  `audit-hardcoded-locale-coverage.mjs`); a deterministic fault-injection CI job (force-deny a tenant GUC →
+  assert the worker processes ZERO rows LOUDLY; drop the LLM key → assert honest fallback).
+- **T2-23 · Test-strength gates** — StrykerJS mutation gate (≥80% score) on `payments-ledger`/RLS/auth/
+  `kernel-egress`/`policy-gate`; fast-check property suite (round-trip parse∘serialize, ledger debits==credits,
+  a metamorphic zero-mix property: locale toggle ⇒ full string swap, zero residual);
+  `@typescript-eslint/switch-exhaustiveness-check` + `never`-assert defaults on every discriminated union;
+  a detector-register-growth check (the escaped-bug ratchet: a fix for an escaped defect must add a detector).
+
+### Round 4 harvest (2026-06-25 — hunt-3 D24 property-residue cluster; compiled-not-fixed, owner-gated)
+
+> All Tier-2 because non-user-facing: born-dark taxonomies, model-read-but-not-rendered tool descriptions,
+> internal SUPER_ADMIN tooling, latent (not-yet-triggered) fallbacks, dormant emitters, or dead trees with
+> zero source importers. Each is a **D24 domain-purity** residue (property: tenant/rent/lease/unit). None
+> reach a customer surface today; fix in the cleanup pass or when the dependent feature is built.
+
+- **T2-K1 · Progressive-intelligence property taxonomy serialized but FE-dropped** (D24 domain purity).
+  `packages/database/src/services/migration-writer.service.ts:19,83` (`PropertyDraft` + `tenantProfile`/
+  `leaseTerms` fields) is computed by `progressiveAutoGen.buildPreview` and serialized into
+  `services/api-gateway/src/routes/migration.router.ts:139,154` (`progressivePreview`). **Tier-2:** grep of
+  `apps/**` for `progressivePreview` = ZERO renderers — the FE drops the whole bag, so no property taxonomy
+  reaches a user. **Fix when unparked:** re-domain `PropertyDraft`→mining-asset / `tenantProfile`→operator /
+  `leaseTerms`→licence-terms when the `/migration/upload` preview pane is actually built (do BOTH the writer
+  type and the router serialization in one coordinated rename).
+- **T2-K2 · openclaw shipped-domain catalog property ids** (D24 domain purity — coordinated rename).
+  `packages/openclaw-operating-model/src/agent-domains/catalog.ts:24,41,89` seed domain ids `lease-renewal`/
+  `rent-collection`/`tenant-onboarding` at boot. **Tier-2:** repo-wide grep finds ZERO runtime consumers of
+  the catalog (only the `evals/pms-bench-1` harness references the id strings + 4 in-package pinning tests);
+  nothing renders or routes on these ids in any app/service. **Fix when unparked:** coordinated rename owns
+  `catalog.ts` + the 4 pinning test files (`agent-domains.test.ts`, `agent-as-a-service.test.ts`,
+  `autonomy-ladders.test.ts`, `chief-agent-officer.test.ts`) — re-domain to mining concepts
+  (offtake-renewal / royalty-collection / operator-onboarding) and update the pins in lockstep.
+- **T2-K3a · advisor hard-category property tags + property regex** (D24 — live routing tag, never rendered).
+  `packages/ai-copilot/src/providers/advisor.ts:31,35` + `personas.catalog.ts` (multiple) declare
+  `lease_interpretation`/`tenant_termination` categories; `orchestrator.ts:1067` `inferHardCategory` matches a
+  property regex (`/\b(lease|renewal|clause|termination|security deposit)\b/`, `/\b(evict|terminate|quit
+  notice|vacate)\b/`) → returns the tag at `:1078,:1098`. **Tier-2:** the returned category is an internal
+  routing/escalation tag (drives policy-gate tiering), never rendered as user copy. **Fix when unparked:**
+  rename the category enum + persona declarations + regex tokens to mining-estate hard categories
+  (licence_interpretation / operator_termination) across advisor.ts + personas.catalog.ts + persona.ts +
+  orchestrator.ts together (enum is cross-file — one coordinated rename).
+- **T2-K3b · proactive-insights `arrears_followup` taxonomy is fully dark** (D24 — born-dark, wrong package).
+  `packages/ai-copilot/src/proactive-insights/types.ts:12`, `insight-rules.ts:147,154`,
+  `predictive-needs.ts:20,23,39` define + emit the `arrears_followup` category. **Tier-2:** grep of
+  `services/**`+`apps/**` for `proactive-insights` = ZERO non-test importers — the LIVE proactive loop runs
+  on `@borjie/proactive-intel` (the `proactive-intel.worker.ts` + `tick-inputs-provider.ts`), NOT this
+  ai-copilot module, so the taxonomy never executes. **Fix when unparked:** either delete the dead
+  `proactive-insights` module or re-domain the category (royalty_arrears_followup) if it is to be revived;
+  decide vs `@borjie/proactive-intel` (do not maintain two parallel insight engines).
+- **T2-K4a · AI-tool description property residue: hr.ts 'property coverage'** (D24 — model-read, not rendered).
+  `packages/ai-copilot/src/skills/domain/hr.ts:135` tool description ranks team members by "…language,
+  property coverage, current load…". **Tier-2:** this string is fed to the model as a tool description (shapes
+  ranking), never surfaced verbatim to a user. **Fix when unparked:** reword to mining-estate terms (site /
+  asset coverage) — single-line edit, no contract change.
+- **T2-K4b · AI-tool buyer-credit property fields** (D24 — model-read scoring inputs, not rendered).
+  `packages/ai-copilot/src/credit-rating/scoring-model.ts:164,185,190` use `avgTenancyMonths` +
+  `subleaseViolationCount` (declared `credit-rating-types.ts:102` etc.) in the score + reason string.
+  **Tier-2:** these are internal scoring inputs / model-facing reason text on the buyer-credit skill; not a
+  direct user render in any shipped surface today. **Fix when unparked:** re-domain the field names +
+  reason copy to mining counterparty terms (avg engagement months / contract-breach count) — touches the
+  type, the model, and the test fixtures together.
+- **T2-K4c · AI-tool reissue-letter `tenant_dispute` + 'Tenant-facing'** (D24 — enum + model-read description).
+  `packages/ai-copilot/src/skills/admin/reissue-letter.ts:3,24,45,54` — `tenant_dispute` reason enum value +
+  "Tenant-facing" in the tool description/comment. **Tier-2:** enum value drives a PROPOSED-action skill (the
+  description is model-read); not rendered as user copy. **Fix when unparked:** rename the enum value
+  (counterparty_dispute) + reword the description; coordinate with any caller that passes the literal.
+- **T2-K5 · drafts.hono `titleEn ?? titleSw` cross-language fallback (LATENT)** (zero-mix / wire-is-locale-neutral).
+  `services/api-gateway/src/routes/owner/drafts.hono.ts:292,483,533` render `draft.titleEn ?? draft.titleSw`
+  — if `titleEn` is null, an EN surface would receive the SW title (a cross-language fallback the canon
+  forbids). **Tier-2 (latent, not live):** the writer at `:121-122` seeds `titleEn` and `titleSw` to the
+  SAME string today, so the fallback branch never produces a mixed render in practice. **Fix when unparked:**
+  drop the cross-language `??` — pick by active locale and fall back to a neutral placeholder
+  (`'Current draft'` per active locale), never to the other language's title. (Same latent pattern exists in
+  `field/workforce.hono.ts:501-502,589-590` and `mining/tasks.hono.ts:336` — sweep all three together.)
+- **T2-K6 · voice-bridge dormant code-switch emitter + voice-persona-dna property residue** (zero-mix / D24).
+  `packages/central-intelligence/src/kernel/voice-bridge.ts:176-178` `describeVoice` emits a code-switch
+  instruction ("may insert {locales} for {contexts}") **only when** `profile.codeSwitching` is set;
+  `packages/ai-copilot/src/voice-persona-dna/profiles.ts:42,74,106` leave `codeSwitching` UNSET on all 6
+  profiles (commented "zero-mix canon"). **Tier-2:** the emitter is dormant by construction (no profile
+  populates the field), so no code-switch prose ever reaches the model/user; the profiles.ts file also
+  carries property comments (`:16,22,25,26` tenant/lease/applicant) + `'read the lease'` (`:119`).
+  **Fix when unparked:** delete the dormant `codeSwitching` branch from `describeVoice` (a zero-mix
+  trap-door that could re-enable mixing if a future profile sets it) + re-domain the profiles.ts property
+  comments/strings to mining-estate language.
+- **T2-K7 · mission-eval property capability-bucket id** (D24 — internal SUPER_ADMIN eval tooling).
+  `apps/admin-web/src/app/mission-eval/MissionEvalClient.tsx:554` renders `{r.capability ?? '—'}`; the bucket
+  taxonomy is documented as the "6-bucket property-management surface set (rent reconciliation, lease…)" in
+  `services/api-gateway/src/composition/parity-capability-dashboard.factory.ts:7`. **Tier-2:** mission-eval is
+  internal Borjie-team eval tooling (admin-web `/mission-eval`, reads `/api/v1/parity/capability/dashboard`),
+  not an owner/customer surface; the capability id is an opaque routing/rollup key. **Fix when unparked:**
+  re-domain the capability-prefix → bucket map in the factory to mining capability buckets and update the
+  factory docstring; the FE renders the id verbatim so no FE change beyond the new id strings.
+- **T2-K8 · repo-root `src/core` + `src/features` dead tree (435 files)** (dead code — candidate for deletion).
+  `src/core/{swahili-intelligence,emoji,language-intelligence,…}` + `src/features/` total 435 files with ZERO
+  source importers (grep of `apps/**`+`services/**`+`packages/**` for these paths = empty) and the tree is in
+  NO `tsconfig` path. **Tier-2:** never compiled, never imported, never reachable — pure dead weight from a
+  pre-monorepo era. **Fix when unparked:** delete the `src/core` + `src/features` trees wholesale after a
+  final confirmation grep (one `git rm -r`); they are not the monorepo `packages/**` sources and removing them
+  cannot affect any build.

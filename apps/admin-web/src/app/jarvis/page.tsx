@@ -9,6 +9,8 @@
  */
 
 import { JarvisConsole } from './JarvisConsole';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
+import { pickByLocale } from '@/lib/locale-shared';
 
 export const metadata = {
   title: 'Mr. Mwikila · Borjie HQ',
@@ -23,13 +25,17 @@ export const metadata = {
  */
 export const dynamic = 'force-dynamic';
 
-export default function JarvisPage() {
+export default async function JarvisPage() {
+  const locale = await readLocaleFromServerCookies();
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="border-b border-border bg-surface px-6 py-4">
         <h1 className="text-xl font-semibold text-foreground">Mr. Mwikila</h1>
         <p className="text-sm text-muted-foreground">
-          Your personal AI counterpart for the Borjie platform.
+          {pickByLocale(locale, {
+            en: 'Your personal AI counterpart for the Borjie platform.',
+            sw: 'Mwenzako binafsi wa AI kwa jukwaa la Borjie.',
+          })}
         </p>
       </header>
       <main className="flex flex-1 justify-center px-6 py-6">

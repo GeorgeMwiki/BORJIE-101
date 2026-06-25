@@ -58,6 +58,17 @@ import {
 const DEFAULT_INTERVAL_MS = 30_000;
 const DEFAULT_BATCH = 25;
 
+// Project default per CLAUDE.md "English default · bilingual sw/en". Used ONLY
+// when no `localeForOwner` resolver is wired (or it returns null) — an honest
+// fallback to the default locale, never a guessed or mixed one.
+const DEFAULT_RECIPIENT_LOCALE: 'en' | 'sw' = 'en';
+
+// Reserved payload key holding a per-locale title/body bag a bilingual producer
+// supplies at write time (`{ en?: {title, body}, sw?: {title, body} }`). The
+// dispatcher renders the entry for the resolved recipient locale so the body is
+// single-language. Absent → the row's own title/body columns are used.
+const LOCALIZED_PAYLOAD_KEY = '__localized';
+
 // No-reminder-slips sweep: a delivered-but-unacknowledged reminder is re-fired
 // up to DEFAULT_MAX_NUDGES times (counter tracked on the row payload), then
 // escalated. OFF unless `reRemindAfterMs` is wired in composition.
@@ -121,6 +132,16 @@ export interface RemindersDispatchOptions {
    *  when present the Slack channel can DM the owner directly instead
    *  of posting to the tenant-wide webhook. */
   readonly slackHandleForOwner?: (tenantId: string, ownerId: string) => Promise<string | null>;
+  /**
+   * Resolver from owner_id → the recipient's active locale ('en' | 'sw').
+   * Drives the `locale` the email + SMS providers render in, so a reminder
+   * reaches a Swahili owner in Swahili and an English owner in English — the
+   * zero-mix canon (one language per recipient). Wired in production from
+   * `owner_contact_prefs.locale` → `users.preferred_lang` via the owner-
+   * identity resolver. When omitted the dispatcher honest-degrades to the
+   * project default 'en' (never a guessed or mixed locale).
+   */
+  readonly localeForOwner?: (tenantId: string, ownerId: string) => Promise<'en' | 'sw' | null>;
   /**
    * Quiet-hours window in 24h LOCAL time (the owner's tz). When set, an SMS
    * reminder whose owner-local time falls inside `[startHour, endHour)` is
@@ -423,6 +444,43 @@ export function createRemindersDispatchWorker(
     return true;
   }
 
+  // Resolve the recipient's active locale so the email/SMS provider renders in
+  // the owner's language (zero-mix: one language per recipient). Honest-degrade
+  // to the project default when no resolver is wired or it faults — never throw,
+  // never guess a mixed locale.
+  async function localeFor(r: PendingReminder): Promise<'en' | 'sw'> {
+    if (!options.localeForOwner) return DEFAULT_RECIPIENT_LOCALE;
+    const resolved = await options
+      .localeForOwner(r.tenantId, r.ownerId)
+      .catch(() => null);
+    return resolved ?? DEFAULT_RECIPIENT_LOCALE;
+  }
+
+  // Select the locale-correct title/body for dispatch. A producer that knows
+  // both locales at write time (e.g. the MD-commitment reconcile ladder) stashes
+  // a `localized: { en?: {title, body}, sw?: {title, body} }` bag in the row
+  // payload. When present we render the entry for the resolved recipient locale
+  // so the body itself is single-language (the `owner.reminder.generic`
+  // template renders payload.title/body verbatim). When absent OR the chosen
+  // locale's entry is missing we fall back to the row's own title/body columns
+  // (the producer's default-locale copy) — never a mixed string. Pure.
+  function localizedCopy(
+    r: PendingReminder,
+    locale: 'en' | 'sw',
+  ): { readonly title: string; readonly body: string } {
+    const bag = r.payload[LOCALIZED_PAYLOAD_KEY];
+    if (bag && typeof bag === 'object') {
+      const entry = (bag as Record<string, unknown>)[locale];
+      if (entry && typeof entry === 'object') {
+        const e = entry as Record<string, unknown>;
+        const title = typeof e.title === 'string' && e.title.trim() ? e.title : null;
+        const body = typeof e.body === 'string' && e.body.trim() ? e.body : null;
+        if (title && body) return { title, body };
+      }
+    }
+    return { title: r.title, body: r.body };
+  }
+
   async function dispatchOne(
     r: PendingReminder,
   ): Promise<{ outcome: 'sent' | 'failed' | 'retried' | 'deferred' }> {
@@ -440,13 +498,15 @@ export function createRemindersDispatchWorker(
         await markFailed(r, 'no_email_address_for_owner');
         return { outcome: 'failed' };
       }
+      const locale = await localeFor(r);
+      const copy = localizedCopy(r, locale);
       try {
         const result = await options.emailProvider.send({
           tenantId: r.tenantId,
           recipientAddress: addr,
           templateKey: 'owner.reminder.generic',
-          locale: 'en',
-          payload: { title: r.title, body: r.body, ...r.payload },
+          locale,
+          payload: { ...r.payload, title: copy.title, body: copy.body },
           idempotencyKey: r.idempotencyKey,
         });
         if (result.status === 'sent') {
@@ -490,13 +550,15 @@ export function createRemindersDispatchWorker(
         await markFailed(r, 'no_phone_number_for_owner');
         return { outcome: 'failed' };
       }
+      const locale = await localeFor(r);
+      const copy = localizedCopy(r, locale);
       try {
         const result = await options.smsProvider.send({
           tenantId: r.tenantId,
           recipientAddress: phone,
           templateKey: 'owner.reminder.generic',
-          locale: 'en',
-          payload: { title: r.title, body: r.body, ...r.payload },
+          locale,
+          payload: { ...r.payload, title: copy.title, body: copy.body },
           idempotencyKey: r.idempotencyKey,
           channel: r.channel,
         });
@@ -561,12 +623,14 @@ export function createRemindersDispatchWorker(
       );
       return { outcome: await handleFailure(r, false, 'slack_webhook_unsafe') };
     }
+    const slackLocale = await localeFor(r);
+    const slackCopy = localizedCopy(r, slackLocale);
     try {
       const res = await fetch(webhook, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: `${slackMention}*${r.title}*\n${r.body}`,
+          text: `${slackMention}*${slackCopy.title}*\n${slackCopy.body}`,
           username: 'Mr. Mwikila (Borjie)',
         }),
       });

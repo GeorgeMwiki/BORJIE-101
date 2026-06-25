@@ -12,6 +12,9 @@ import {
 } from 'lucide-react';
 import { useLicencesList } from '@/lib/queries/licence';
 import { dataBStrings as S } from '@/i18n/strings/data-b';
+import { licenceCockpitStrings as LC } from '@/i18n/strings/licence-cockpit';
+import { pickByLocale } from '@/lib/locale-shared';
+import type { Locale } from '@/lib/locale-shared';
 
 interface RawLicence {
   readonly id?: string;
@@ -74,32 +77,35 @@ function classifyExpiry(days: number | null): StatusFilter {
   return 'active';
 }
 
-function statusPill(status: StatusFilter): { readonly className: string; readonly label: string } {
+function statusPill(
+  status: StatusFilter,
+  locale: Locale,
+): { readonly className: string; readonly label: string } {
   switch (status) {
     case 'active':
       return {
         className: 'border-success/40 bg-success/10 text-success',
-        label: 'Active',
+        label: pickByLocale(locale, LC.list.pillActive),
       };
     case 'expiring':
       return {
         className: 'border-warning/40 bg-warning/10 text-warning',
-        label: 'Expiring soon',
+        label: pickByLocale(locale, LC.list.pillExpiring),
       };
     case 'expired':
       return {
         className: 'border-destructive/40 bg-destructive/10 text-destructive',
-        label: 'Expired',
+        label: pickByLocale(locale, LC.list.pillExpired),
       };
     case 'pending':
       return {
         className: 'border-info/40 bg-info/10 text-info',
-        label: 'In review',
+        label: pickByLocale(locale, LC.list.pillInReview),
       };
     default:
       return {
         className: 'border-border bg-surface text-neutral-300',
-        label: 'Unknown',
+        label: pickByLocale(locale, LC.list.pillUnknown),
       };
   }
 }
@@ -268,7 +274,7 @@ export function LicencesList({ locale = 'en' }: LicencesListProps): JSX.Element 
         <ul className="divide-y divide-border/60">
           {filtered.map((row) => {
             const tone = classifyExpiry(row.daysToExpiry);
-            const pill = statusPill(tone);
+            const pill = statusPill(tone, locale);
             return (
               <li key={row.id}>
                 <Link
@@ -281,7 +287,7 @@ export function LicencesList({ locale = 'en' }: LicencesListProps): JSX.Element 
                     </div>
                     {row.dormancyScore !== null ? (
                       <div className="mt-1 text-tiny font-mono uppercase tracking-widest text-neutral-500">
-                        Dormancy{' '}
+                        {pickByLocale(locale, LC.list.dormancyLabel)}{' '}
                         <span
                           className={
                             row.dormancyScore > 0.5

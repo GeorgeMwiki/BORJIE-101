@@ -10,6 +10,7 @@ import {
 import { PanelHero } from './PanelHero';
 import { PanelDataTable, type PanelColumn } from './PanelDataTable';
 import { AskMwikilaCta } from './AskMwikilaCta';
+import { enumLabelSw, humanizeToken } from './enum-label';
 import type { OwnerOSPanelProps } from './types';
 import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 import { ownerOsPanelsStrings as P } from '@/i18n/strings/owner-os-panels';
@@ -78,12 +79,17 @@ function ancillaryColumns(
     {
       key: 'sector',
       header: isSw ? B.ancillary.colSector.sw : B.ancillary.colSector.en,
-      render: (r) => r.sector ?? '—',
+      // The ancillary-sector table is not yet modelled, so the vocabulary is
+      // not a bounded enum we can map. Humanise the code (locale-neutral
+      // Title Case) so it never renders a raw `snake_case` token that would
+      // leak under `sw`; swap to `enumLabelSw('ancillarySector', …)` the day
+      // the table + its bounded vocabulary land.
+      render: (r) => humanizeToken(r.sector),
     },
     {
       key: 'status',
       header: isSw ? B.ancillary.colStatus.sw : B.ancillary.colStatus.en,
-      render: (r) => r.status ?? '—',
+      render: (r) => enumLabelSw('ancillaryStatus', r.status, isSw),
     },
   ];
 }

@@ -28,6 +28,32 @@ export interface BiString {
 }
 
 export const tailStrings = {
+  // ── shared incident enum render (safety + people surfaces) ───────
+  // One canonical sw term per concept — both surfaces localize the raw
+  // `kind` / `severity` tokens returned by /api/v1/mining/incidents
+  // through this single map so the same enum value never renders two
+  // different ways across the cockpit. Unknown values fall back to a
+  // localized placeholder (never the raw English token).
+  incident: {
+    kind: {
+      safety: { sw: 'Usalama', en: 'Safety' },
+      environmental: { sw: 'Mazingira', en: 'Environmental' },
+      community: { sw: 'Jamii', en: 'Community' },
+      near_miss: { sw: 'Tukio karibu', en: 'Near miss' },
+      equipment_failure: { sw: 'Hitilafu ya mitambo', en: 'Equipment failure' },
+      fatality: { sw: 'Kifo', en: 'Fatality' },
+      unknown: { sw: 'Aina nyingine', en: 'Other' },
+    },
+    severity: {
+      low: { sw: 'Chini', en: 'Low' },
+      medium: { sw: 'Wastani', en: 'Medium' },
+      high: { sw: 'Juu', en: 'High' },
+      critical: { sw: 'Hatari kubwa', en: 'Critical' },
+      fatality: { sw: 'Kifo', en: 'Fatality' },
+      unknown: { sw: 'Haijulikani', en: 'Unknown' },
+    },
+  },
+
   // ── components/people/PeopleSurface.tsx ──────────────────────────
   peopleSurface: {
     onShiftLabel: { sw: 'Wafanyakazi zamu ya leo', en: 'Workforce on shift' },
@@ -269,6 +295,17 @@ export const tailStrings = {
       sw: 'Sikiliza muhtasari wa mmiliki wa Borjie',
       en: 'Listen to your Borjie owner brief',
     },
+    // Recent-reports chip strip + honest empty states.
+    recentHeading: { sw: 'Ripoti za hivi karibuni', en: 'Recent reports' },
+    recentLoading: { sw: 'Inapakia ripoti…', en: 'Loading reports…' },
+    noRecent: {
+      sw: 'Hakuna ripoti iliyozalishwa bado. Tengeneza ripoti hapa chini ili kuisikiliza.',
+      en: 'No reports generated yet. Create one below to listen to it here.',
+    },
+    noSelection: {
+      sw: 'Chagua ripoti hapo juu ili kuanza kuisikiliza.',
+      en: 'Pick a report above to start listening.',
+    },
   },
 
   // ── lib/cockpit-sse.ts (sw toast branches) ───────────────────────
@@ -304,7 +341,7 @@ export const tailStrings = {
     tabUpdated: { sw: 'Tab imebadilishwa: {tabId}', en: 'Tab updated: {tabId}' },
     tabRemoved: { sw: 'Tab imefungwa: {tabId}', en: 'Tab closed: {tabId}' },
     tabProposed: {
-      sw: 'Mr. Mwikila anapendekeza kubandika: {title}',
+      sw: 'Bw. Mwikila anapendekeza kubandika: {title}',
       en: 'Mr. Mwikila suggests pinning: {title}',
     },
   },
@@ -317,47 +354,224 @@ export const tailStrings = {
     empty: { sw: 'Kichupo hiki bado hakina sehemu.', en: 'This tab has no sections yet.' },
   },
 
-  // ── lib/screens.ts (titleSw values, keyed by screen id) ──────────
+  // ── lib/screens.ts (titleSw + intentSw values, keyed by screen id) ─
+  // `sw` is the Swahili title (mirrors the EN `title`); `en` is the EN
+  // title source-of-truth check; `intentSw` is a faithful Swahili
+  // rendering of the EN `intent` paragraph so the page hero/header can
+  // render the intent in the active locale with FULL parity (zero-mix:
+  // never an EN intent under an SW title).
   screens: {
-    'O-W-00': { sw: 'Nyumbani — ongea na Borjie', en: 'Home — chat with Borjie' },
-    'O-W-01': { sw: 'Dashibodi ya Mkurugenzi', en: 'Cockpit dashboard' },
-    'O-W-02': { sw: 'Akili Kuu', en: 'Conversational Master Brain' },
-    'O-W-03': { sw: 'Ramani ya Biashara', en: 'LMBM graph explorer' },
-    'O-W-04': { sw: 'Hati na Mazungumzo', en: 'Document chat (full PDF view)' },
-    'O-W-05': { sw: 'Ramani ya Kampuni', en: 'Portfolio map' },
-    'O-W-06': { sw: 'Kituo cha Mgodi', en: 'Site cockpit' },
-    'O-W-07': { sw: 'Leseni', en: 'Licence cockpit' },
-    'O-W-07a': { sw: 'Leseni zote', en: 'Licences index' },
-    'O-W-06a': { sw: 'Migodi yote', en: 'Sites index' },
-    'O-W-08': { sw: 'Watu na Majukumu', en: 'People & roles' },
-    'O-W-09': { sw: 'Mali na Magari', en: 'Assets & fleet' },
-    'O-W-10': { sw: 'Bidhaa na Manunuzi', en: 'Inventory & procurement' },
-    'O-W-11': { sw: 'Jiolojia', en: 'Geology workbench' },
-    'O-W-12': { sw: 'Gharama na Fedha', en: 'Cost & finance' },
-    'O-W-13': { sw: 'Mauzo', en: 'Sales & pipeline' },
-    'O-W-14': { sw: 'Uzingatiaji', en: 'Compliance centre' },
-    'O-W-15': { sw: 'Usalama na Afya', en: 'Safety & EHS' },
-    'O-W-16': { sw: 'Jamii na CSR', en: 'Community & CSR' },
-    'O-W-17': { sw: 'Hazina na FX', en: 'FX & treasury' },
-    'O-W-18': { sw: 'Ripoti', en: 'Reports & exports' },
-    'O-W-19': { sw: 'Kampuni Nyingi', en: 'Multi-company group view' },
-    'O-W-20': { sw: 'Soko na Washirika', en: 'Marketplace & external partners' },
-    'O-W-21': { sw: 'Kuanza na Kuingiza Data', en: 'Onboarding & data import' },
+    'O-W-00': {
+      sw: 'Nyumbani — ongea na Borjie',
+      en: 'Home — chat with Borjie',
+      intentSw:
+        'Nyumbani inayoanzia kwa mazungumzo. Salamu za persona, vidokezo vya mapendekezo, manukuu, na pembeni ya miito ya zana za mratibu.',
+    },
+    'O-W-01': {
+      sw: 'Dashibodi ya Mkurugenzi',
+      en: 'Cockpit dashboard',
+      intentSw: 'Dashibodi ya kila siku ya kadi 10 kwa mujibu wa BOJI_AI_SPEC §13.',
+    },
+    'O-W-02': {
+      sw: 'Akili Kuu',
+      en: 'Conversational Master Brain',
+      intentSw:
+        'Eneo kamili la mazungumzo lenye alama za miito ya wakala na mitindo 8 ya Mkurugenzi.',
+    },
+    'O-W-03': {
+      sw: 'Ramani ya Biashara',
+      en: 'LMBM graph explorer',
+      intentSw:
+        'Nodi za grafu zinazobonyezwa katika Ramani Hai ya Biashara ya Madini; ufuatiliaji wa chanzo.',
+    },
+    'O-W-04': {
+      sw: 'Hati na Mazungumzo',
+      en: 'Document chat (full PDF view)',
+      intentSw:
+        'Mwangaza wa visanduku-mipaka na muonekano wa kulinganisha kati ya faili za PDF.',
+    },
+    'O-W-05': {
+      sw: 'Ramani ya Kampuni',
+      en: 'Portfolio map',
+      intentSw:
+        'Tabaka za PostGIS + Mapbox: leseni, migodi, makazi, maji, maeneo yaliyohifadhiwa, barabara.',
+    },
+    'O-W-06': {
+      sw: 'Kituo cha Mgodi',
+      en: 'Site cockpit',
+      intentSw:
+        'Upatanishi wa zamu, alama ya jiolojia, na uchumi wa kitengo kwa kila mgodi.',
+    },
+    'O-W-07': {
+      sw: 'Leseni',
+      en: 'Licence cockpit',
+      intentSw:
+        'Kifurushi cha kuhuisha, alama ya kutotumika, na historia ya malipo kwa kila haki ya madini.',
+    },
+    'O-W-07a': {
+      sw: 'Leseni zote',
+      en: 'Licences index',
+      intentSw:
+        'Kila leseni chini ya mteja hai; bonyeza kuingia kwenye kituo chake.',
+    },
+    'O-W-06a': {
+      sw: 'Migodi yote',
+      en: 'Sites index',
+      intentSw:
+        'Kila mgodi wa kimwili chini ya mteja hai; bonyeza kuingia kwenye kituo chake.',
+    },
+    'O-W-08': {
+      sw: 'Watu na Majukumu',
+      en: 'People & roles',
+      intentSw: 'Chati ya shirika, daftari la malipo ya mbele, na uzalishaji kwa awamu.',
+    },
+    'O-W-09': {
+      sw: 'Mali na Magari',
+      en: 'Assets & fleet',
+      intentSw:
+        'Uwakilishi wa kipengele-mlinganisho na alama za matengenezo ya kutabiri.',
+    },
+    'O-W-10': {
+      sw: 'Bidhaa na Manunuzi',
+      en: 'Inventory & procurement',
+      intentSw: 'Ratiba ya kuagiza upya; hali ya uzingatiaji wa ITC ya wasambazaji.',
+    },
+    'O-W-11': {
+      sw: 'Jiolojia',
+      en: 'Geology workbench',
+      intentSw:
+        'Muonekano wa mgodi wa 3D, upembuzi-pembe wa mishipa, na chati za QA/QC za uchanganuzi.',
+    },
+    'O-W-12': {
+      sw: 'Gharama na Fedha',
+      en: 'Cost & finance',
+      intentSw:
+        'Faida na hasara kamili, uchumi wa kitengo, na uhamasishaji wa kiwango-sawa.',
+    },
+    'O-W-13': {
+      sw: 'Mauzo',
+      en: 'Sales & pipeline',
+      intentSw: 'Ulinganishaji wa bei-halisi kwa kila mnunuzi; ufuatiliaji wa malipo.',
+    },
+    'O-W-14': {
+      sw: 'Uzingatiaji',
+      en: 'Compliance centre',
+      intentSw: 'Maktaba ya manukuu ya mdhibiti; orodha ya hatua.',
+    },
+    'O-W-15': {
+      sw: 'Usalama na Afya',
+      en: 'Safety & EHS',
+      intentSw: 'Vidhibiti muhimu; ramani-joto ya matukio.',
+    },
+    'O-W-16': {
+      sw: 'Jamii na CSR',
+      en: 'Community & CSR',
+      intentSw: 'Hifadhi ya kumbukumbu; dashibodi ya utoaji; ramani ya malalamiko.',
+    },
+    'O-W-17': {
+      sw: 'Hazina na FX',
+      en: 'FX & treasury',
+      intentSw:
+        'Viwango vya moja kwa moja; kiigizaji cha kuuza-au-kuhifadhi; kifuatiliaji cha mwamba wa 27-Mar.',
+    },
+    'O-W-18': {
+      sw: 'Ripoti',
+      en: 'Reports & exports',
+      intentSw:
+        'Vifurushi vya kila siku, kila wiki, kila mwezi, mwekezaji, benki, bodi, na ukaguzi.',
+    },
+    'O-W-19': {
+      sw: 'Kampuni Nyingi',
+      en: 'Multi-company group view',
+      intentSw: 'Muhtasari wa makampuni mengi kwa wateja wa mpango wa kampuni / kundi.',
+    },
+    'O-W-20': {
+      sw: 'Soko na Washirika',
+      en: 'Marketplace & external partners',
+      intentSw: 'Ugunduzi wa washirika na ofa za pande mbili.',
+    },
+    'O-W-21': {
+      sw: 'Kuanza na Kuingiza Data',
+      en: 'Onboarding & data import',
+      intentSw: 'Pakia kwa wingi faili za PML PDF, madaftari, na ripoti za awali.',
+    },
     'O-W-22': {
       sw: 'Mipangilio',
       en: 'Settings — users, roles, plan, billing, autonomy',
+      intentSw:
+        'Mhariri wa RBAC, ankara, sera ya uhuru, na maboresho ya mpango.',
     },
-    'O-W-23': { sw: 'Uliza Borjie', en: 'Ask Borjie Brain' },
-    'D-W-01': { sw: 'Dashibodi', en: 'Dashboard' },
-    'O-W-24': { sw: 'Washirika wa Nje', en: 'Counterparties' },
-    'O-W-25': { sw: 'Mlolongo wa Mali', en: 'Chain of custody' },
-    'O-W-26': { sw: 'Kalenda ya Wakaguzi', en: 'Regulatory calendar' },
-    'O-W-27': { sw: 'Muonekano wa Miliki', en: 'Estate overview' },
-    'O-W-28': { sw: 'Kampuni za Miliki', en: 'Estate entities' },
-    'O-W-29': { sw: 'Mitiririko ya Mtaji', en: 'Capital flows' },
-    'O-W-30': { sw: 'Urithi', en: 'Succession' },
-    'O-W-31': { sw: 'Daftari la Mali', en: 'Asset register' },
-    'O-W-32': { sw: 'Taarifa ya Asubuhi', en: 'Head briefing' },
-    'O-W-33': { sw: 'Mipango ya Wakala', en: 'Agentic plans & sandbox' },
+    'O-W-23': {
+      sw: 'Uliza Borjie',
+      en: 'Ask Borjie Brain',
+      intentSw:
+        'Muunganisho wa moja kwa moja na POST /api/v1/brain/turn — mazungumzo kamili yenye ushahidi unaonukuliwa kutoka korpasi.',
+    },
+    'D-W-01': {
+      sw: 'Dashibodi',
+      en: 'Dashboard',
+      intentSw:
+        'Muonekano wa pili wa hali iliyopangwa. Nafasi saba kutoka /api/v1/owner/brief: muhtasari wa AI, foleni ya tahadhari, ukanda wa KPI, uzalishaji, fedha + mwamba wa USD, uzingatiaji, usalama.',
+    },
+    'O-W-24': {
+      sw: 'Washirika wa Nje',
+      en: 'Counterparties',
+      intentSw:
+        'Kila mshirika ambaye operesheni inagusana naye (juu, chini, na pembeni) wenye kadi-alama na ratiba kamili ya ushirikiano.',
+    },
+    'O-W-25': {
+      sw: 'Mlolongo wa Mali',
+      en: 'Chain of custody',
+      intentSw:
+        'Mlolongo wa uangalizi toka shimoni hadi mnunuzi kwa kila pakiti ya madini, ukaguliwa kwa mlolongo-heshi ili mdhibiti aweze kuthibitisha hakuna kilichopangwa upya.',
+    },
+    'O-W-26': {
+      sw: 'Kalenda ya Wakaguzi',
+      en: 'Regulatory calendar',
+      intentSw:
+        'Kila uwasilishaji wa Tume ya Madini, TRA, NEMC, BoT, BRELA, OSHA, TBS, TCRA, na LHRC kwenye kalenda moja, ukiwekewa rangi kwa hali.',
+    },
+    'O-W-27': {
+      sw: 'Muonekano wa Miliki',
+      en: 'Estate overview',
+      intentSw:
+        'Ganda la ofisi-ya-familia, muonekano-mti wa kila kampuni, thamani jumla ya mali, mitiririko ya hivi karibuni ya mtaji, na hali ya urithi.',
+    },
+    'O-W-28': {
+      sw: 'Kampuni za Miliki',
+      en: 'Estate entities',
+      intentSw:
+        'Kila biashara chini ya ganda la ofisi-ya-familia yenye aina, asilimia ya umiliki, na hali ya mzunguko-wa-maisha.',
+    },
+    'O-W-29': {
+      sw: 'Mitiririko ya Mtaji',
+      en: 'Capital flows',
+      intentSw:
+        'Mitiririko ya fedha kati ya kampuni kwa mpangilio wa muda: gawio, mikopo ya ndani, sindano za mtaji, na migawanyo ya JV.',
+    },
+    'O-W-30': {
+      sw: 'Urithi',
+      en: 'Succession',
+      intentSw:
+        'Mpango wa urithi kwa kila kundi, mrithi aliyeteuliwa, mpango wa dharura, kidokezo cha tarehe ya mapitio, na uwezo wa wosia-rasimu.',
+    },
+    'O-W-31': {
+      sw: 'Daftari la Mali',
+      en: 'Asset register',
+      intentSw:
+        'Daftari la mali lililounganishwa linaloweza kuchujwa kwa aina lenye thamani ya sasa na vizuizi.',
+    },
+    'O-W-32': {
+      sw: 'Taarifa ya Asubuhi',
+      en: 'Head briefing',
+      intentSw:
+        'Skrini ya kwanza ya kuingia: shughuli za usiku za kujiendesha, idhini zinazosubiri, kupandishwa, mabadiliko ya KPI, mapendekezo, na hitilafu kama hati moja iliyopangwa.',
+    },
+    'O-W-33': {
+      sw: 'Mipango ya Wakala',
+      en: 'Agentic plans & sandbox',
+      intentSw:
+        'Foleni ya mapitio ya MD-wakala: maandishi yaliyopangwa ya sandbox aliyopendekeza brain, yenye idhini ya macho-manne (inatekeleza kwa pamoja) na kukataa. Soma-kwanza; idhini ndiyo njia ya hatari-kubwa.',
+    },
   },
 } as const;

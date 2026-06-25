@@ -120,6 +120,9 @@ importers:
       '@borjie/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
+      '@borjie/error-catalog':
+        specifier: workspace:*
+        version: link:../../packages/error-catalog
       '@borjie/forecasting':
         specifier: workspace:*
         version: link:../../packages/forecasting
@@ -265,6 +268,9 @@ importers:
 
   apps/buyer-mobile:
     dependencies:
+      '@borjie/error-catalog':
+        specifier: workspace:*
+        version: link:../../packages/error-catalog
       '@borjie/observability':
         specifier: workspace:^
         version: link:../../packages/observability
@@ -468,6 +474,9 @@ importers:
       '@borjie/dynamic-sections':
         specifier: workspace:*
         version: link:../../packages/dynamic-sections
+      '@borjie/error-catalog':
+        specifier: workspace:*
+        version: link:../../packages/error-catalog
       '@borjie/genui':
         specifier: workspace:*
         version: link:../../packages/genui
@@ -580,6 +589,9 @@ importers:
 
   apps/workforce-mobile:
     dependencies:
+      '@borjie/error-catalog':
+        specifier: workspace:*
+        version: link:../../packages/error-catalog
       '@borjie/persona-runtime':
         specifier: workspace:*
         version: link:../../packages/persona-runtime
@@ -2309,6 +2321,15 @@ importers:
       tsup:
         specifier: ^8.0.1
         version: 8.5.1(postcss@8.5.14)(typescript@6.0.3)
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
+  packages/error-catalog:
+    devDependencies:
       typescript:
         specifier: ^6.0.3
         version: 6.0.3

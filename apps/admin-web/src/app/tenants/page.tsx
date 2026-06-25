@@ -7,11 +7,11 @@ import { pickByLocale } from '@/lib/locale-shared';
 /**
  * Tenant directory — dense data table at the top-level admin URL.
  *
- * Mirrors LitFin's `/litfin-admin/banks` page composition: page header
+ * Mirrors the reference admin tenants page composition: page header
  * with eyebrow + action affordance, then the dense filterable +
  * paginated TenantDirectory component (sticky header, plan + status
  * filter chips, row click opens detail). The component is shared with
- * `/internal/tenants` — this route is the LitFin-parity entry point.
+ * `/internal/tenants` — this route is the portal-parity entry point.
  *
  * SINGLE LANGUAGE PER LOCALE (canon): the header eyebrow + title +
  * subtitle resolve to the active locale via `pickByLocale`. The previous

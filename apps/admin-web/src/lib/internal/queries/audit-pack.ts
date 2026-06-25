@@ -12,7 +12,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, toApiError } from '@/lib/api-client';
 
 const PACKS_KEY = ['internal', 'audit-packs'] as const;
 
@@ -53,7 +53,7 @@ export function useAuditPacksQuery() {
     queryKey: PACKS_KEY,
     queryFn: async (): Promise<ReadonlyArray<AuditPack>> => {
       const res = await apiClient.get<ReadonlyArray<RawPack>>('/audit-pack');
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return res.data.map(adaptPack);
     },
   });
@@ -69,7 +69,7 @@ export function useMintAuditPack() {
   return useMutation({
     mutationFn: async (input: MintPackInput): Promise<AuditPack> => {
       const res = await apiClient.post<RawPack>('/audit-pack/mint', input);
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return adaptPack(res.data);
     },
     onSettled: () => qc.invalidateQueries({ queryKey: PACKS_KEY }),

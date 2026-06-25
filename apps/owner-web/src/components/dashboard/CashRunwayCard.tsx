@@ -3,6 +3,7 @@
 import { Card } from '@borjie/design-system';
 import { formatMoney, LAUNCH_CURRENCY } from '@/lib/format';
 import { useLocale } from '@/lib/locale';
+import type { Locale } from '@/lib/locale';
 import { financeTablesStrings as S } from '@/i18n/strings/finance-tables';
 import type {
   CashRunwaySlot,
@@ -12,6 +13,14 @@ import type {
 interface CashRunwayCardProps {
   readonly cashRunway: CashRunwaySlot;
   readonly cliffStatus: CliffStatusSlot;
+  /**
+   * Server-resolved locale, threaded from the dashboard surface so this
+   * island SEEDS its first client render to the SAME language as the SSR
+   * chrome — without it `useLocale` defaults to `en` and flashes a
+   * one-frame EN-under-SW split-brain (the zero-mix canon violation that
+   * the sibling cards already avoid).
+   */
+  readonly initialLocale?: Locale | undefined;
 }
 
 /**
@@ -25,8 +34,9 @@ interface CashRunwayCardProps {
 export function CashRunwayCard({
   cashRunway,
   cliffStatus,
+  initialLocale,
 }: CashRunwayCardProps): JSX.Element {
-  const locale = useLocale();
+  const locale = useLocale(initialLocale);
   const dailyAvg = cashRunway.dailyAvgTzs;
   const projectedDays =
     dailyAvg > 0

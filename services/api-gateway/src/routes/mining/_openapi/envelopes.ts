@@ -13,6 +13,27 @@
  */
 import { z } from '@hono/zod-openapi';
 
+/**
+ * Localized message shape carried on the wire WITHOUT mixing languages.
+ *
+ * The WIRE IS LOCALE-NEUTRAL: the stable `code` is the locale-neutral
+ * primary the FE keys off; when human prose must ride the wire it rides
+ * as this STRUCTURED `{ en, sw }` pair so the FE picks the active locale
+ * and renders exactly one language (the `marketplace/rfb.hono.ts`
+ * precedent the buyer/owner surfaces already consume via
+ * `isSw ? x.sw : x.en`). NEVER a concatenated bilingual string and NEVER
+ * bare single-language prose the FE would render verbatim under the other
+ * locale.
+ */
+export const LocalizedMessageSchema = z
+  .object({
+    en: z.string().openapi({ example: 'Resource not found' }),
+    sw: z.string().openapi({ example: 'Rasilimali haijapatikana' }),
+  })
+  .openapi('LocalizedMessage');
+
+export type LocalizedMessage = z.infer<typeof LocalizedMessageSchema>;
+
 /** Wraps any payload schema in the `{ success: true, data }` envelope. */
 export function successEnvelope<S extends z.ZodTypeAny>(data: S) {
   return z
@@ -37,7 +58,15 @@ export const ErrorEnvelopeSchema = z
     success: z.literal(false).openapi({ example: false }),
     error: z.object({
       code: z.string().openapi({ example: 'NOT_FOUND' }),
-      message: z.string().openapi({ example: 'Resource not found' }),
+      // `message` is EITHER a stable single string (typically a neutral
+      // code echo or developer-facing detail) OR the structured
+      // `{ en, sw }` localized pair. The FE renders the structured form
+      // in the active locale; a bare prose string would mix under the
+      // other locale, so any user-facing prose MUST use the structured
+      // form (enforced by the wire-i18n gate).
+      message: z
+        .union([z.string(), LocalizedMessageSchema])
+        .openapi({ example: 'Resource not found' }),
       details: z.record(z.unknown()).optional(),
     }),
   })

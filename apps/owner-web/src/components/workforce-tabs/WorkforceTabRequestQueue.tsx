@@ -14,7 +14,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Button } from '@borjie/design-system';
-import { apiRequest } from '@/lib/api-client';
+import { apiRequest, localizeError } from '@/lib/api-client';
 import { tailStrings as S } from '@/i18n/strings/tail';
 
 interface ChangeRequestRow {
@@ -123,8 +123,9 @@ export function WorkforceTabRequestQueue(props: QueueProps): JSX.Element {
       });
     },
     onError: (err, input) => {
-      const message =
-        err instanceof Error ? err.message : copy.error;
+      // Localize the gateway error by its stable CODE — never the raw English
+      // `.message` (rendering that under `sw` is language MIXING).
+      const message = localizeError(err, props.isSw ? 'sw' : 'en');
       setRowErrors((prev) => ({ ...prev, [input.id]: message }));
     },
   });

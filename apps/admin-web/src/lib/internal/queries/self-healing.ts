@@ -12,7 +12,7 @@
  * `error` channel.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, toApiError } from '@/lib/api-client';
 
 const KEY = ['internal', 'self-healing', 'proposals'] as const;
 
@@ -47,7 +47,7 @@ export function useSelfHealingQueueQuery() {
       const res = await apiClient.get<ReadonlyArray<RepairProposalView>>(
         '/self-healing/proposals',
       );
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return { rows: res.data ?? [], source: 'live' };
     },
   });
@@ -71,7 +71,7 @@ export function useDecideRepairProposal() {
         `/self-healing/proposals/${id}/${decision}`,
         note ? { note } : {},
       );
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return res.data;
     },
     onMutate: async ({ id }) => {

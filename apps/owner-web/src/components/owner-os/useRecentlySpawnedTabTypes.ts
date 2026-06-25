@@ -79,10 +79,12 @@ export function useRecentlySpawnedTabTypes(
         setTypes(res.types ?? []);
         setLoading(false);
       }
-    } catch (err) {
+    } catch {
       if (!mounted.current) return;
       setLoading(false);
-      setError(err instanceof Error ? err.message : 'recent-types fetch failed');
+      // Expose a STABLE, locale-neutral code (never a raw English message) —
+      // a consumer that surfaces this localises it through the error catalog.
+      setError('RECENT_TYPES_FETCH_FAILED');
     }
   }, [days]);
 

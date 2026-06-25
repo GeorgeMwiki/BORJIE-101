@@ -16,8 +16,9 @@
  *   3. Pace — heuristic length window derived from the profile's WPM,
  *      flagging outputs that are wildly too short or too long for the
  *      spoken pace they claim.
- *   4. Code-switching — if the output contains non-primary-locale
- *      tokens but `codeSwitching` is undefined, flag the mismatch.
+ *   4. Code-switching — ALWAYS forbidden (zero-mix canon). If the output
+ *      contains non-active-locale (non-Latin) tokens, flag the mismatch
+ *      regardless of any `codeSwitching` rules on the profile.
  *
  * The validator returns a 0-1 score, a list of violations, and
  * human-readable suggestions so the caller (Brain, UI, drift-detector)
@@ -240,14 +241,13 @@ function paceScore(
 
 function codeSwitchScore(
   output: string,
-  profile: VoicePersonaProfile,
+  _profile: VoicePersonaProfile,
 ): readonly PersonaViolation[] {
-  // Very rough heuristic: detect non-ASCII / non-Latin tokens when
-  // code-switching is not configured. Avoid false positives for
-  // punctuation (ASCII only) and numerics.
-  if (profile.codeSwitching && profile.codeSwitching.allowedInserts.length > 0) {
-    return [];
-  }
+  // Zero-mix canon: code-switched output is ALWAYS a violation. A non-active-
+  // locale (non-Latin) token is flagged regardless of any `codeSwitching`
+  // rules a profile may still carry — those are deprecated and never honored.
+  // Heuristic: detect non-ASCII / non-Latin tokens. ASCII punctuation and
+  // numerics never match the codepoint ranges below, so they cannot false-fire.
   const tokens = output.split(/\s+/u).filter(Boolean);
   const nonLatin = tokens.filter((t) =>
     // eslint-disable-next-line no-misleading-character-class -- intentional: codepoint-range detection for non-Latin scripts (Cyrillic, Arabic, Devanagari, Hiragana/Katakana, CJK, Hangul). The rule's grapheme-cluster heuristic does not apply to script-detection.

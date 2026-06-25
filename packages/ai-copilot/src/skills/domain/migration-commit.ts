@@ -31,24 +31,24 @@ export const MigrationDiffAdvancedParamsSchema = MigrationDiffParamsSchema.exten
     /** Existing snapshots keyed by natural key — used for UPDATE detection. */
     existingSnapshots: z
       .object({
-        tenants: z
+        employees: z
           .record(
             z.string(),
             z.object({
               phone: z.string().optional(),
               email: z.string().optional(),
-              unitLabel: z.string().optional(),
-              rentKes: z.number().optional(),
+              jobTitle: z.string().optional(),
+              departmentCode: z.string().optional(),
             })
           )
           .default({}),
-        units: z
+        sites: z
           .record(
             z.string(),
             z.object({
-              bedrooms: z.number().optional(),
-              rentKes: z.number().optional(),
-              status: z.string().optional(),
+              addressLine1: z.string().optional(),
+              city: z.string().optional(),
+              siteType: z.string().optional(),
             })
           )
           .default({}),
@@ -61,15 +61,15 @@ export const MigrationDiffAdvancedParamsSchema = MigrationDiffParamsSchema.exten
 );
 
 export interface RowSkip {
-  readonly kind: 'properties' | 'units' | 'tenants' | 'employees' | 'departments' | 'teams';
+  readonly kind: 'sites' | 'employees' | 'departments' | 'teams';
   readonly naturalKey: string;
   readonly skipReason: string;
 }
 
 export interface MigrationDiffAdvancedResult extends MigrationDiffResult {
   readonly toUpdate: {
-    readonly tenants: number;
-    readonly units: number;
+    readonly employees: number;
+    readonly sites: number;
   };
   readonly skipReasons: RowSkip[];
 }
@@ -78,52 +78,51 @@ export function migrationDiffAdvanced(
   params: z.infer<typeof MigrationDiffAdvancedParamsSchema>
 ): MigrationDiffAdvancedResult {
   const base = migrationDiff(params);
-  const snapshots = params.existingSnapshots ?? { tenants: {}, units: {} };
+  const snapshots = params.existingSnapshots ?? { employees: {}, sites: {} };
   const skipReasons: RowSkip[] = [];
 
-  // UPDATE detection for tenants: name matches an existing snapshot but a
+  // UPDATE detection for employees: code matches an existing snapshot but a
   // comparable field has changed.
-  let tenantUpdates = 0;
-  for (const t of params.bundle.tenants) {
-    const snap = snapshots.tenants?.[t.name];
+  let employeeUpdates = 0;
+  for (const e of params.bundle.employees) {
+    const key = e.employeeCode;
+    if (!key) continue;
+    const snap = snapshots.employees?.[key];
     if (!snap) continue;
     const changed =
-      (t.phone && snap.phone && t.phone !== snap.phone) ||
-      (t.email && snap.email && t.email !== snap.email) ||
-      (t.unitLabel && snap.unitLabel && t.unitLabel !== snap.unitLabel) ||
-      (typeof t.rentKes === 'number' &&
-        typeof snap.rentKes === 'number' &&
-        t.rentKes !== snap.rentKes);
+      (e.phone && snap.phone && e.phone !== snap.phone) ||
+      (e.email && snap.email && e.email !== snap.email) ||
+      (e.jobTitle && snap.jobTitle && e.jobTitle !== snap.jobTitle) ||
+      (e.departmentCode &&
+        snap.departmentCode &&
+        e.departmentCode !== snap.departmentCode);
     if (changed) {
-      tenantUpdates += 1;
+      employeeUpdates += 1;
     } else if (params.includeSkipReasons) {
       skipReasons.push({
-        kind: 'tenants',
-        naturalKey: t.name,
+        kind: 'employees',
+        naturalKey: key,
         skipReason: 'no field change vs existing snapshot',
       });
     }
   }
 
-  let unitUpdates = 0;
-  for (const u of params.bundle.units) {
-    const key = `${u.propertyName}::${u.label}`;
-    const snap = snapshots.units?.[key];
+  let siteUpdates = 0;
+  for (const s of params.bundle.sites) {
+    const snap = snapshots.sites?.[s.name];
     if (!snap) continue;
     const changed =
-      (typeof u.bedrooms === 'number' &&
-        typeof snap.bedrooms === 'number' &&
-        u.bedrooms !== snap.bedrooms) ||
-      (typeof u.rentKes === 'number' &&
-        typeof snap.rentKes === 'number' &&
-        u.rentKes !== snap.rentKes) ||
-      (u.status && snap.status && u.status !== snap.status);
+      (s.addressLine1 &&
+        snap.addressLine1 &&
+        s.addressLine1 !== snap.addressLine1) ||
+      (s.city && snap.city && s.city !== snap.city) ||
+      (s.siteType && snap.siteType && s.siteType !== snap.siteType);
     if (changed) {
-      unitUpdates += 1;
+      siteUpdates += 1;
     } else if (params.includeSkipReasons) {
       skipReasons.push({
-        kind: 'units',
-        naturalKey: key,
+        kind: 'sites',
+        naturalKey: s.name,
         skipReason: 'no field change vs existing snapshot',
       });
     }
@@ -131,7 +130,7 @@ export function migrationDiffAdvanced(
 
   return {
     ...base,
-    toUpdate: { tenants: tenantUpdates, units: unitUpdates },
+    toUpdate: { employees: employeeUpdates, sites: siteUpdates },
     skipReasons,
   };
 }
@@ -157,7 +156,7 @@ export const migrationDiffAdvancedTool: ToolHandler = {
     return {
       ok: true,
       data: result,
-      evidenceSummary: `Diff v2: +${result.toAdd.properties}p/+${result.toAdd.units}u/+${result.toAdd.tenants}t/+${result.toAdd.employees}e | Δ${result.toUpdate.tenants}t/Δ${result.toUpdate.units}u | ${result.toSkip}skip`,
+      evidenceSummary: `Diff v2: +${result.toAdd.sites}s/+${result.toAdd.employees}e/+${result.toAdd.departments}d/+${result.toAdd.teams}t | Δ${result.toUpdate.employees}e/Δ${result.toUpdate.sites}s | ${result.toSkip}skip`,
     };
   },
 };
@@ -284,9 +283,7 @@ function sumSkips(skipped?: Record<string, string[]>): number {
 // ---------------------------------------------------------------------------
 
 export interface StoredBundleShim {
-  readonly properties: ExtractionBundle['properties'];
-  readonly units: ExtractionBundle['units'];
-  readonly tenants: ExtractionBundle['tenants'];
+  readonly sites: ExtractionBundle['sites'];
   readonly employees: ExtractionBundle['employees'];
   readonly departments: ExtractionBundle['departments'];
   readonly teams: ExtractionBundle['teams'];

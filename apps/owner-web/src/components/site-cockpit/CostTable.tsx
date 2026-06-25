@@ -12,11 +12,12 @@ import {
   TableCell,
 } from '@borjie/design-system';
 import { formatMoney, LAUNCH_CURRENCY } from '@/lib/format';
-import { useLocale } from '@/lib/locale';
+import { useLocale, type Locale } from '@/lib/locale';
 import { financeTablesStrings as S } from '@/i18n/strings/finance-tables';
 
 interface CostTableProps {
   readonly costs: ReadonlyArray<CostLine>;
+  readonly initialLocale?: Locale;
 }
 
 const TREND_ICON = {
@@ -25,8 +26,8 @@ const TREND_ICON = {
   flat: ArrowRight,
 } as const;
 
-export function CostTable({ costs }: CostTableProps) {
-  const locale = useLocale();
+export function CostTable({ costs, initialLocale }: CostTableProps) {
+  const locale = useLocale(initialLocale);
   const categoryLabel: Record<CostLine['category'], string> = {
     extraction: S.cost.catExtraction[locale],
     processing: S.cost.catProcessing[locale],

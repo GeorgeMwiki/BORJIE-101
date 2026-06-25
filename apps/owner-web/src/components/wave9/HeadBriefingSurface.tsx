@@ -1,6 +1,7 @@
 import { useMemo, type ReactNode } from 'react';
 import { dictionaries } from '@/i18n/dictionaries';
 import { makeT } from '@/i18n/resolve';
+import { enumLabel } from '@/components/owner-os/panels/enum-label';
 
 /**
  * Minimal projection of the gateway BriefingDocument the surface renders.
@@ -43,9 +44,16 @@ export interface BriefingDoc {
   }>;
 }
 
+/**
+ * Stable, locale-NEUTRAL failure codes the page emits. The surface maps each
+ * to localised copy at render — the wire carries the code, never an English
+ * sentence (which would leak under `sw`).
+ */
+export type BriefingErrorCode = 'noSession' | 'unavailable' | 'fetchFailed';
+
 interface HeadBriefingSurfaceProps {
   readonly doc: BriefingDoc | null;
-  readonly errorMessage: string | null;
+  readonly errorCode: BriefingErrorCode | null;
   readonly isSw: boolean;
 }
 
@@ -82,17 +90,22 @@ function Card({
  */
 export function HeadBriefingSurface({
   doc,
-  errorMessage,
+  errorCode,
   isSw,
 }: HeadBriefingSurfaceProps): JSX.Element {
+  const locale = isSw ? 'sw' : 'en';
   const t = useMemo(
     () => makeT(dictionaries[isSw ? 'sw' : 'en']),
     [isSw],
   );
-  if (errorMessage) {
+  if (errorCode) {
+    // Resolve the stable code to single-language copy — never render a raw
+    // English message under `sw`.
     return (
       <div className="rounded-lg border border-border bg-surface px-4 py-8 text-center">
-        <p className="text-sm text-destructive">{errorMessage}</p>
+        <p className="text-sm text-destructive">
+          {t(`headBriefing.error.${errorCode}`)}
+        </p>
         <p className="mt-1 text-xs text-muted-foreground">
           {t('headBriefing.unavailable')}
         </p>
@@ -136,7 +149,9 @@ export function HeadBriefingSurface({
                 <li key={i} className="text-xs text-muted-foreground">
                   {a.summary}
                   {a.domain ? (
-                    <span className="ml-2 text-muted-foreground">· {a.domain}</span>
+                    <span className="ml-2 text-muted-foreground">
+                      · {enumLabel('autonomyDomain', a.domain, locale)}
+                    </span>
                   ) : null}
                 </li>
               ))}
@@ -158,7 +173,9 @@ export function HeadBriefingSurface({
                 <li key={i} className="text-xs text-muted-foreground">
                   {it.summary}
                   {it.urgency ? (
-                    <span className="ml-2 text-warning">· {it.urgency}</span>
+                    <span className="ml-2 text-warning">
+                      · {enumLabel('approvalUrgency', it.urgency, locale)}
+                    </span>
                   ) : null}
                 </li>
               ))}
@@ -179,7 +196,9 @@ export function HeadBriefingSurface({
               {(escalations?.items ?? []).map((it, i) => (
                 <li key={i} className="text-xs text-muted-foreground">
                   {it.priority ? (
-                    <span className="mr-2 text-destructive">{it.priority}</span>
+                    <span className="mr-2 text-destructive">
+                      {enumLabel('escalationPriority', it.priority, locale)}
+                    </span>
                   ) : null}
                   {it.summary}
                 </li>

@@ -1,10 +1,19 @@
-import { routesBStrings as S } from '@/i18n/strings/routes-b';
+import type { Metadata } from 'next';
 import { ConnectedAgentsList } from './connected-agents-list';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
+import { pickByLocale } from '@/lib/locale-shared';
+import { settingsPagesStrings as S } from '@/i18n/strings/settings-pages';
+
+const P = S.connectedAgentsPage;
 
 export const dynamic = 'force-dynamic';
-export const metadata = {
-  title: `${S.connectedAgentsPage.metaTitle.sw} — ${S.connectedAgentsPage.metaTitle.en}`,
-};
+
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await readLocaleFromServerCookies();
+  return {
+    title: pickByLocale(locale, P.metaTitle),
+  };
+}
 
 /**
  * /settings/connected-agents — owner-visible roster of external agents
@@ -13,7 +22,9 @@ export const metadata = {
  * Backed by GET /api/v1/oauth/agent-tokens (returns active tokens
  * scoped to the authenticated user) and POST /api/v1/oauth/revoke.
  */
-export default function ConnectedAgentsPage() {
+export default async function ConnectedAgentsPage() {
+  const locale = await readLocaleFromServerCookies();
+
   return (
     <>
       <header className="border-b border-border px-8 py-6">
@@ -22,27 +33,18 @@ export default function ConnectedAgentsPage() {
             O-W-22.AGENTS
           </span>
           <span className="rounded-full border border-border bg-surface px-2 py-0.5 text-badge text-muted-foreground">
-            Owner
+            {pickByLocale(locale, P.ownerBadge)}
           </span>
         </div>
         <h1 className="mt-1 font-display text-3xl text-foreground">
-          Connected agents
+          {pickByLocale(locale, P.heading)}
         </h1>
-        <p className="mt-0.5 text-xs italic text-muted-foreground">
-          {S.connectedAgentsPage.rosterTagline.sw}
-        </p>
         <p className="mt-3 max-w-3xl text-sm text-muted-foreground">
-          External agents (Claude Code, Cursor, Windsurf, custom MCP /
-          CLI / SDK clients) that hold an active access token for your
-          account. Revoke any agent at any time — revocation is
-          immediate.
-        </p>
-        <p className="mt-1 max-w-3xl text-sm italic text-muted-foreground">
-          {S.connectedAgentsPage.rosterRevokeNote.sw}
+          {pickByLocale(locale, P.intro)}
         </p>
       </header>
       <div className="px-8 py-6">
-        <ConnectedAgentsList />
+        <ConnectedAgentsList initialLocale={locale} />
       </div>
     </>
   );

@@ -52,13 +52,17 @@ export const RENEWAL_WINDOW_DAYS = 90;
  * Each is a logical obligation the owner must satisfy before a renewal
  * filing. We score against whatever the licence's `obligations` jsonb
  * declares truthy; any of these keys NOT truthy is reported missing.
+ *
+ * WIRE STAYS LOCALE-NEUTRAL: `renewalPackMissing` carries these stable KEYS,
+ * never single-language labels. owner-web RenewalActions maps each key to an
+ * owner-facing label in the active locale ({ en, sw }) via pickByLocale.
  */
-const RENEWAL_PACK_KEYS: ReadonlyArray<{ key: string; label: string }> = [
-  { key: 'epp', label: 'Environmental Protection Plan' },
-  { key: 'eia', label: 'Environmental Impact Assessment' },
-  { key: 'community_benefit', label: 'Community benefit agreement' },
-  { key: 'annual_fee_paid', label: 'Annual fee receipt' },
-  { key: 'production_returns', label: 'Production returns filed' },
+const RENEWAL_PACK_KEYS: ReadonlyArray<string> = [
+  'epp',
+  'eia',
+  'community_benefit',
+  'annual_fee_paid',
+  'production_returns',
 ];
 
 /**
@@ -194,8 +198,8 @@ interface RenewalPack {
 /**
  * Score the renewal pack against the `obligations` jsonb. A key is satisfied
  * when its value is truthy (e.g. `true`, a date string, an evidence id).
- * Returns the percent complete (0–100, integer) and the labels of the
- * missing items.
+ * Returns the percent complete (0–100, integer) and the stable KEYS of the
+ * missing items (locale-neutral — owner-web localizes each key for display).
  */
 export function computeRenewalPack(
   obligations: Record<string, unknown> | null,
@@ -203,11 +207,11 @@ export function computeRenewalPack(
   const obl = obligations ?? {};
   const missing: string[] = [];
   let satisfied = 0;
-  for (const { key, label } of RENEWAL_PACK_KEYS) {
+  for (const key of RENEWAL_PACK_KEYS) {
     if (obl[key]) {
       satisfied += 1;
     } else {
-      missing.push(label);
+      missing.push(key);
     }
   }
   const pct = Math.round((satisfied / RENEWAL_PACK_KEYS.length) * 100);

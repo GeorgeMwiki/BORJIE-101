@@ -182,7 +182,7 @@ export function AskChat({
   const send = useCallback(async () => {
     if (!canSend) return;
     const trimmed = input.trim();
-    const hint = formatSliceHint(slice);
+    const hint = formatSliceHint(slice, locale);
     const body = `${trimmed}\n\n${hint}`;
 
     setSending(true);
@@ -284,6 +284,7 @@ export function AskChat({
     dispatchEvent,
     extendedThinking,
     input,
+    locale,
     router,
     slice,
     threadId,

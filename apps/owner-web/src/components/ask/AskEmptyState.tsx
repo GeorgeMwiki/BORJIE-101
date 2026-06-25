@@ -20,7 +20,7 @@ interface AskEmptyStateProps {
  * - `fresh`            — gateway reachable, no messages yet.
  * - `error`            — any other gateway error surfaced live.
  *
- * LitFin-pattern shell: hairline border, tinted bg (10% alpha) +
+ * Standard shell pattern: hairline border, tinted bg (10% alpha) +
  * inset ring (20% alpha), tinted-icon plate, display heading, muted
  * body. Variants tint by intent (warning, destructive, signal) rather
  * than slamming a solid panel.

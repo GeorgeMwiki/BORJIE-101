@@ -13,6 +13,8 @@
 
 import { PageShell } from '@/components/migrated/PageShell';
 import { SessionReplayViewer } from '@/components/SessionReplayViewer';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
+import { pickByLocale } from '@/lib/locale-shared';
 
 interface SessionReplayPageProps {
   readonly params: Promise<{ sessionId: string }>;
@@ -22,12 +24,25 @@ export default async function SessionReplayPage({
   params,
 }: SessionReplayPageProps) {
   const { sessionId } = await params;
+  const locale = await readLocaleFromServerCookies();
   return (
     <PageShell
-      title="Session replay"
-      subtitle={`Cold-store playback of session ${sessionId}. rrweb event stream is PII-masked at capture; the brain never sees these bytes.`}
+      title={pickByLocale(locale, {
+        en: 'Session replay',
+        sw: 'Uchezaji wa kipindi',
+      })}
+      subtitle={pickByLocale(locale, {
+        en:
+          `Cold-store playback of session ${sessionId}. rrweb event ` +
+          'stream is PII-masked at capture; the brain never sees these ' +
+          'bytes.',
+        sw:
+          `Uchezaji wa kipindi ${sessionId} kutoka hifadhi baridi. Mkondo ` +
+          'wa matukio ya rrweb hufichwa PII wakati wa kunasa; ubongo ' +
+          'hauoni baiti hizi kamwe.',
+      })}
     >
-      <SessionReplayViewer sessionId={sessionId} />
+      <SessionReplayViewer sessionId={sessionId} initialLocale={locale} />
     </PageShell>
   );
 }

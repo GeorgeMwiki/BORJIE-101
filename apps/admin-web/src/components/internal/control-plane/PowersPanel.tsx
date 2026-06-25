@@ -16,6 +16,7 @@ import {
 } from '@/lib/internal/control-plane/known-flags';
 import type { PowerFlag, Scope } from '@/lib/internal/control-plane/api';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
 
 const FLAG_RE = /^[a-z][a-z0-9_]*$/;
 
@@ -163,7 +164,7 @@ export function PowersPanel({
           <Skeleton className="h-12 w-full rounded-md" />
         </div>
       ) : query.isError ? (
-        <p className="text-sm text-danger">{query.error.message}</p>
+        <p className="text-sm text-danger">{localizeApiError(query.error, locale)}</p>
       ) : (
         <div className="divide-y divide-border rounded-lg border border-border bg-surface">
           {(query.data ?? []).map((flag) => {

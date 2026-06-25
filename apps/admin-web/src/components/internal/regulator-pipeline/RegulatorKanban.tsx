@@ -9,6 +9,7 @@ import { Toast } from '../Toast';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import { useMoveRegulatorChange, useRegulatorPipelineQuery } from '@/lib/internal/queries/regulator-pipeline';
 import type { CitationSource, RegulatorChange, RegulatorStage } from '@/lib/internal/types';
+import { localizeApiError } from '@borjie/error-catalog';
 
 const STAGES: ReadonlyArray<{ readonly id: RegulatorStage; readonly label: { en: string; sw: string } }> = [
   { id: 'incoming', label: { en: 'Incoming', sw: 'Zinazoingia' } },
@@ -26,7 +27,14 @@ const S = {
   },
   empty: { en: 'Empty', sw: 'Tupu' },
   moveTo: { en: 'Move to stage', sw: 'Hamishia hatua' },
+  failed: { en: 'Failed', sw: 'Imeshindwa' },
+  unknown: { en: 'unknown', sw: 'haijulikani' },
 } as const;
+
+function stageLabel(stage: RegulatorStage, locale: Locale): string {
+  const match = STAGES.find((s) => s.id === stage);
+  return match ? pickByLocale(locale, match.label) : stage;
+}
 
 function sourceTone(source: CitationSource): 'info' | 'success' | 'warn' | 'neutral' {
   if (source === 'Gazette') return 'info';
@@ -55,7 +63,7 @@ export function RegulatorKanban({
     );
   }
   if (query.isError) {
-    return <Alert variant="error">{query.error.message}</Alert>;
+    return <Alert variant="error">{localizeApiError(query.error, locale)}</Alert>;
   }
 
   const rows = query.data?.rows ?? [];
@@ -68,7 +76,7 @@ export function RegulatorKanban({
           title={pickByLocale(locale, S.emptyTitle)}
           description={pickByLocale(locale, S.emptyBody)}
         />
-        <DataSourceBadge source={query.data?.source ?? 'live'} />
+        <DataSourceBadge source={query.data?.source ?? 'live'} locale={locale} />
       </div>
     );
   }
@@ -79,8 +87,11 @@ export function RegulatorKanban({
     move.mutate(
       { id, stage },
       {
-        onSuccess: () => setToast(`${row.title} → ${stage}`),
-        onError: (err) => setToast(`Failed: ${err instanceof Error ? err.message : 'unknown'}`),
+        onSuccess: () => setToast(`${row.title} → ${stageLabel(stage, locale)}`),
+        onError: (err) =>
+          setToast(
+            `${pickByLocale(locale, S.failed)}: ${localizeApiError(err, locale)}`,
+          ),
       },
     );
   };
@@ -143,7 +154,7 @@ export function RegulatorKanban({
           );
         })}
       </div>
-      <DataSourceBadge source={query.data?.source ?? 'live'} />
+      <DataSourceBadge source={query.data?.source ?? 'live'} locale={locale} />
       <Toast message={toast} tone={move.isError ? 'danger' : 'success'} onDismiss={() => setToast(null)} />
     </div>
   );

@@ -20,6 +20,7 @@
     "@borjie/chat-ui": "workspace:*",
     "@borjie/design-system": "workspace:*",
     "@borjie/dynamic-sections": "workspace:*",
+    "@borjie/error-catalog": "workspace:*",
     "@borjie/genui": "workspace:*",
     "@borjie/graph-viz": "workspace:*",
     "@borjie/observability": "workspace:^",

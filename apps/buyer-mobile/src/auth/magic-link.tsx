@@ -105,20 +105,20 @@ export function MagicLinkScreen(props: MagicLinkProps): JSX.Element {
         options: { emailRedirectTo: callbackUrl() },
       })
       if (error) {
-        if (error.message.toLowerCase().includes('rate')) {
-          Alert.alert(t.rateLimited)
-        } else {
-          Alert.alert(t.genericError, error.message)
-        }
+        // Never render the raw English Supabase `error.message` as the alert
+        // body — under `sw` that is language mixing. Branch on the (English)
+        // message internally, but only ever SHOW the localized copy.
+        Alert.alert(
+          error.message.toLowerCase().includes('rate')
+            ? t.rateLimited
+            : t.genericError,
+        )
         setPending(false)
         return
       }
       setEmailSent(true)
-    } catch (err) {
-      Alert.alert(
-        t.genericError,
-        err instanceof Error ? err.message : String(err),
-      )
+    } catch {
+      Alert.alert(t.genericError)
     } finally {
       setPending(false)
     }
@@ -139,15 +139,13 @@ export function MagicLinkScreen(props: MagicLinkProps): JSX.Element {
         const supabase = getSupabaseClient()
         const { error } = await supabase.auth.exchangeCodeForSession(code)
         if (error) {
-          Alert.alert(t.genericError, error.message)
+          // Localized copy only — never the raw English `error.message`.
+          Alert.alert(t.genericError)
           return
         }
         props.onSignedIn?.()
-      } catch (err) {
-        Alert.alert(
-          t.genericError,
-          err instanceof Error ? err.message : String(err),
-        )
+      } catch {
+        Alert.alert(t.genericError)
       } finally {
         setExchanging(false)
       }

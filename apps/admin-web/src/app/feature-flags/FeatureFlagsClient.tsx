@@ -18,7 +18,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Flag, CheckCircle2, XCircle } from 'lucide-react';
 import { Card, Skeleton, Alert, Empty, Badge } from '@borjie/design-system';
 import { api } from '@/lib/api';
-import { useLocale, pickByLocale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 
 interface FeatureFlag {
   readonly key: string;
@@ -47,8 +47,8 @@ const S = {
   toggle: { en: 'Toggle', sw: 'Badilisha' },
 } as const;
 
-export function FeatureFlagsClient() {
-  const locale = useLocale();
+export function FeatureFlagsClient({ initialLocale }: { readonly initialLocale?: Locale } = {}) {
+  const locale = useLocale(initialLocale);
   const [flags, setFlags] = useState<readonly FeatureFlag[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

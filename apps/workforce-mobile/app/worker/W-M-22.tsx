@@ -10,6 +10,9 @@ import { request } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
 import { useOnlineStatus } from '../../src/offline/useOnlineStatus'
 import { useAuth } from '../../src/auth/useAuth'
+import { useI18n } from '../../src/i18n/useI18n'
+import type { StringDict } from '../../src/i18n'
+import { trainingStatusLabel, statusPrefix } from '../../src/i18n/enumLabels'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
@@ -55,6 +58,7 @@ export default function Screen(): JSX.Element {
 
 function TrainingLibrary(): JSX.Element {
   const { user } = useAuth()
+  const { t } = useI18n()
   const { online } = useOnlineStatus()
   const queryClient = useQueryClient()
   const queryKey = useMemo(
@@ -169,11 +173,11 @@ function TrainingLibrary(): JSX.Element {
                 </Text>
                 <Text style={styles.videoMeta}>
                   {row.stepCount ? `${row.stepCount} hatua · ` : ''}
-                  Hali: {row.status}
+                  {statusPrefix(t)}: {statusLabel(row.status, t)}
                 </Text>
                 <View style={styles.statusContainer}>
                   <View style={[styles.statusDot, dotStyleFor(row.status)]} />
-                  <Text style={styles.statusText}>{statusLabel(row.status)}</Text>
+                  <Text style={styles.statusText}>{statusLabel(row.status, t)}</Text>
                   {row.status !== 'completed' ? (
                     <Pressable
                       accessibilityRole="button"
@@ -207,10 +211,13 @@ function TrainingLibrary(): JSX.Element {
   )
 }
 
-function statusLabel(status: string): string {
-  if (status === 'completed') return 'Imekamilika'
-  if (status === 'in_progress') return 'Inaendelea'
-  return 'Imepangiwa'
+function statusLabel(status: string, t: StringDict): string {
+  // Localized via the shared training-status label map; any value other than
+  // completed / in_progress is treated as `assigned` (the original default),
+  // so the label never falls through to a raw enum token under any locale.
+  const normalized =
+    status === 'completed' || status === 'in_progress' ? status : 'assigned'
+  return trainingStatusLabel(normalized, t)
 }
 
 function dotStyleFor(status: string): { backgroundColor: string } {

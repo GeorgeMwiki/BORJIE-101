@@ -22,6 +22,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
 import {
   Button,
   Card,
@@ -40,7 +41,8 @@ import {
   type BadgeProps,
 } from '@borjie/design-system';
 import { api } from '@/lib/api';
-import { useLocale, pickByLocale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeEnumLabel, DECISION_OUTCOME_LABELS } from '@/lib/internal/enum-labels';
 
 interface TraceMetaRow {
   readonly id: string;
@@ -78,7 +80,7 @@ const S = {
   colAction: { en: 'Action', sw: 'Kitendo' },
   colDuration: { en: 'Duration', sw: 'Muda' },
   platform: { en: 'platform', sw: 'jukwaa' },
-  inspect: { en: 'Inspect →', sw: 'Kagua →' },
+  inspect: { en: 'Inspect', sw: 'Kagua' },
 } as const;
 
 const OUTCOME_VARIANT: Record<string, BadgeProps['variant']> = {
@@ -94,8 +96,8 @@ function outcomeVariant(outcome: string): BadgeProps['variant'] {
   return OUTCOME_VARIANT[outcome] ?? 'secondary';
 }
 
-export function DecisionTraceListClient() {
-  const locale = useLocale();
+export function DecisionTraceListClient({ initialLocale }: { readonly initialLocale?: Locale } = {}) {
+  const locale = useLocale(initialLocale);
   const [rows, setRows] = useState<readonly TraceMetaRow[]>([]);
   const [tenant, setTenant] = useState('');
   const [outcome, setOutcome] = useState('');
@@ -222,7 +224,7 @@ export function DecisionTraceListClient() {
                   </TableCell>
                   <TableCell>
                     <Badge variant={outcomeVariant(row.outcome)} size="sm">
-                      {row.outcome}
+                      {localizeEnumLabel(DECISION_OUTCOME_LABELS, row.outcome, locale)}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right text-xs text-muted-foreground">
@@ -235,9 +237,10 @@ export function DecisionTraceListClient() {
                           ? `?tenant=${encodeURIComponent(row.tenantId)}`
                           : ''
                       }`}
-                      className="text-xs font-medium text-info hover:underline"
+                      className="inline-flex items-center gap-1 text-xs font-medium text-info hover:underline"
                     >
                       {pickByLocale(locale, S.inspect)}
+                      <ArrowRight aria-hidden="true" className="h-3 w-3" />
                     </Link>
                   </TableCell>
                 </TableRow>

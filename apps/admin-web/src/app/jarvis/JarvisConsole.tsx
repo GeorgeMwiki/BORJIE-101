@@ -29,6 +29,7 @@ import type { AgUiUiPart } from '@/lib/genui';
 import type { GenUiUnknownKindEventDetail } from '@borjie/genui';
 import { FeedbackThumbs, type FeedbackVerdict } from '@/components/FeedbackThumbs';
 import { Button, Input, Empty } from '@borjie/design-system';
+import { useLocale, pickByLocale } from '@/lib/locale';
 
 // Build-time guard: production deployments MUST set
 // NEXT_PUBLIC_API_GATEWAY_URL. The localhost fallback exists only so a
@@ -54,6 +55,11 @@ const MAX_IMAGES_PER_TURN = 5;
 const ALLOWED_IMAGE_MIME = 'image/png,image/jpeg,image/gif,image/webp';
 
 export function JarvisConsole(): JSX.Element {
+  // Active locale — seeded on the FIRST PAINT from the root server-resolved
+  // `LocaleProvider` context, so SSR and the first client render agree
+  // (zero-mix canon: never an English console under a Swahili AdminShell).
+  // Every rendered string below resolves through `pickByLocale`.
+  const locale = useLocale();
   const [draft, setDraft] = useState('');
   const [threadId] = useState(() => `hq_${Date.now()}_${crypto.randomUUID().replace(/-/g, '').slice(0, 6)}`);
   const [pendingImages, setPendingImages] = useState<ReadonlyArray<File>>([]);
@@ -245,11 +251,17 @@ export function JarvisConsole(): JSX.Element {
       <div className="flex items-center justify-between gap-3">
         {visiblePersona ? (
           <div className="rounded border border-border bg-surface-sunken px-4 py-2 text-sm text-muted-foreground">
-            {visiblePersona.displayName} · {visiblePersona.firstPersonNoun === 'we' ? 'plural voice' : 'singular voice'}
+            {visiblePersona.displayName} ·{' '}
+            {visiblePersona.firstPersonNoun === 'we'
+              ? pickByLocale(locale, { en: 'plural voice', sw: 'sauti ya wingi' })
+              : pickByLocale(locale, {
+                  en: 'singular voice',
+                  sw: 'sauti ya umoja',
+                })}
           </div>
         ) : <span />}
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span>Mode</span>
+          <span>{pickByLocale(locale, { en: 'Mode', sw: 'Hali' })}</span>
           <button
             type="button"
             onClick={() => setMode('stream')}
@@ -260,7 +272,7 @@ export function JarvisConsole(): JSX.Element {
             }
             aria-pressed={mode === 'stream'}
           >
-            stream
+            {pickByLocale(locale, { en: 'stream', sw: 'mtiririko' })}
           </button>
           <button
             type="button"
@@ -272,7 +284,7 @@ export function JarvisConsole(): JSX.Element {
             }
             aria-pressed={mode === 'single-shot'}
           >
-            single-shot
+            {pickByLocale(locale, { en: 'single-shot', sw: 'jibu-moja' })}
           </button>
         </div>
       </div>
@@ -280,8 +292,14 @@ export function JarvisConsole(): JSX.Element {
       <div className="flex min-h-console-pane flex-col gap-3 rounded border border-border bg-surface p-4 overflow-y-auto">
         {turns.length === 0 ? (
           <Empty
-            title="Ask Mr. Mwikila"
-            description="Ask anything about the platform — royalty collection trends, available-capacity drift, outstanding-royalty patterns. Every claim is grounded in DP-aggregate evidence."
+            title={pickByLocale(locale, {
+              en: 'Ask Mr. Mwikila',
+              sw: 'Muulize Mr. Mwikila',
+            })}
+            description={pickByLocale(locale, {
+              en: 'Ask anything about the platform — royalty collection trends, available-capacity drift, outstanding-royalty patterns. Every claim is grounded in DP-aggregate evidence.',
+              sw: 'Uliza chochote kuhusu jukwaa — mienendo ya ukusanyaji wa mrabaha, mabadiliko ya uwezo uliopo, ruwaza za mrabaha unaodaiwa. Kila dai limeegemezwa kwenye ushahidi wa jumla wa DP.',
+            })}
           />
         ) : (
           turns.map((t) => {
@@ -328,9 +346,20 @@ export function JarvisConsole(): JSX.Element {
                 ) : null}
                 {t.role === 'assistant' && decision?.confidence ? (
                   <div className="mt-1 text-xs text-muted-foreground">
-                    confidence {(decision.confidence.overall * 100).toFixed(0)}%
-                    {decision.kind === 'softened' ? ' · softened' : ''}
-                    {decision.kind === 'refusal' ? ' · refused' : ''}
+                    {pickByLocale(locale, { en: 'confidence', sw: 'uhakika' })}{' '}
+                    {(decision.confidence.overall * 100).toFixed(0)}%
+                    {decision.kind === 'softened'
+                      ? pickByLocale(locale, {
+                          en: ' · softened',
+                          sw: ' · imelainishwa',
+                        })
+                      : ''}
+                    {decision.kind === 'refusal'
+                      ? pickByLocale(locale, {
+                          en: ' · refused',
+                          sw: ' · imekataliwa',
+                        })
+                      : ''}
                   </div>
                 ) : null}
                 {t.role === 'assistant' &&
@@ -346,7 +375,12 @@ export function JarvisConsole(): JSX.Element {
                           {cite.label}
                         </span>{' '}
                         <span className="text-muted-foreground">
-                          · grounded {(cite.confidence * 100).toFixed(0)}%
+                          ·{' '}
+                          {pickByLocale(locale, {
+                            en: 'grounded',
+                            sw: 'imeegemezwa',
+                          })}{' '}
+                          {(cite.confidence * 100).toFixed(0)}%
                         </span>
                       </li>
                     ))}
@@ -366,11 +400,15 @@ export function JarvisConsole(): JSX.Element {
         )}
         {isThinking ? (
           <div className="self-start text-xs text-muted-foreground italic">
-            {isStreaming ? 'streaming…' : 'thinking…'}
+            {isStreaming
+              ? pickByLocale(locale, { en: 'streaming…', sw: 'inatiririsha…' })
+              : pickByLocale(locale, { en: 'thinking…', sw: 'inafikiri…' })}
           </div>
         ) : null}
         {error ? (
-          <div className="self-start text-xs text-destructive">error: {error}</div>
+          <div className="self-start text-xs text-destructive">
+            {pickByLocale(locale, { en: 'error', sw: 'hitilafu' })}: {error}
+          </div>
         ) : null}
       </div>
 
@@ -385,7 +423,10 @@ export function JarvisConsole(): JSX.Element {
               <button
                 type="button"
                 onClick={() => removeImage(i)}
-                aria-label={`Remove ${f.name}`}
+                aria-label={pickByLocale(locale, {
+                  en: `Remove ${f.name}`,
+                  sw: `Ondoa ${f.name}`,
+                })}
                 className="text-muted-foreground hover:text-foreground"
               >
                 ×
@@ -400,7 +441,14 @@ export function JarvisConsole(): JSX.Element {
           type="text"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder={isListening ? 'Listening…' : 'Ask Mr. Mwikila…'}
+          placeholder={
+            isListening
+              ? pickByLocale(locale, { en: 'Listening…', sw: 'Inasikiliza…' })
+              : pickByLocale(locale, {
+                  en: 'Ask Mr. Mwikila…',
+                  sw: 'Muulize Mr. Mwikila…',
+                })
+          }
           disabled={isThinking}
           className="flex-1"
         />
@@ -411,21 +459,33 @@ export function JarvisConsole(): JSX.Element {
           multiple
           onChange={onPickImages}
           className="hidden"
-          aria-label="Attach images"
+          aria-label={pickByLocale(locale, {
+            en: 'Attach images',
+            sw: 'Ambatisha picha',
+          })}
         />
         <Button
           type="button"
           variant="outline"
           onClick={() => fileInputRef.current?.click()}
           disabled={isThinking || pendingImages.length >= MAX_IMAGES_PER_TURN}
-          aria-label="Attach images"
+          aria-label={pickByLocale(locale, {
+            en: 'Attach images',
+            sw: 'Ambatisha picha',
+          })}
           title={
             pendingImages.length >= MAX_IMAGES_PER_TURN
-              ? `Up to ${MAX_IMAGES_PER_TURN} images per turn`
-              : 'Attach images (licence scan, site photo, equipment assessment)'
+              ? pickByLocale(locale, {
+                  en: `Up to ${MAX_IMAGES_PER_TURN} images per turn`,
+                  sw: `Hadi picha ${MAX_IMAGES_PER_TURN} kwa zamu`,
+                })
+              : pickByLocale(locale, {
+                  en: 'Attach images (licence scan, site photo, equipment assessment)',
+                  sw: 'Ambatisha picha (skani ya leseni, picha ya eneo, tathmini ya vifaa)',
+                })
           }
         >
-          Image
+          {pickByLocale(locale, { en: 'Image', sw: 'Picha' })}
         </Button>
         {audioPort?.sttSupported ? (
           <MicButton
@@ -442,7 +502,7 @@ export function JarvisConsole(): JSX.Element {
             (!draft.trim() && pendingImages.length === 0)
           }
         >
-          Send
+          {pickByLocale(locale, { en: 'Send', sw: 'Tuma' })}
         </Button>
         {isStreaming && isThinking ? (
           <Button
@@ -450,7 +510,7 @@ export function JarvisConsole(): JSX.Element {
             variant="outline"
             onClick={abortStream}
           >
-            Abort
+            {pickByLocale(locale, { en: 'Abort', sw: 'Sitisha' })}
           </Button>
         ) : null}
         <Button
@@ -459,7 +519,7 @@ export function JarvisConsole(): JSX.Element {
           onClick={reset}
           disabled={turns.length === 0}
         >
-          Clear
+          {pickByLocale(locale, { en: 'Clear', sw: 'Futa' })}
         </Button>
       </form>
     </div>

@@ -102,6 +102,16 @@ export interface BrainTurnRequest {
   readonly userText: string;
   readonly threadId?: string;
   readonly forcePersonaId?: string;
+  /**
+   * Active operator locale (`'en' | 'sw'`). Forwarded to the gateway as
+   * the `Accept-Language` header so the brain replies in the operator's
+   * active language. The `/brain/turn` route resolves its reply locale
+   * from `Accept-Language` (`pickRecallLang`), NOT from the JSON body —
+   * so this MUST travel as a header, not a body field. Omitting it lets
+   * the brain default to `en`, which renders English AI replies under a
+   * Swahili surface (zero-mix violation).
+   */
+  readonly language?: 'en' | 'sw';
 }
 
 interface BrainTurnRawResponse {
@@ -442,11 +452,19 @@ export async function submitBrainTurn(
   const body: Record<string, unknown> = { userText: req.userText };
   if (req.threadId) body.threadId = req.threadId;
   if (req.forcePersonaId) body.forcePersonaId = req.forcePersonaId;
+  // Pin the brain's reply locale to the active operator language. The
+  // gateway derives the reply locale from `Accept-Language`
+  // (`pickRecallLang`), so a Swahili operator who never sends this header
+  // gets ENGLISH AI replies under a Swahili surface (zero-mix violation).
+  const langHeaders: Record<string, string> = req.language
+    ? { 'Accept-Language': req.language }
+    : {};
   const raw = await apiRequest<BrainTurnRawResponse>(
     '/api/v1/brain/turn',
     {
       method: 'POST',
       body,
+      headers: langHeaders,
       ...(init.signal ? { signal: init.signal } : {}),
     },
   );
@@ -528,6 +546,8 @@ interface StreamBrainChatArgs {
   readonly message: string;
   readonly threadId?: string;
   readonly forcePersonaId?: string;
+  /** Active operator locale; forwarded as `Accept-Language` (see submitBrainTurn). */
+  readonly language?: 'en' | 'sw';
   readonly signal?: AbortSignal;
 }
 
@@ -540,6 +560,7 @@ export async function* streamBrainChat(
       userText: args.message,
       ...(args.threadId ? { threadId: args.threadId } : {}),
       ...(args.forcePersonaId ? { forcePersonaId: args.forcePersonaId } : {}),
+      ...(args.language ? { language: args.language } : {}),
     },
     args.signal ? { signal: args.signal } : {},
   );

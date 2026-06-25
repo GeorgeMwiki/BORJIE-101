@@ -33,6 +33,8 @@ import { API_BASE } from '@/lib/brain-api';
 import { getCsrfHeaders } from '@/lib/csrf';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { pickByLocale } from '@/lib/locale-shared';
+import { gatewayFetch, type FetchResult } from '@/lib/gateway-result';
+import { captureMessage } from '@/lib/sentry';
 import { superpowerChipsStrings as S } from '@/i18n/strings/superpower-chips';
 
 // ─── Schemas (mirrors services/api-gateway/src/routes/ui-navigate-parser.ts) ─
@@ -150,26 +152,47 @@ async function getAccessToken(): Promise<string | null> {
   }
 }
 
-async function postJson<T>(path: string, body: unknown): Promise<T | null> {
-  try {
-    const token = await getAccessToken();
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...getCsrfHeaders(),
-    };
-    if (token) headers.Authorization = `Bearer ${token}`;
-    const res = await fetch(`${API_BASE.replace(/\/+$/, '')}${path}`, {
-      method: 'POST',
-      headers,
-      credentials: 'include',
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) return null;
-    const json = (await res.json()) as { success?: boolean; data?: T };
-    return json.success && json.data ? json.data : null;
-  } catch {
-    return null;
-  }
+/**
+ * Typed superpower POST. Folds the call into a `FetchResult<T>` via the
+ * shared substrate so a FAILURE (network / non-2xx / parse) is distinguished
+ * from an empty-but-valid success — never the bare `null` that let a failed
+ * write flip to a success affordance. Every failure is logged once through
+ * the pino-backed `captureMessage` sink (no `console.log`).
+ */
+async function postJson<T>(
+  path: string,
+  body: unknown,
+): Promise<FetchResult<T>> {
+  const token = await getAccessToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...getCsrfHeaders(),
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return gatewayFetch<T>({
+    url: `${API_BASE.replace(/\/+$/, '')}${path}`,
+    path,
+    method: 'POST',
+    headers,
+    credentials: 'include',
+    body: JSON.stringify(body),
+    log: (message, detail) =>
+      captureMessage(message, 'warning', {
+        route: 'home-chat/superpower-chips',
+        extra: { path: detail.path, kind: detail.kind, status: detail.status },
+      }),
+  });
+}
+
+/**
+ * Convenience for the write chips that only need the success payload (the
+ * undo-journal ids) and treat any failure as "no undo to surface". Returns
+ * the parsed data on success, `null` on any typed failure — the failure was
+ * already logged inside `postJson`, so this never swallows silently.
+ */
+async function postJsonData<T>(path: string, body: unknown): Promise<T | null> {
+  const result = await postJson<T>(path, body);
+  return result.ok ? result.data : null;
 }
 
 // ─── Undo chip ────────────────────────────────────────────────────────
@@ -195,6 +218,8 @@ export function UndoChip({
 }: UndoChipProps): ReactElement | null {
   const [secsLeft, setSecsLeft] = useState(windowSeconds);
   const [undone, setUndone] = useState(false);
+  // `failed` blocks the success affordance when the undo WRITE did not land.
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (secsLeft <= 0 || undone) return undefined;
@@ -204,9 +229,19 @@ export function UndoChip({
 
   const onClick = useCallback(async () => {
     if (undone || secsLeft <= 0) return;
-    await postJson('/api/v1/owner/undo-journal/undo-last', {
+    setFailed(false);
+    // CHECK the write result before any success affordance. The undo POST can
+    // fail (network / non-2xx / parse) just like any write — flipping to the
+    // green "Undone" state regardless would tell the owner a change reverted
+    // when it did not. On failure, surface a retry state (the typed failure is
+    // already logged inside `postJson`) and keep the chip clickable.
+    const result = await postJson('/api/v1/owner/undo-journal/undo-last', {
       reason: 'user-clicked-undo-chip',
     });
+    if (!result.ok) {
+      setFailed(true);
+      return;
+    }
     setUndone(true);
     onUndone?.();
   }, [undone, secsLeft, onUndone]);
@@ -224,10 +259,17 @@ export function UndoChip({
     <button
       type="button"
       onClick={() => void onClick()}
-      className="inline-flex items-center gap-1 rounded border border-border bg-surface/60 px-2 py-0.5 text-tiny text-neutral-300 hover:bg-surface"
+      className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-tiny transition-colors ${
+        failed
+          ? 'border-destructive/40 bg-destructive/10 text-destructive'
+          : 'border-border bg-surface/60 text-neutral-300 hover:bg-surface'
+      }`}
       data-testid="superpower-undo-chip"
+      aria-live="polite"
     >
-      {pickByLocale(languagePreference, S.undo)} ({formatCountdown(secsLeft)})
+      {failed
+        ? pickByLocale(languagePreference, S.undoFailed)
+        : `${pickByLocale(languagePreference, S.undo)} (${formatCountdown(secsLeft)})`}
     </button>
   );
 }
@@ -268,11 +310,13 @@ export function SuperpowerChips(props: SuperpowerChipsProps): ReactElement | nul
       values: chip.values,
       submitOnAccept: chip.submitOnAccept ?? false,
     });
-    const data = await postJson<{ undoJournalIds?: ReadonlyArray<string> }>(
+    const data = await postJsonData<{ undoJournalIds?: ReadonlyArray<string> }>(
       '/api/v1/owner/superpowers/prefill',
       chip,
     );
-    // Surface undo chip after a successful prefill write (same pattern as bulk).
+    // Surface undo chip ONLY after a successful prefill write (same pattern as
+    // bulk). A failure returns `null` (already logged) — no undo chip, no
+    // false success.
     if (data?.undoJournalIds && data.undoJournalIds.length > 0) {
       setActiveUndoIds(data.undoJournalIds);
     }
@@ -289,14 +333,17 @@ export function SuperpowerChips(props: SuperpowerChipsProps): ReactElement | nul
 
   const onShare = useCallback(async (chip: UiShareChip) => {
     setShareStatus('idle');
-    const data = await postJson<{
+    const result = await postJson<{
       shareLinkId: string;
       url: string;
     }>('/api/v1/owner/share-links', chip);
-    if (data?.url) {
+    // CHECK the typed result: a FAILURE (network / non-2xx / parse, already
+    // logged) is the 'failed' state — never the green 'copied' affordance. A
+    // success that somehow lacks a URL is also a failure, not a copy.
+    if (result.ok && result.data?.url) {
       if (typeof navigator !== 'undefined' && navigator.clipboard) {
         try {
-          await navigator.clipboard.writeText(data.url);
+          await navigator.clipboard.writeText(result.data.url);
         } catch {
           // clipboard write failed — still show URL via alert as fallback
         }
@@ -310,7 +357,7 @@ export function SuperpowerChips(props: SuperpowerChipsProps): ReactElement | nul
   }, []);
 
   const onBulk = useCallback(async (chip: UiBulkChip) => {
-    const data = await postJson<{
+    const data = await postJsonData<{
       undoJournalIds: ReadonlyArray<string>;
     }>('/api/v1/owner/superpowers/bulk-action', chip);
     if (data?.undoJournalIds && data.undoJournalIds.length > 0) {
@@ -319,7 +366,7 @@ export function SuperpowerChips(props: SuperpowerChipsProps): ReactElement | nul
   }, []);
 
   const onBookmark = useCallback(async (chip: UiBookmarkChip) => {
-    const data = await postJson<{ pinnedItemId: string }>(
+    const data = await postJsonData<{ pinnedItemId: string }>(
       '/api/v1/owner/pinned-items',
       chip,
     );

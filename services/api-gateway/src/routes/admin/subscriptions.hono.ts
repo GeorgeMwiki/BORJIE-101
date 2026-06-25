@@ -111,10 +111,42 @@ function firstString(...values: unknown[]): string | null {
   return null;
 }
 
+/**
+ * Resolve the REAL billing cycle from the subscription's stored metadata
+ * rather than hardcoding 'monthly'. The platform-billing read-model is
+ * month-keyed today (`mrr_minor_units` is Monthly recurring revenue and
+ * `metadata.billingPeriod` is a `yyyy-mm` month, renewing the 1st of the next
+ * month), so absent an explicit annual marker the truthful cycle IS monthly.
+ * An annual interval is honored the moment the provider records one
+ * (`billingInterval`/`interval`: 'annual'|'year'|'yearly'), so this surfaces
+ * real data instead of a blind literal.
+ */
+function billingCycleFromMetadata(metadata: unknown): 'monthly' | 'annual' {
+  if (metadata && typeof metadata === 'object') {
+    const m = metadata as Record<string, unknown>;
+    const marker = (
+      firstString(m.billingInterval, m.interval, m.billingCycle) ?? ''
+    ).toLowerCase();
+    if (marker === 'annual' || marker === 'year' || marker === 'yearly') {
+      return 'annual';
+    }
+  }
+  return 'monthly';
+}
+
 function toIso(value: unknown): string {
   if (value instanceof Date) return value.toISOString();
   if (typeof value === 'string' && value.length > 0) return value;
   return new Date(0).toISOString();
+}
+
+/** Parse a JSON string to a plain object, returning null on any malformed input. */
+function safeParseJson(value: string): unknown {
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
 }
 
 export function projectSubscription(row: Record<string, unknown>): SubscriptionDto {
@@ -134,6 +166,15 @@ export function projectSubscription(row: Record<string, unknown>): SubscriptionD
   const plan =
     firstString(row.sub_plan, row.plan, row.subscription_tier) ?? 'starter';
 
+  // JSONB metadata arrives as a parsed object on most driver paths but can be
+  // a JSON string on others — normalize before reading the interval marker.
+  const rawMetadata = row.sub_metadata;
+  const metadata =
+    typeof rawMetadata === 'string'
+      ? safeParseJson(rawMetadata)
+      : rawMetadata;
+  const billingCycle = billingCycleFromMetadata(metadata);
+
   return {
     id: String(row.id),
     tenantId: String(row.id),
@@ -142,7 +183,7 @@ export function projectSubscription(row: Record<string, unknown>): SubscriptionD
     status,
     mrr,
     currency,
-    billingCycle: 'monthly',
+    billingCycle,
     currentPeriodEnd: toIso(row.sub_renewal_at ?? row.trial_ends_at ?? row.created_at),
     createdAt: toIso(row.created_at),
   };
@@ -181,7 +222,8 @@ export function createAdminSubscriptionsRouter(): Hono {
               s.status          AS sub_status,
               s.mrr_minor_units AS sub_mrr_minor_units,
               s.currency        AS sub_currency,
-              s.renewal_at      AS sub_renewal_at
+              s.renewal_at      AS sub_renewal_at,
+              s.metadata        AS sub_metadata
             FROM tenants t
             LEFT JOIN tenant_subscriptions s
               ON s.tenant_id = t.id::text

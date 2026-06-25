@@ -55,7 +55,10 @@ function RiskRow({ item }: { readonly item: RiskItem }) {
         )}
       >
         <span className="mt-0.5 shrink-0">
-          <StatusPill tone={SEVERITY_TONE[item.severity]} label={item.severity} />
+          <StatusPill
+            tone={SEVERITY_TONE[item.severity]}
+            label={pickByLocale(locale, S.risks.sev[item.severity])}
+          />
         </span>
         <div className="flex-1">
           <div className="text-sm text-foreground">{item.title}</div>

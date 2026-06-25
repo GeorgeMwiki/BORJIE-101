@@ -3,6 +3,8 @@
 import { Skeleton, Alert } from '@borjie/design-system';
 import { StubBadge } from '../StubBadge';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
+import { localizeEnumLabel, FLOW_POSTURE_LABELS } from '@/lib/internal/enum-labels';
 import {
   useMyWorkflowQueue,
   useFlowAutonomy,
@@ -62,7 +64,7 @@ export function WorkflowEngine({
         {queue.isPending ? (
           <Skeleton className="h-24 w-full rounded-lg" aria-label={pickByLocale(locale, S.loadingQueue)} />
         ) : queue.isError ? (
-          <Alert variant="error">{queue.error.message}</Alert>
+          <Alert variant="error">{localizeApiError(queue.error, locale)}</Alert>
         ) : (queue.data ?? []).length === 0 ? (
           <p className="text-sm text-muted-foreground">{pickByLocale(locale, S.noRuns)}</p>
         ) : (
@@ -95,7 +97,7 @@ export function WorkflowEngine({
         {postures.isPending ? (
           <Skeleton className="h-24 w-full rounded-lg" aria-label={pickByLocale(locale, S.loadingPostures)} />
         ) : postures.isError ? (
-          <Alert variant="error">{postures.error.message}</Alert>
+          <Alert variant="error">{localizeApiError(postures.error, locale)}</Alert>
         ) : (postures.data ?? []).length === 0 ? (
           <p className="text-sm text-muted-foreground">{pickByLocale(locale, S.noPostures)}</p>
         ) : (
@@ -111,7 +113,7 @@ export function WorkflowEngine({
                   ) : null}
                 </div>
                 <StubBadge tone={pref.posture === 'auto' ? 'success' : 'warn'}>
-                  {pref.posture}
+                  {localizeEnumLabel(FLOW_POSTURE_LABELS, pref.posture, locale)}
                 </StubBadge>
               </article>
             ))}
@@ -127,7 +129,7 @@ export function WorkflowEngine({
         {pending.isPending ? (
           <Skeleton className="h-24 w-full rounded-lg" aria-label={pickByLocale(locale, S.loadingPending)} />
         ) : pending.isError ? (
-          <Alert variant="error">{pending.error.message}</Alert>
+          <Alert variant="error">{localizeApiError(pending.error, locale)}</Alert>
         ) : (pending.data ?? []).length === 0 ? (
           <p className="text-sm text-muted-foreground">{pickByLocale(locale, S.noPending)}</p>
         ) : (
@@ -135,7 +137,9 @@ export function WorkflowEngine({
             {(pending.data ?? []).map((pref) => (
               <article key={pref.flowId} className="flex items-center justify-between gap-3 px-4 py-3">
                 <p className="font-mono text-xs text-muted-foreground">{pref.flowId}</p>
-                <StubBadge tone="neutral">{pref.posture}</StubBadge>
+                <StubBadge tone="neutral">
+                  {localizeEnumLabel(FLOW_POSTURE_LABELS, pref.posture, locale)}
+                </StubBadge>
               </article>
             ))}
           </div>

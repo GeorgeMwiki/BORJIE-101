@@ -20,7 +20,10 @@ import { useDailyBrief } from '@/lib/queries/cockpit';
 import { fmtDateForLocale } from '@/lib/format';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
 import { routesBStrings as RB } from '@/i18n/strings/routes-b';
-import { complianceSurfaceStrings as CS } from '@/i18n/strings/compliance-surface';
+import {
+  complianceSurfaceStrings as CS,
+  exportStatusLabel,
+} from '@/i18n/strings/compliance-surface';
 import type { Locale } from '@/lib/locale-shared';
 
 interface ComplianceSurfaceProps {
@@ -362,7 +365,7 @@ export function ComplianceSurface({
                 <span
                   className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-badge font-medium ${exportStatusClass(exp.status)}`}
                 >
-                  {exp.status}
+                  {exportStatusLabel(exp.status, locale)}
                 </span>
               </li>
             ))}

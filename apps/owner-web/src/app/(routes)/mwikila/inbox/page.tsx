@@ -30,7 +30,7 @@ export default async function MwikilaInboxPage() {
           {pickByLocale(locale, S.inboxPage.body)}
         </p>
       </header>
-      <MwikilaInboxPanel />
+      <MwikilaInboxPanel initialLocale={locale} />
     </main>
   );
 }

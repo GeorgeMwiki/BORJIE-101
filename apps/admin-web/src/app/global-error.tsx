@@ -11,10 +11,17 @@
  *
  * Visual is intentionally minimal — inline styles only, each reading a
  * CSS var with a hard-coded fallback so the surface still looks like the
- * console even when the theme sheet is absent. English-only — the admin
- * console is staff-facing.
+ * console even when the theme sheet is absent.
+ *
+ * Locale: this boundary renders ABOVE the root layout's `LocaleProvider`,
+ * so `useLocale()` has no seed context here. It reads the `borjie_locale`
+ * cookie directly via the hook-free `readLocaleFromDocument()` and picks a
+ * single-locale variant — the zero-mix canon still applies to staff under
+ * the `sw` toggle even when the whole app failed to mount.
  */
 import { useEffect } from 'react';
+
+import { pickByLocale, readLocaleFromDocument } from '@/lib/locale-shared';
 
 interface GlobalErrorProps {
   readonly error: Error & { readonly digest?: string };
@@ -29,8 +36,10 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
     }
   }, [error]);
 
+  const locale = readLocaleFromDocument();
+
   return (
-    <html lang="en">
+    <html lang={locale}>
       <body
         style={{
           margin: 0,
@@ -74,7 +83,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               fontFamily: "var(--font-mono, 'JetBrains Mono', ui-monospace, monospace)",
             }}
           >
-            Critical error
+            {pickByLocale(locale, { en: 'Critical error', sw: 'Hitilafu mbaya' })}
           </p>
           <h1
             style={{
@@ -84,7 +93,10 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               margin: '16px 0 12px',
             }}
           >
-            The console couldn't load.
+            {pickByLocale(locale, {
+              en: "The console couldn't load.",
+              sw: 'Dashibodi haikuweza kupakia.',
+            })}
           </h1>
           <p
             style={{
@@ -94,9 +106,16 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               margin: '0 0 32px',
             }}
           >
-            Something failed before the HQ console could render. Try
-            reloading — if it keeps happening, escalate via the incident
-            channel.
+            {pickByLocale(locale, {
+              en:
+                'Something failed before the HQ console could render. Try ' +
+                'reloading — if it keeps happening, escalate via the incident ' +
+                'channel.',
+              sw:
+                'Kitu kilishindwa kabla dashibodi ya makao makuu kuonyeshwa. ' +
+                'Jaribu kupakia upya — likiendelea, panda suala kupitia ' +
+                'chaneli ya tukio.',
+            })}
           </p>
           <button
             type="button"
@@ -116,7 +135,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               boxShadow: 'var(--shadow-eb-btn, 0 4px 12px -2px rgba(0,0,0,0.45))',
             }}
           >
-            Try again
+            {pickByLocale(locale, { en: 'Try again', sw: 'Jaribu tena' })}
           </button>
         </div>
       </body>

@@ -20,6 +20,7 @@ import { Button, Skeleton, Alert, Empty } from '@borjie/design-system';
 import { StubBadge } from '@/components/internal/StubBadge';
 import { Toast } from '@/components/internal/Toast';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
 import {
   useSelfHealingQueueQuery,
   useDecideRepairProposal,
@@ -45,6 +46,10 @@ const S = {
   approveFix: { en: 'Approve fix', sw: 'Idhinisha marekebisho' },
   denyDegrade: { en: 'Deny (accept degrade)', sw: 'Kataa (kubali upunguzaji)' },
   dismiss: { en: 'Dismiss', sw: 'Tupilia mbali' },
+  approved: { en: 'approved', sw: 'imeidhinishwa' },
+  dismissed: { en: 'dismissed', sw: 'imetupiliwa mbali' },
+  failed: { en: 'Failed', sw: 'Imeshindwa' },
+  unknown: { en: 'unknown', sw: 'haijulikani' },
 } as const;
 
 function kindTone(p: RepairProposalView): 'danger' | 'warn' | 'info' {
@@ -78,7 +83,7 @@ export function SelfHealingConsole({
     );
   }
   if (query.isError) {
-    return <Alert variant="error">{query.error.message}</Alert>;
+    return <Alert variant="error">{localizeApiError(query.error, locale)}</Alert>;
   }
 
   const rows = query.data?.rows ?? [];
@@ -88,9 +93,13 @@ export function SelfHealingConsole({
       { id: p.id, decision },
       {
         onSuccess: () =>
-          setToast(`${p.title}: ${decision === 'approve' ? 'approved' : 'dismissed'}`),
+          setToast(
+            `${p.title}: ${decision === 'approve' ? pickByLocale(locale, S.approved) : pickByLocale(locale, S.dismissed)}`,
+          ),
         onError: (err) =>
-          setToast(`Failed: ${err instanceof Error ? err.message : 'unknown'}`),
+          setToast(
+            `${pickByLocale(locale, S.failed)}: ${localizeApiError(err, locale)}`,
+          ),
       },
     );
   };

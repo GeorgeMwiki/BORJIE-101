@@ -11,9 +11,7 @@ import type {
 } from './migration-run.js';
 
 export interface MigrationBundle {
-  readonly properties: ReadonlyArray<Record<string, unknown>>;
-  readonly units: ReadonlyArray<Record<string, unknown>>;
-  readonly tenants: ReadonlyArray<Record<string, unknown>>;
+  readonly sites: ReadonlyArray<Record<string, unknown>>;
   readonly employees: ReadonlyArray<Record<string, unknown>>;
   readonly departments: ReadonlyArray<Record<string, unknown>>;
   readonly teams: ReadonlyArray<Record<string, unknown>>;
@@ -46,8 +44,8 @@ export interface IMigrationRepository {
   /**
    * Commit the bundle atomically. Implementations MUST:
    *  - Run inside a single transaction scoped to `tenantId`.
-   *  - Use ON CONFLICT DO NOTHING on natural keys (property.name,
-   *    unit.(propertyName,label), employee.employeeCode, etc.).
+   *  - Use ON CONFLICT DO NOTHING on natural keys (site.name,
+   *    employee.employeeCode, department.code, team.code).
    *  - Return per-kind counts of rows actually inserted + skip reasons.
    */
   runInTransaction(

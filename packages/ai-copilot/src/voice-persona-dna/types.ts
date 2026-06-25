@@ -16,8 +16,10 @@
  *   - `VoicePersonaProfile` — the full DNA of a persona.
  *   - Per-persona greeting / closing / taboo lists so the Brain and the
  *     consistency-validator can both work off the same contract.
- *   - `codeSwitching` opt-in for EA markets where switching into Swahili
- *     for one or two phrases builds rapport.
+ *   - `codeSwitching` is FORBIDDEN by the zero-mix canon. The field is
+ *     retained only as a deprecated, always-unset shape so the duck-typed
+ *     voice bridge keeps compiling; no profile may populate it, and the
+ *     consistency-validator flags any non-active-locale token regardless.
  *   - `voiceBinding` so the VoiceRouter can resolve the ElevenLabs /
  *     OpenAI voice-id for the persona without hard-coding IDs in
  *     fifteen call-sites.
@@ -47,11 +49,12 @@ export interface PersonaPace {
 }
 
 /**
- * Code-switching rules. Many EA tenants appreciate (and expect) a
- * landlord-voice that drops into Swahili for greetings or rapport
- * phrases. The rules here are NOT a free-form allow-list — they pin the
- * primary locale, the locales we allow as inserts, and the contexts
- * that trigger a switch (greeting, reassurance, etc.).
+ * @deprecated FORBIDDEN by the zero-mix language canon. Code-switching
+ * (mixing locales within one rendered output) is never permitted: the AI
+ * reply is single-active-locale only. This shape is retained ONLY so the
+ * duck-typed voice bridge keeps compiling; no profile may set
+ * `codeSwitching`, and the consistency-validator treats any non-active-locale
+ * token as a violation regardless of any rules here. Do not populate it.
  */
 export interface CodeSwitchingRules {
   readonly primary: LocaleBCP47;
@@ -79,6 +82,7 @@ export interface VoicePersonaProfile {
   readonly tone: PersonaTone;
   readonly pace: PersonaPace;
   readonly vocabularyRegister: VocabularyRegister;
+  /** @deprecated FORBIDDEN — must remain unset (zero-mix canon). See CodeSwitchingRules. */
   readonly codeSwitching?: CodeSwitchingRules;
   /** ≥ 3 patterns; validated at module load. */
   readonly greetingPatterns: readonly string[];

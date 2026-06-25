@@ -71,11 +71,10 @@ describe('voice-persona-dna profile registry', () => {
     );
   });
 
-  it('owner and tenant profiles enable EA Swahili code-switching', () => {
-    expect(OWNER_PROFILE.codeSwitching).toBeDefined();
-    expect(TENANT_PROFILE.codeSwitching).toBeDefined();
-    expect(OWNER_PROFILE.codeSwitching?.allowedInserts).toContain('sw-KE');
-    expect(TENANT_PROFILE.codeSwitching?.allowedInserts).toContain('sw-KE');
+  it('no profile enables code-switching (zero-mix canon — single active locale)', () => {
+    for (const p of ALL_PROFILES) {
+      expect(p.codeSwitching).toBeUndefined();
+    }
   });
 
   it('vendor profile is precise and forbids "buddy"-style language', () => {

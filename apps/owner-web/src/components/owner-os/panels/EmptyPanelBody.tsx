@@ -53,7 +53,7 @@ export type EmptyPanelBodyProps = ContractShape | CtaShape;
  *      Family Office, Succession, Ancillary, Asset Register) whose
  *      seed flow is owner-driven rather than BFF-driven.
  *
- * Both shapes share the LitFin empty-state rhythm (icon, title, body,
+ * Both shapes share the reference empty-state rhythm (icon, title, body,
  * affordance) so the visual rhythm stays consistent across the cockpit.
  */
 export function EmptyPanelBody(props: EmptyPanelBodyProps): ReactElement {

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Button } from '@borjie/design-system';
 import { StubBadge } from '../StubBadge';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
 import {
   useConfirmKillswitch,
   usePendingConfirmations,
@@ -30,6 +31,8 @@ const S = {
   expired: { en: 'expired', sw: 'imekwisha muda' },
   left: { en: 'left', sw: 'zimebaki' },
   confirm: { en: 'Confirm', sw: 'Thibitisha' },
+  confirmed: { en: 'Confirmed', sw: 'Imethibitishwa' },
+  confirmFailed: { en: 'Confirm failed', sw: 'Uthibitisho umeshindwa' },
 } as const;
 
 function secondsRemaining(expiresAt: string, nowMs: number): number {
@@ -121,11 +124,11 @@ export function PendingConfirmationsQueue({
                     confirm.mutate(row.id, {
                       onSuccess: () =>
                         onResult(
-                          `Confirmed ${row.killswitchTarget.scope} → ${row.killswitchTarget.level}`,
+                          `${pickByLocale(locale, S.confirmed)}: ${row.killswitchTarget.scope} → ${row.killswitchTarget.level}`,
                         ),
                       onError: (err) =>
                         onResult(
-                          `Confirm failed: ${err instanceof Error ? err.message : 'unknown'}`,
+                          `${pickByLocale(locale, S.confirmFailed)}: ${localizeApiError(err, locale)}`,
                         ),
                     })
                   }

@@ -381,8 +381,9 @@ export const ownerMarketBidsTool: PersonaToolDescriptor<
   id: 'mining.marketplace.bids-on-my-parcels',
   name: 'Owner — bids on my parcels',
   description:
-    'Active bids placed on the owner\'s marketplace parcels. Drives the owner cockpit ' +
-    '"Incoming Offers" card.',
+    'Active bids placed on the owner\'s marketplace parcels. Drives the owner ' +
+    'cockpit marketplace "Incoming offers" inbox (Accept / Decline), backed by ' +
+    'GET /mining/bids/incoming.',
   personaSlugs: OWNER,
   inputSchema: MarketBidsInput,
   outputSchema: MarketBidsOutput,

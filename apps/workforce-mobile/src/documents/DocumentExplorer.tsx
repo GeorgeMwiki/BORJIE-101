@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { colors } from '../theme/colors'
 import { fontSize, radius, spacing } from '../theme/spacing'
+import { localizeApiError } from '@borjie/error-catalog'
 import { askSession, createSession, summariseDocument } from './api'
 import type { UploadedDocument } from './types'
 import { useI18n } from '../i18n/useI18n'
+import { ApiError } from '../api/errors'
 import { ingestionStatusLabel, kindLabel } from './types'
 
 interface ChatTurn {
@@ -92,7 +94,13 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
       }
       setTurns((prev) => [...prev, assistantTurn])
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : t.documents.askError
+      // A coded ApiError localizes by code in the active locale; rendering the
+      // raw English `cause.message` off the wire under `sw` would be language
+      // mixing. Only fall back to the localized generic copy otherwise.
+      const message =
+        cause instanceof ApiError
+          ? localizeApiError(cause.code, lang)
+          : t.documents.askError
       setError(message)
     } finally {
       setBusy(false)

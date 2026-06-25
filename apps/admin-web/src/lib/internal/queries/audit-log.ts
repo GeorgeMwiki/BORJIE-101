@@ -10,7 +10,7 @@
  */
 
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, toApiError } from '@/lib/api-client';
 import type { AuditEvent } from '@/lib/internal/types';
 
 const KEY = ['internal', 'audit-log'] as const;
@@ -50,7 +50,7 @@ export function useAuditLogQuery() {
     queryKey: KEY,
     queryFn: async (): Promise<AuditLogResult> => {
       const res = await apiClient.get<ReadonlyArray<RawAuditRow>>('/audit-log');
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return { rows: res.data.map(adaptAudit), source: 'live' };
     },
   });
@@ -90,7 +90,7 @@ export function useAuditLogPages(filters: AuditLogFilters = {}) {
         readonly meta?: { readonly nextCursor: number | null };
       };
       const res = await apiClient.get<Envelope>(`/audit-log?${params.toString()}`);
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       const envelope = res.data;
       return {
         rows: envelope.data.map(adaptAudit),

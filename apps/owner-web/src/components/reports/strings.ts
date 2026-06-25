@@ -25,6 +25,10 @@ export interface ReportPlayerStrings {
   readonly noAudio: string;
   readonly loading: string;
   readonly defaultShareCopy: string;
+  readonly recentHeading: string;
+  readonly recentLoading: string;
+  readonly noRecent: string;
+  readonly noSelection: string;
 }
 
 /** Project the bilingual `tailStrings.reportPlayer` table onto one locale. */
@@ -43,6 +47,10 @@ function reportPlayerFor(lang: Lang): ReportPlayerStrings {
     noAudio: r.noAudio[lang],
     loading: r.loading[lang],
     defaultShareCopy: r.defaultShareCopy[lang],
+    recentHeading: r.recentHeading[lang],
+    recentLoading: r.recentLoading[lang],
+    noRecent: r.noRecent[lang],
+    noSelection: r.noSelection[lang],
   };
 }
 

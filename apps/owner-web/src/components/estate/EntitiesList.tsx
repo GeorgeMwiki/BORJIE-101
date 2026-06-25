@@ -8,6 +8,7 @@ import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
 import { StatusPill } from '@/components/shared/StatusPill';
 import { pickByLocale } from '@/lib/locale-shared';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
+import { estateLabels, labelFor } from '@/i18n/strings/estate-lmbm';
 
 interface EntitiesListProps {
   readonly locale: 'sw' | 'en';
@@ -87,14 +88,15 @@ function EntityListRow({ entity, locale }: EntityListRowProps) {
           </div>
           <div className="text-xs text-muted-foreground">
             {locale === 'sw' ? S.entitiesList.kindPrefix.sw : S.entitiesList.kindPrefix.en}
-            {entity.kind} · {Number(entity.ownershipPct).toFixed(1)}%
+            {labelFor(estateLabels.entityKind, entity.kind, locale)} ·{' '}
+            {Number(entity.ownershipPct).toFixed(1)}%
             {entity.brelaNo ? ` · BRELA ${entity.brelaNo}` : ''}
           </div>
         </div>
       </div>
       <StatusPill
         tone={tone as 'green' | 'amber' | 'red' | 'neutral'}
-        label={entity.status}
+        label={labelFor(estateLabels.entityStatus, entity.status, locale)}
       />
     </li>
   );

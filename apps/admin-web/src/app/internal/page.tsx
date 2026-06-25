@@ -6,36 +6,62 @@ import {
   internalHref,
   INTERNAL_SCREENS,
 } from '@/lib/internal/screens';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
+import { pickByLocale } from '@/lib/locale-shared';
 
 /**
- * Borjie Console landing — grid of all 20 internal admin screens
- * grouped by Tenants / Intelligence / Quality / Ops per the build
- * plan and UI_SCREEN_CATALOGUE.md §D.
+ * Borjie Console landing — grid of all internal admin screens grouped by
+ * Tenants / Intelligence / Quality / Ops per the build plan and
+ * UI_SCREEN_CATALOGUE.md §D. Server component: resolves the active locale
+ * from the cookie and renders ONE language (zero-mix canon).
+ *
+ * Protection copy states what is ACTUALLY enforced — an operator-only
+ * session gate (`src/middleware.ts` + an api-gateway re-check). SSO and
+ * IP allow-listing are NOT wired anywhere in admin-web (no SAML/OIDC, no
+ * IP gate), so advertising them here was a false security claim (D26
+ * honesty); it was removed, matching the Sidebar footer fix.
  */
-export default function ConsoleHomePage(): JSX.Element {
+export default async function ConsoleHomePage(): Promise<JSX.Element> {
+  const locale = await readLocaleFromServerCookies();
+  const screenCount = INTERNAL_SCREENS.length;
   return (
     <main id="main-content" className="mx-auto max-w-7xl px-6 py-10">
       <header className="mb-10">
         <p className="text-caption uppercase tracking-widest text-signal-500 mb-2">
-          Internal admin · Section D
+          {pickByLocale(locale, {
+            en: 'Internal admin · Section D',
+            sw: 'Usimamizi wa ndani · Sehemu D',
+          })}
         </p>
         <h1 className="text-4xl font-display text-foreground mb-3">
           Borjie Console
         </h1>
         <p className="text-sm text-muted-foreground max-w-2xl">
-          Twenty operational surfaces that run the Borjie platform — from
-          tenant onboarding through corpus management, prompt promotion,
-          compliance review, and emergency killswitch. SSO + IP allow-list
-          enforced upstream; every mutation lands in the append-only
-          audit log.
+          {pickByLocale(locale, {
+            en: 'Operational surfaces that run the Borjie platform: from tenant onboarding through corpus management, prompt promotion, compliance review, and the emergency killswitch. Operator-only and session-gated; every mutation lands in the append-only audit log.',
+            sw: 'Nyuso za uendeshaji zinazoendesha jukwaa la Borjie: kuanzia usajili wa wateja, usimamizi wa korpasi, kupandisha prompt, ukaguzi wa uzingatiaji, hadi kitufe cha dharura cha kuzima. Waendeshaji pekee na kikao kimethibitishwa; kila mabadiliko huingia kwenye kumbukumbu ya ukaguzi isiyobadilika.',
+          })}
         </p>
         <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
-          <span>{INTERNAL_SCREENS.length} screens</span>
+          <span>
+            {pickByLocale(locale, {
+              en: `${screenCount} screens`,
+              sw: `skrini ${screenCount}`,
+            })}
+          </span>
           <span aria-hidden="true">·</span>
-          <span>{SCREEN_GROUPS.length} groups</span>
+          <span>
+            {pickByLocale(locale, {
+              en: `${SCREEN_GROUPS.length} groups`,
+              sw: `makundi ${SCREEN_GROUPS.length}`,
+            })}
+          </span>
           <span aria-hidden="true">·</span>
           <Link href="/" className="hover:text-foreground transition-colors underline underline-offset-4">
-            Back to Platform HQ
+            {pickByLocale(locale, {
+              en: 'Back to Platform HQ',
+              sw: 'Rudi kwenye Makao Makuu',
+            })}
           </Link>
         </div>
       </header>
@@ -51,12 +77,17 @@ export default function ConsoleHomePage(): JSX.Element {
                     id={`group-${group.id}`}
                     className="text-xl font-display text-foreground"
                   >
-                    {group.label}
+                    {pickByLocale(locale, group.labelI18n)}
                   </h2>
-                  <p className="text-sm text-muted-foreground">{group.blurb}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {pickByLocale(locale, group.blurbI18n)}
+                  </p>
                 </div>
                 <span className="text-xs text-muted-foreground">
-                  {screens.length} screens
+                  {pickByLocale(locale, {
+                    en: `${screens.length} screens`,
+                    sw: `skrini ${screens.length}`,
+                  })}
                 </span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -73,9 +104,11 @@ export default function ConsoleHomePage(): JSX.Element {
                       <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-signal-500 transition-colors" />
                     </div>
                     <h3 className="text-base font-display text-foreground mb-1">
-                      {screen.title}
+                      {pickByLocale(locale, screen.titleI18n)}
                     </h3>
-                    <p className="text-xs text-muted-foreground">{screen.intent}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {pickByLocale(locale, screen.intentI18n)}
+                    </p>
                   </Link>
                 ))}
               </div>

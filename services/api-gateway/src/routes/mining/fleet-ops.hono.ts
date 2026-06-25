@@ -351,17 +351,17 @@ miningFleetOpsRouter.get('/tco', async (c) => {
   }
 });
 
-/** Honesty flags surfaced on every TCO payload. */
+/**
+ * Honesty flag KEYS surfaced on every TCO payload.
+ *
+ * WIRE STAYS LOCALE-NEUTRAL: the backend emits stable enum keys only, never
+ * single-language engineering prose. owner-web maps each key to an honest,
+ * owner-facing note in the active locale ({ en, sw }) in FleetOpsSurface, and
+ * gates each on the relevant figure actually being 0 (no per-km source / no
+ * depreciation modelled) so the note only shows when it is true.
+ */
 function trustFlags(): ReadonlyArray<string> {
-  return [
-    'FLAG: distanceKm and costPerKmCents are 0 because the assets schema ' +
-      'carries no trip/odometer ledger. Stand up a trips source to unlock ' +
-      'the per-km figure and fleet utilization — no distance is invented.',
-    'FLAG: depreciation is 0 unless annualDepreciationCents is supplied; ' +
-      'insurance + fines are not modelled in the mining asset tables.',
-    'FLAG: vehicles are assets with kind in ' +
-      `[${VEHICLE_ASSET_KINDS.join(', ')}].`,
-  ];
+  return ['distance_source_missing', 'depreciation_unmodelled', 'vehicle_kind_scope'];
 }
 
 /** Map `fuel_logs.fuel_kind` to the package FuelType (best-effort). */

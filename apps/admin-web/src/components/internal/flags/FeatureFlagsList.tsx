@@ -11,6 +11,7 @@ import { StubBadge } from '../StubBadge';
 import { DataSourceBadge } from '../DataSourceBadge';
 import { Toast } from '../Toast';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
 
 const S = {
   loading: { en: 'Loading flags…', sw: 'Inapakia bendera…' },
@@ -68,7 +69,7 @@ function FlagToggle({
               onError: (err) =>
                 setToast(
                   `${pickByLocale(locale, S.failed)}: ${
-                    err instanceof Error ? err.message : pickByLocale(locale, S.unknown)
+                    localizeApiError(err, locale)
                   }`,
                 ),
             },
@@ -109,7 +110,7 @@ export function FeatureFlagsList({
     );
   }
   if (query.isError) {
-    return <p className="text-sm text-danger">{query.error.message}</p>;
+    return <p className="text-sm text-danger">{localizeApiError(query.error, locale)}</p>;
   }
 
   const rows = query.data?.rows ?? [];
@@ -121,7 +122,7 @@ export function FeatureFlagsList({
           title={pickByLocale(locale, S.emptyTitle)}
           description={pickByLocale(locale, S.emptyBody)}
         />
-        <DataSourceBadge source={query.data?.source ?? 'mock'} />
+        <DataSourceBadge source={query.data?.source ?? 'mock'} locale={locale} />
       </div>
     );
   }
@@ -151,7 +152,7 @@ export function FeatureFlagsList({
           </article>
         ))}
       </div>
-      <DataSourceBadge source={query.data?.source ?? 'mock'} />
+      <DataSourceBadge source={query.data?.source ?? 'mock'} locale={locale} />
     </div>
   );
 }

@@ -7,7 +7,7 @@
  * `miniMetricSchema`. Compact one-line chip: name + value + optional
  * delta + optional 12-point sparkline.
  *
- * LitFin rhythm: 12px label, mono numerics, tone-coded delta.
+ * Institutional rhythm: 12px label, mono numerics, tone-coded delta.
  */
 
 import type { ReactElement } from 'react';

@@ -5,7 +5,7 @@ import { type ReactNode } from 'react';
 /**
  * OwnerProviders — owner-portal-specific provider stack.
  *
- * Mirrors LitFin's `(borrower)/BorrowerProviders.tsx` pattern: a thin
+ * The portal providers pattern: a thin
  * client wrapper that owners can hang Tooltip / Toast / Theme contexts
  * off without re-mounting them on every page transition. Today this is
  * a passthrough because the global `AppProviders` (TanStack Query) is

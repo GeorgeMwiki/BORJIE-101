@@ -2,7 +2,7 @@
 
 import { useState, type ReactElement } from 'react';
 import { TrendingUp, TrendingDown, Minus, AlertTriangle } from 'lucide-react';
-import { formatCurrency } from '@borjie/genui';
+import { formatCurrency } from '@borjie/api-client';
 import { Skeleton, Alert } from '@borjie/design-system';
 import {
   useCommodityAdvice,
@@ -11,6 +11,12 @@ import {
   type IntelRecommendation,
   type TrendWindow,
 } from '@/lib/queries/commodity-intelligence';
+import { useLocale, pickByLocale } from '@/lib/locale';
+import { bcp47For } from '@/lib/format';
+import type { Locale } from '@/lib/locale-shared';
+import {
+  commodityTrendPanelStrings as S,
+} from '@/i18n/strings/commodity-trend-panel';
 
 /**
  * Commodity-intelligence trend panel (O-W-17 companion).
@@ -43,7 +49,14 @@ function DirectionIcon({ d }: { d: TrendWindow['direction'] }): ReactElement {
   return <Minus className="h-4 w-4 text-muted-foreground" />;
 }
 
-export function CommodityTrendPanel(): ReactElement {
+interface CommodityTrendPanelProps {
+  readonly initialLocale?: Locale | undefined;
+}
+
+export function CommodityTrendPanel({
+  initialLocale,
+}: CommodityTrendPanelProps = {}): ReactElement {
+  const locale = useLocale(initialLocale);
   const [commodity, setCommodity] = useState<Commodity>('gold');
   const adviceQ = useCommodityAdvice({ commodity });
 
@@ -52,21 +65,21 @@ export function CommodityTrendPanel(): ReactElement {
       <header className="mb-4 flex items-center justify-between gap-4">
         <div>
           <h2 className="text-sm font-semibold text-foreground">
-            Commodity Trend Advisor
+            {pickByLocale(locale, S.title)}
           </h2>
           <p className="text-xs text-muted-foreground">
-            Benchmark price trend + lock / delay-sale signals
+            {pickByLocale(locale, S.subtitle)}
           </p>
         </div>
         <select
           value={commodity}
           onChange={(e) => setCommodity(e.target.value as Commodity)}
-          className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs capitalize text-foreground"
-          aria-label="Select commodity"
+          className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-foreground"
+          aria-label={pickByLocale(locale, S.selectCommodity)}
         >
           {COMMODITIES.map((cmd) => (
-            <option key={cmd} value={cmd} className="capitalize">
-              {cmd}
+            <option key={cmd} value={cmd}>
+              {pickByLocale(locale, S.commodity[cmd])}
             </option>
           ))}
         </select>
@@ -79,7 +92,7 @@ export function CommodityTrendPanel(): ReactElement {
         <Alert variant="error" size="sm">
           <span className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4" />
-            Advisor unavailable. Try again shortly.
+            {pickByLocale(locale, S.unavailable)}
           </span>
         </Alert>
       )}
@@ -89,14 +102,19 @@ export function CommodityTrendPanel(): ReactElement {
           {adviceQ.data.snapshot ? (
             <>
               <p className="text-xs text-muted-foreground">
-                Latest:{' '}
+                {pickByLocale(locale, S.latest)}:{' '}
                 <span className="font-semibold text-foreground">
                   {formatCurrency(
                     Math.round(adviceQ.data.snapshot.latestPrice),
                     adviceQ.data.snapshot.baseCurrency,
+                    { locale: bcp47For(locale) },
                   )}
                 </span>{' '}
-                / tonne · sources: {adviceQ.data.snapshot.sources.join(', ') || '—'}
+                {pickByLocale(locale, S.perTonne)} ·{' '}
+                {pickByLocale(
+                  locale,
+                  S.sources(adviceQ.data.snapshot.sources.join(', ') || '—'),
+                )}
               </p>
               <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {adviceQ.data.snapshot.windows.map((w) => (
@@ -128,7 +146,7 @@ export function CommodityTrendPanel(): ReactElement {
             </>
           ) : (
             <p className="text-xs text-muted-foreground">
-              {adviceQ.data.note ?? 'No ticker data for this commodity yet.'}
+              {adviceQ.data.note ?? pickByLocale(locale, S.noTickerData)}
             </p>
           )}
 
@@ -142,7 +160,10 @@ export function CommodityTrendPanel(): ReactElement {
                   <p className="font-semibold">{r.title}</p>
                   <p className="mt-1 text-muted-foreground">{r.rationale}</p>
                   <p className="mt-2 text-[10px] uppercase tracking-wide text-muted-foreground">
-                    Evidence: {r.evidence.map((e) => e.id).join(', ')}
+                    {pickByLocale(
+                      locale,
+                      S.evidence(r.evidence.map((e) => e.id).join(', ')),
+                    )}
                   </p>
                 </li>
               ))}
@@ -152,7 +173,7 @@ export function CommodityTrendPanel(): ReactElement {
           {adviceQ.data.snapshot &&
             adviceQ.data.recommendations.length === 0 && (
               <p className="text-xs text-muted-foreground">
-                No price-action signals at current thresholds.
+                {pickByLocale(locale, S.noSignals)}
               </p>
             )}
         </div>

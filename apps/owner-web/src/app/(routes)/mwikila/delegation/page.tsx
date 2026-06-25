@@ -29,7 +29,7 @@ export default async function MwikilaDelegationPage() {
           {pickByLocale(locale, S.delegationPage.body)}
         </p>
       </header>
-      <DelegationMatrix />
+      <DelegationMatrix initialLocale={locale} />
     </main>
   );
 }

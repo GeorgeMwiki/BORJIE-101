@@ -1,5 +1,9 @@
 'use client';
 
+import { useLocale } from '@/lib/locale';
+import { pickByLocale } from '@/lib/locale-shared';
+import { licenceCockpitStrings as S } from '@/i18n/strings/licence-cockpit';
+
 interface CountdownCardsProps {
   readonly daysToWindow: number;
   readonly windowOpensAt: string;
@@ -29,6 +33,7 @@ export function CountdownCards({
   windowOpensAt,
   windowClosesAt,
 }: CountdownCardsProps) {
+  const locale = useLocale();
   return (
     <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
       {THRESHOLDS.map((t) => {
@@ -43,13 +48,18 @@ export function CountdownCards({
             }`}
           >
             <div className="text-tiny uppercase tracking-wide">
-              {t.key} renewal gate
+              {pickByLocale(locale, S.countdown.gate(t.key))}
             </div>
             <div className="mt-1 text-2xl font-display">
-              {reached ? 'reached' : `${daysToWindow - t.days}d to go`}
+              {reached
+                ? pickByLocale(locale, S.countdown.reached)
+                : pickByLocale(locale, S.countdown.daysToGo(daysToWindow - t.days))}
             </div>
             <div className="mt-1 text-badge">
-              window opens {windowOpensAt} · closes {windowClosesAt}
+              {pickByLocale(
+                locale,
+                S.countdown.window(windowOpensAt, windowClosesAt),
+              )}
             </div>
           </article>
         );

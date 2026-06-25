@@ -7,6 +7,7 @@ import type { UploadedDocument } from './types';
 import { ingestionStatusLabel, kindLabel } from './types';
 import type { Locale } from '@/lib/locale-shared';
 import { DEFAULT_LOCALE } from '@/lib/locale-shared';
+import { localizeError } from '@/lib/api-client';
 import { tailStrings as S } from '@/i18n/strings/tail';
 
 interface ChatTurn {
@@ -103,8 +104,9 @@ export function DocumentExplorer({
       };
       setTurns((prev) => [...prev, assistantTurn]);
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : 'Ask failed.';
-      setError(message);
+      // Localize the gateway error by its stable CODE — never the raw English
+      // `.message` (rendering that under `sw` is language MIXING).
+      setError(localizeError(cause, locale));
     } finally {
       setBusy(false);
     }

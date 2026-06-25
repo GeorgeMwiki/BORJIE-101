@@ -11,10 +11,15 @@ import {
 import { SectionCard } from '@/components/shared/SectionCard';
 import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
 import { MetricStrip } from '@/components/shared/MetricStrip';
-import { formatLargeMoney, LAUNCH_CURRENCY } from '@/lib/format';
+import { formatLargeMoney, fmtDateForLocale, LAUNCH_CURRENCY } from '@/lib/format';
 import { pickByLocale } from '@/lib/locale-shared';
 import type { Locale } from '@/lib/locale-shared';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
+import {
+  estateLabels,
+  labelFor,
+  capitalMovementExtra,
+} from '@/i18n/strings/estate-lmbm';
 
 interface CapitalMovementsTimelineProps {
   readonly locale: Locale;
@@ -61,15 +66,32 @@ export function CapitalMovementsTimeline({
 
   const now = Date.now();
   const thirtyDaysAgo = now - 30 * 86_400_000;
-  let inflow = 0;
-  let outflow = 0;
+  // Aggregate PER currency-code — never sum across distinct ISO codes into
+  // one figure. Each KPI renders one figure when all 30d movements share a
+  // currency, or a per-currency breakdown when they differ.
+  const inflowByCcy = new Map<string, number>();
+  const outflowByCcy = new Map<string, number>();
   for (const m of movements) {
     const t = new Date(m.happenedAt).getTime();
     if (t < thirtyDaysAgo) continue;
     const v = Number(m.amount);
-    if (m.toEntityId) inflow += v;
-    if (m.fromEntityId) outflow += v;
+    const ccy = (m.currency || LAUNCH_CURRENCY).trim().toUpperCase();
+    if (m.toEntityId) inflowByCcy.set(ccy, (inflowByCcy.get(ccy) ?? 0) + v);
+    if (m.fromEntityId) outflowByCcy.set(ccy, (outflowByCcy.get(ccy) ?? 0) + v);
   }
+  // Net per currency drawn from the union of inflow/outflow codes.
+  const netByCcy = new Map<string, number>();
+  for (const ccy of new Set([...inflowByCcy.keys(), ...outflowByCcy.keys()])) {
+    netByCcy.set(ccy, (inflowByCcy.get(ccy) ?? 0) - (outflowByCcy.get(ccy) ?? 0));
+  }
+
+  const renderByCcy = (byCcy: Map<string, number>): string => {
+    const entries = [...byCcy.entries()];
+    if (entries.length === 0) return formatLargeMoney(0, LAUNCH_CURRENCY, locale);
+    return entries
+      .map(([ccy, amount]) => formatLargeMoney(amount, ccy, locale))
+      .join(' · ');
+  };
 
   return (
     <div className="space-y-6">
@@ -78,19 +100,19 @@ export function CapitalMovementsTimeline({
         tiles={[
           {
             label: isSw ? S.capitalMovements.inflowLabel.sw : S.capitalMovements.inflowLabel.en,
-            value: formatLargeMoney(inflow, LAUNCH_CURRENCY, locale),
+            value: renderByCcy(inflowByCcy),
             sub: isSw ? S.capitalMovements.inflowSub.sw : S.capitalMovements.inflowSub.en,
             tone: 'success',
           },
           {
             label: isSw ? S.capitalMovements.outflowLabel.sw : S.capitalMovements.outflowLabel.en,
-            value: formatLargeMoney(outflow, LAUNCH_CURRENCY, locale),
+            value: renderByCcy(outflowByCcy),
             sub: isSw ? S.capitalMovements.outflowSub.sw : S.capitalMovements.outflowSub.en,
             tone: 'warning',
           },
           {
             label: isSw ? S.capitalMovements.netLabel.sw : S.capitalMovements.netLabel.en,
-            value: formatLargeMoney(inflow - outflow, LAUNCH_CURRENCY, locale),
+            value: renderByCcy(netByCcy),
             sub: isSw ? S.capitalMovements.netSub.sw : S.capitalMovements.netSub.en,
           },
         ]}
@@ -133,12 +155,13 @@ interface FlowRowProps {
 }
 
 function FlowRow({ movement, nameById, locale }: FlowRowProps) {
+  const external = pickByLocale(locale, capitalMovementExtra.external);
   const fromName = movement.fromEntityId
-    ? nameById.get(movement.fromEntityId) ?? 'external'
-    : 'external';
+    ? nameById.get(movement.fromEntityId) ?? external
+    : external;
   const toName = movement.toEntityId
-    ? nameById.get(movement.toEntityId) ?? 'external'
-    : 'external';
+    ? nameById.get(movement.toEntityId) ?? external
+    : external;
   return (
     <li className="flex items-start justify-between gap-3 px-5 py-3">
       <div className="flex min-w-0 items-start gap-3">
@@ -148,7 +171,8 @@ function FlowRow({ movement, nameById, locale }: FlowRowProps) {
             {fromName} {locale === 'sw' ? S.capitalMovements.to.sw : S.capitalMovements.to.en} {toName}
           </div>
           <div className="text-xs text-muted-foreground">
-            {movement.kind} · {new Date(movement.happenedAt).toISOString().slice(0, 10)}
+            {labelFor(estateLabels.capitalMovementKind, movement.kind, locale)} ·{' '}
+            {fmtDateForLocale(movement.happenedAt, locale)}
             {movement.narrative ? ` · ${movement.narrative}` : ''}
           </div>
         </div>

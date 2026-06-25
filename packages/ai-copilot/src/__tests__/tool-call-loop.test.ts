@@ -97,27 +97,32 @@ function buildOrchestrator(provider: AIProvider) {
 
 describe('orchestrator tool-call loop', () => {
   it('dispatches a tool_use, feeds the result back, and finalizes', async () => {
-    // Turn 1: model wants to call swahili_draft.
+    // Turn 1: model wants to call assign_to_team_member.
     // Turn 2: model returns a final text response.
     const provider = new ScriptedAnthropicLikeProvider([
       makeResp({
         toolCalls: [
           {
             id: 'tu_1',
-            name: 'skill.kenya.swahili_draft',
+            name: 'skill.hr.assign_to_team_member',
             input: {
-              kind: 'rent_reminder_gentle',
-              locale: 'sw',
-              tenantName: 'Asha',
-              unitLabel: 'A-1',
-              amountKes: 25_000,
-              date: '2026-03-31',
-              propertyName: 'Kilimani Heights',
+              taskLabel: 'inspect the dewatering pump at the pit',
+              requiredSkills: ['mechanical'],
+              urgency: 'high',
+              teamMembers: [
+                {
+                  employeeId: 'E1',
+                  name: 'Juma',
+                  jobTitle: 'Fitter',
+                  capabilities: { mechanical: 0.9 },
+                  status: 'active',
+                },
+              ],
             },
           },
         ],
       }),
-      makeResp({ text: 'Drafted the Swahili reminder.' }),
+      makeResp({ text: 'Ranked the available team for the assignment.' }),
     ]);
     const { orchestrator } = buildOrchestrator(provider);
 
@@ -131,15 +136,15 @@ describe('orchestrator tool-call loop', () => {
         isAdmin: true,
       },
       initialUserText:
-        'Draft a gentle Swahili rent reminder to A-1 tenants for 31 March.',
-      forcePersonaId: PERSONA_IDS.JUNIOR_COMMUNICATIONS,
+        'Who should we assign to inspect the dewatering pump at the pit?',
+      forcePersonaId: PERSONA_IDS.JUNIOR_MAINTENANCE,
     });
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.turn.toolCalls).toEqual([
-        { tool: 'skill.kenya.swahili_draft', ok: true },
+        { tool: 'skill.hr.assign_to_team_member', ok: true },
       ]);
-      expect(result.data.turn.responseText).toContain('Drafted');
+      expect(result.data.turn.responseText).toContain('Ranked');
     }
   });
 
@@ -192,7 +197,11 @@ describe('orchestrator tool-call loop', () => {
     const provider = new ScriptedAnthropicLikeProvider([
       makeResp({
         toolCalls: [
-          { id: 'tu_loop', name: 'skill.kenya.swahili_draft', input: { kind: 'rent_reminder_gentle' } },
+          {
+            id: 'tu_loop',
+            name: 'skill.hr.assign_to_team_member',
+            input: { taskLabel: 'inspect pump', teamMembers: [] },
+          },
         ],
       }),
     ]);
@@ -210,7 +219,7 @@ describe('orchestrator tool-call loop', () => {
         isAdmin: true,
       },
       initialUserText: 'spam tool calls forever',
-      forcePersonaId: PERSONA_IDS.JUNIOR_COMMUNICATIONS,
+      forcePersonaId: PERSONA_IDS.JUNIOR_MAINTENANCE,
     });
     expect(result.success).toBe(false);
     if (!result.success) {

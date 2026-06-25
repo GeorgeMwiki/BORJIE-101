@@ -4,6 +4,8 @@ import { AskBorjieSurface } from '@/components/ask/AskBorjieSurface';
 import { RoleAdvisorPanel } from '@/components/owner-os/panels/RoleAdvisorPanel';
 import { StageAdvisorPanel } from '@/components/owner-os/panels/StageAdvisorPanel';
 import { getOwnerSession } from '@/lib/session';
+import { pickByLocale } from '@/lib/locale-shared';
+import { askEmptyStateStrings as S } from '@/i18n/strings/ask-empty-state';
 
 /**
  * O-W-23 — Ask Borjie (LIVE Brain wire).
@@ -28,8 +30,17 @@ export default async function AskBorjiePage() {
   return (
     <>
       <ScreenHeader slug="ask" />
-      <Suspense fallback={<AskBorjieFallback />}>
-        <AskBorjieSurface />
+      <Suspense
+        fallback={
+          <AskBorjieFallback
+            label={pickByLocale(
+              session.languagePreference,
+              S.surfaceSuspenseFallback,
+            )}
+          />
+        }
+      >
+        <AskBorjieSurface initialLocale={session.languagePreference} />
       </Suspense>
       <div className="space-y-8 px-8 py-6">
         <RoleAdvisorPanel locale={session.languagePreference} />
@@ -39,13 +50,13 @@ export default async function AskBorjiePage() {
   );
 }
 
-function AskBorjieFallback() {
+function AskBorjieFallback({ label }: { readonly label: string }) {
   return (
     <div
       className="mx-auto my-12 max-w-xl rounded-lg border border-border bg-surface/40 p-6 text-sm text-neutral-400"
       data-testid="ask-suspense-fallback"
     >
-      Loading Ask Borjie…
+      {label}
     </div>
   );
 }

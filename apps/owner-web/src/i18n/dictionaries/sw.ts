@@ -135,6 +135,7 @@ export const sw = {
     "eyebrow": "Kokpiti ya leo",
     "greeting": "Karibu tena, {name}",
     "subline": "{legalName} - {region} - Maeneo {sites}, mpango: {plan}",
+    "sublineNoSites": "{legalName} - {region} - mpango: {plan}",
     "ctaAsk": "Uliza Borjie",
     "ctaCockpit": "Mwonekano wa kokpiti",
     "ctaMasterBrain": "Akili Kuu",
@@ -196,15 +197,17 @@ export const sw = {
     "eventLicenceExpiresInDays": "Inamalizika baada ya siku {count}",
     "eventLicenceExpirySoon": "Inamalizika hivi karibuni",
     "brainStreamEmpty": "Borjie Brain haina maamuzi yaliyosajiliwa bado.",
-    "brainAdvisorTitle": "Maarifa ya mshauri"
+    "brainAdvisorTitle": "Maarifa ya mshauri",
+    "actionDecisionContext": "Uamuzi wazi unasubiri ukaguzi"
   },
   "nav": {
-    "tenant": "Mpangaji",
+    "tenant": "Shirika",
     "ownerCockpit": "Kokpiti ya Mmiliki",
     "sectionOverview": "Muhtasari",
     "sectionField": "Shamba",
     "sectionOperations": "Uendeshaji",
     "sectionMoney": "Fedha",
+    "sectionEstate": "Miliki",
     "sectionCompliance": "Uzingatiaji",
     "sectionCommunity": "Jamii",
     "sectionSettings": "Mipangilio",
@@ -251,6 +254,10 @@ export const sw = {
     "cooperatives": "Ushirika",
     "insurance": "Bima",
     "estate": "Shamba",
+    "estateAssets": "Daftari la Mali",
+    "estateSuccession": "Urithi",
+    "estateEntities": "Kampuni za Miliki",
+    "estateCapitalMovements": "Mitiririko ya Mtaji",
     "inbox": "Kisanduku",
     "signOut": "Ondoka"
   },
@@ -346,7 +353,13 @@ export const sw = {
     "schedule": "Panga kikumbusho",
     "empty": "Hakuna vikumbusho bado.",
     "cancelItem": "Ghairi",
-    "acknowledge": "Thibitisha"
+    "acknowledge": "Thibitisha",
+    "loading": "Inapakia…",
+    "loadError": "Imeshindwa kupakia vikumbusho. Jaribu tena hivi karibuni.",
+    "createError": "Imeshindwa kupanga kikumbusho. Jaribu tena.",
+    "cancelError": "Imeshindwa kufuta kikumbusho. Jaribu tena.",
+    "acknowledgeError": "Imeshindwa kuthibitisha kikumbusho. Jaribu tena.",
+    "dispatchFailed": "Uwasilishaji umeshindwa"
   },
   "sandboxQueue": {
     "committed": "Imethibitishwa kwenye mfumo hai.",
@@ -355,15 +368,22 @@ export const sw = {
     "rejected": "Imekataliwa.",
     "rejectFailed": "Kukataa kumeshindwa",
     "loading": "Inapakia maandishi yaliyohifadhiwa…",
+    "emptyTitle": "Hakuna maandishi yaliyowekwa tayari",
     "empty": "Hakuna maandishi yaliyohifadhiwa katika muonekano huu.",
     "commit": "Thibitisha (macho manne)",
     "rejectReason": "Sababu ya kukataa",
     "rejectPlaceholder": "Kwa nini unakataa andishi hili?",
     "reject": "Kataa",
-    "emptyTitle": "Hakuna maandishi yaliyowekwa tayari"
+    "loadError": "Imeshindwa kupakia maandishi yaliyohifadhiwa. Jaribu tena hivi karibuni.",
+    "filterAll": "Zote"
   },
   "headBriefing": {
     "unavailable": "Mkutano wa asubuhi haupatikani sasa hivi.",
+    "error": {
+      "noSession": "Kipindi chako kimeisha muda. Tafadhali ingia tena.",
+      "unavailable": "Muhtasari haukuweza kupakiwa sasa hivi.",
+      "fetchFailed": "Hatukuweza kufikia huduma ya muhtasari."
+    },
     "noContent": "Hakuna maudhui ya mkutano.",
     "overnightActivity": "Shughuli za usiku",
     "noAutonomousActions": "Hakuna vitendo vya kujitegemea.",
@@ -453,7 +473,8 @@ export const sw = {
     "severityCritical": "Muhimu sana",
     "statusOpen": "Wazi",
     "statusAcknowledged": "Imethibitishwa",
-    "statusResolved": "Imetatuliwa"
+    "statusResolved": "Imetatuliwa",
+    "bodyUnavailable": "Hakuna maelezo yanayopatikana kwa lugha hii."
   },
   "evidence": {
     "title": "Ushahidi",

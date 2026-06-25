@@ -163,9 +163,6 @@ export const SUB_PERSONA_REGISTRY: Readonly<Record<SubPersonaId, SubPersonaConfi
     preferredTools: [
       'skill.kenya.mpesa_reconcile',
       'skill.kenya.tra_royalty_summary',
-      'skill.kenya.service_charge_reconcile',
-      'skill.finance.draft_owner_statement',
-      'skill.finance.draft_arrears_notice',
       'get_counterparty_risk_drivers',
       'get_site_rollup',
     ],
@@ -330,11 +327,7 @@ export const SUB_PERSONA_REGISTRY: Readonly<Record<SubPersonaId, SubPersonaConfi
       pace: 'brisk',
       formality: 'casual',
     },
-    preferredTools: [
-      'skill.comms.draft_tenant_notice',
-      'skill.comms.draft_campaign',
-      'skill.kenya.swahili_draft',
-    ],
+    preferredTools: [],
     routePatterns: [
       '/communications/*',
       '/notices/*',
@@ -351,7 +344,6 @@ export const SUB_PERSONA_REGISTRY: Readonly<Record<SubPersonaId, SubPersonaConfi
       'email to',
       'draft a',
       'swahili',
-      'sheng',
       'reminder',
       'broadcast',
     ],

@@ -2,6 +2,8 @@
 
 import { useMemo } from 'react';
 
+import { pickByLocale, useLocale, type Locale } from '@/lib/locale';
+
 /**
  * SliceSelector — the implicit-made-explicit audit aid.
  *
@@ -9,7 +11,8 @@ import { useMemo } from 'react';
  * composer prepends this slice to every outgoing message as a grounding
  * hint, e.g. "(slice: TZ-GE · Grade-B · last 90 days)". That text is
  * visible to the user, captured in the thread transcript, and therefore
- * auditable by platform staff reviewing the conversation.
+ * auditable by platform staff reviewing the conversation. The hint and
+ * every control label resolve to the active locale (zero-mix canon).
  */
 
 export interface SliceState {
@@ -20,7 +23,7 @@ export interface SliceState {
 
 export interface SliceOption {
   readonly value: string;
-  readonly label: string;
+  readonly label: { readonly en: string; readonly sw: string };
 }
 
 export const DEFAULT_SLICE: SliceState = {
@@ -30,44 +33,51 @@ export const DEFAULT_SLICE: SliceState = {
 };
 
 export const JURISDICTION_OPTIONS: ReadonlyArray<SliceOption> = [
-  { value: 'ALL', label: 'All jurisdictions' },
-  { value: 'TZ-GE', label: 'Tanzania · Geita (TZ-GE)' },
-  { value: 'TZ-MW', label: 'Tanzania · Mwanza / Lake Zone (TZ-MW)' },
-  { value: 'TZ-LI', label: 'Tanzania · Nachingwea / Lindi (TZ-LI)' },
-  { value: 'TZ-MB', label: 'Tanzania · Mbeya / Chunya (TZ-MB)' },
-  { value: 'TZ-RU', label: 'Tanzania · Songea / Ruvuma (TZ-RU)' },
-  { value: 'KE-NB', label: 'Kenya · Nairobi (KE-NB)' },
-  { value: 'UG-C', label: 'Uganda · Central (UG-C)' },
+  { value: 'ALL', label: { en: 'All jurisdictions', sw: 'Mamlaka zote' } },
+  { value: 'TZ-GE', label: { en: 'Tanzania · Geita (TZ-GE)', sw: 'Tanzania · Geita (TZ-GE)' } },
+  { value: 'TZ-MW', label: { en: 'Tanzania · Mwanza / Lake Zone (TZ-MW)', sw: 'Tanzania · Mwanza / Kanda ya Ziwa (TZ-MW)' } },
+  { value: 'TZ-LI', label: { en: 'Tanzania · Nachingwea / Lindi (TZ-LI)', sw: 'Tanzania · Nachingwea / Lindi (TZ-LI)' } },
+  { value: 'TZ-MB', label: { en: 'Tanzania · Mbeya / Chunya (TZ-MB)', sw: 'Tanzania · Mbeya / Chunya (TZ-MB)' } },
+  { value: 'TZ-RU', label: { en: 'Tanzania · Songea / Ruvuma (TZ-RU)', sw: 'Tanzania · Songea / Ruvuma (TZ-RU)' } },
+  { value: 'KE-NB', label: { en: 'Kenya · Nairobi (KE-NB)', sw: 'Kenya · Nairobi (KE-NB)' } },
+  { value: 'UG-C', label: { en: 'Uganda · Central (UG-C)', sw: 'Uganda · Kati (UG-C)' } },
 ];
 
 export const ASSET_CLASS_OPTIONS: ReadonlyArray<SliceOption> = [
-  { value: 'ALL', label: 'All grades' },
-  { value: 'Grade-A', label: 'Grade-A (high g/t)' },
-  { value: 'Grade-B', label: 'Grade-B (mid g/t)' },
-  { value: 'Grade-C', label: 'Grade-C (marginal g/t)' },
-  { value: 'alluvial', label: 'Alluvial / placer' },
-  { value: 'hard-rock', label: 'Hard-rock' },
+  { value: 'ALL', label: { en: 'All grades', sw: 'Madaraja yote' } },
+  { value: 'Grade-A', label: { en: 'Grade-A (high g/t)', sw: 'Daraja-A (g/t juu)' } },
+  { value: 'Grade-B', label: { en: 'Grade-B (mid g/t)', sw: 'Daraja-B (g/t wastani)' } },
+  { value: 'Grade-C', label: { en: 'Grade-C (marginal g/t)', sw: 'Daraja-C (g/t pembezoni)' } },
+  { value: 'alluvial', label: { en: 'Alluvial / placer', sw: 'Mchanga / placer' } },
+  { value: 'hard-rock', label: { en: 'Hard-rock', sw: 'Mwamba-mgumu' } },
 ];
 
 export const TIME_WINDOW_OPTIONS: ReadonlyArray<SliceOption> = [
-  { value: '7d', label: 'Last 7 days' },
-  { value: '30d', label: 'Last 30 days' },
-  { value: '90d', label: 'Last 90 days' },
-  { value: '180d', label: 'Last 180 days' },
-  { value: '365d', label: 'Last 365 days' },
+  { value: '7d', label: { en: 'Last 7 days', sw: 'Siku 7 zilizopita' } },
+  { value: '30d', label: { en: 'Last 30 days', sw: 'Siku 30 zilizopita' } },
+  { value: '90d', label: { en: 'Last 90 days', sw: 'Siku 90 zilizopita' } },
+  { value: '180d', label: { en: 'Last 180 days', sw: 'Siku 180 zilizopita' } },
+  { value: '365d', label: { en: 'Last 365 days', sw: 'Siku 365 zilizopita' } },
 ];
 
-export function formatSliceHint(slice: SliceState): string {
+export function formatSliceHint(slice: SliceState, locale: Locale): string {
   const parts: string[] = [];
   parts.push(
-    slice.jurisdiction === 'ALL' ? 'all jurisdictions' : slice.jurisdiction,
+    slice.jurisdiction === 'ALL'
+      ? pickByLocale(locale, { en: 'all jurisdictions', sw: 'mamlaka zote' })
+      : slice.jurisdiction,
   );
   parts.push(
-    slice.assetClass === 'ALL' ? 'all grades' : slice.assetClass,
+    slice.assetClass === 'ALL'
+      ? pickByLocale(locale, { en: 'all grades', sw: 'madaraja yote' })
+      : slice.assetClass,
   );
   const time = TIME_WINDOW_OPTIONS.find((o) => o.value === slice.timeWindow);
-  parts.push(time ? time.label.toLowerCase() : slice.timeWindow);
-  return `(slice: ${parts.join(' · ')})`;
+  parts.push(
+    time ? pickByLocale(locale, time.label).toLowerCase() : slice.timeWindow,
+  );
+  const sliceWord = pickByLocale(locale, { en: 'slice', sw: 'kipande' });
+  return `(${sliceWord}: ${parts.join(' · ')})`;
 }
 
 interface SliceSelectorProps {
@@ -77,14 +87,20 @@ interface SliceSelectorProps {
 }
 
 export function SliceSelector({ slice, onChange, disabled }: SliceSelectorProps) {
-  const hint = useMemo(() => formatSliceHint(slice), [slice]);
+  const locale = useLocale();
+  const hint = useMemo(() => formatSliceHint(slice, locale), [slice, locale]);
 
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs">
-      <span className="uppercase tracking-wider text-neutral-500">Slice</span>
+      <span className="uppercase tracking-wider text-neutral-500">
+        {pickByLocale(locale, { en: 'Slice', sw: 'Kipande' })}
+      </span>
 
       <select
-        aria-label="Jurisdiction"
+        aria-label={pickByLocale(locale, {
+          en: 'Jurisdiction',
+          sw: 'Mamlaka',
+        })}
         disabled={disabled}
         value={slice.jurisdiction}
         onChange={(e) =>
@@ -94,13 +110,16 @@ export function SliceSelector({ slice, onChange, disabled }: SliceSelectorProps)
       >
         {JURISDICTION_OPTIONS.map((o) => (
           <option key={o.value} value={o.value}>
-            {o.label}
+            {pickByLocale(locale, o.label)}
           </option>
         ))}
       </select>
 
       <select
-        aria-label="Asset grade"
+        aria-label={pickByLocale(locale, {
+          en: 'Asset grade',
+          sw: 'Daraja la mali',
+        })}
         disabled={disabled}
         value={slice.assetClass}
         onChange={(e) =>
@@ -110,13 +129,16 @@ export function SliceSelector({ slice, onChange, disabled }: SliceSelectorProps)
       >
         {ASSET_CLASS_OPTIONS.map((o) => (
           <option key={o.value} value={o.value}>
-            {o.label}
+            {pickByLocale(locale, o.label)}
           </option>
         ))}
       </select>
 
       <select
-        aria-label="Time window"
+        aria-label={pickByLocale(locale, {
+          en: 'Time window',
+          sw: 'Dirisha la wakati',
+        })}
         disabled={disabled}
         value={slice.timeWindow}
         onChange={(e) => onChange({ ...slice, timeWindow: e.target.value })}
@@ -124,12 +146,18 @@ export function SliceSelector({ slice, onChange, disabled }: SliceSelectorProps)
       >
         {TIME_WINDOW_OPTIONS.map((o) => (
           <option key={o.value} value={o.value}>
-            {o.label}
+            {pickByLocale(locale, o.label)}
           </option>
         ))}
       </select>
 
-      <span className="text-neutral-500 ml-1" title="Hint prepended to every outgoing message">
+      <span
+        className="text-neutral-500 ml-1"
+        title={pickByLocale(locale, {
+          en: 'Hint prepended to every outgoing message',
+          sw: 'Dokezo linaloongezwa mwanzoni mwa kila ujumbe unaotumwa',
+        })}
+      >
         {hint}
       </span>
     </div>

@@ -31,6 +31,9 @@ import {
 } from 'lucide-react';
 import { Button } from '@borjie/design-system';
 
+import { pickByLocale, useLocale, type Locale } from '@/lib/locale';
+import { localizeEnumLabel, DECISION_OUTCOME_LABELS } from '@/lib/internal/enum-labels';
+
 export interface AuditRecord {
   readonly id: string;
   readonly sequenceId: number;
@@ -59,8 +62,10 @@ export interface AuditTrailPanelProps {
   readonly fetchUrl: string;
   /** Authorization headers the panel needs to send. */
   readonly authHeaders?: Readonly<Record<string, string>>;
-  /** Optional title override. */
+  /** Optional title override (already resolved to the active locale). */
   readonly title?: string;
+  /** Server-resolved locale seed so the first paint matches the page chrome. */
+  readonly initialLocale?: Locale;
 }
 
 type LoadState =
@@ -74,7 +79,9 @@ export function AuditTrailPanel({
   fetchUrl,
   authHeaders,
   title,
+  initialLocale,
 }: AuditTrailPanelProps) {
+  const locale = useLocale(initialLocale);
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
 
@@ -89,7 +96,10 @@ export function AuditTrailPanel({
       if (res.status === 503) {
         setState({
           kind: 'degraded',
-          reason: "The audit chain isn't reachable right now.",
+          reason: pickByLocale(locale, {
+            en: "The audit chain isn't reachable right now.",
+            sw: 'Mnyororo wa ukaguzi haufikiki kwa sasa.',
+          }),
           retryable: true,
         });
         return;
@@ -97,7 +107,10 @@ export function AuditTrailPanel({
       if (res.status === 401) {
         setState({
           kind: 'degraded',
-          reason: 'Your session timed out. Sign in again.',
+          reason: pickByLocale(locale, {
+            en: 'Your session timed out. Sign in again.',
+            sw: 'Kipindi chako kimeisha muda. Ingia tena.',
+          }),
           retryable: false,
         });
         return;
@@ -107,8 +120,14 @@ export function AuditTrailPanel({
           kind: 'degraded',
           reason:
             scope === 'platform'
-              ? 'Platform audit trails require PLATFORM_ADMIN or higher.'
-              : "You don't have access to this thread's audit trail.",
+              ? pickByLocale(locale, {
+                  en: 'Platform audit trails require PLATFORM_ADMIN or higher.',
+                  sw: 'Nyayo za ukaguzi za jukwaa zinahitaji PLATFORM_ADMIN au zaidi.',
+                })
+              : pickByLocale(locale, {
+                  en: "You don't have access to this thread's audit trail.",
+                  sw: 'Huna ruhusa ya kufikia nyayo za ukaguzi za mazungumzo haya.',
+                }),
           retryable: false,
         });
         return;
@@ -116,7 +135,10 @@ export function AuditTrailPanel({
       if (!res.ok) {
         setState({
           kind: 'degraded',
-          reason: `The audit service returned ${res.status}.`,
+          reason: pickByLocale(locale, {
+            en: `The audit service returned ${res.status}.`,
+            sw: `Huduma ya ukaguzi ilirudisha ${res.status}.`,
+          }),
           retryable: true,
         });
         return;
@@ -128,7 +150,10 @@ export function AuditTrailPanel({
       if (!body.success || !body.data) {
         setState({
           kind: 'degraded',
-          reason: 'Unexpected response shape from the audit service.',
+          reason: pickByLocale(locale, {
+            en: 'Unexpected response shape from the audit service.',
+            sw: 'Umbo lisilotarajiwa la jibu kutoka huduma ya ukaguzi.',
+          }),
           retryable: true,
         });
         return;
@@ -139,12 +164,18 @@ export function AuditTrailPanel({
         kind: 'degraded',
         reason:
           error instanceof Error
-            ? `I couldn't reach the audit service: ${error.message}.`
-            : "I couldn't reach the audit service.",
+            ? pickByLocale(locale, {
+                en: `I couldn't reach the audit service: ${error.message}.`,
+                sw: `Sikuweza kufikia huduma ya ukaguzi: ${error.message}.`,
+              })
+            : pickByLocale(locale, {
+                en: "I couldn't reach the audit service.",
+                sw: 'Sikuweza kufikia huduma ya ukaguzi.',
+              }),
         retryable: true,
       });
     }
-  }, [authHeaders, fetchUrl, scope]);
+  }, [authHeaders, fetchUrl, scope, locale]);
 
   useEffect(() => {
     void load();
@@ -160,14 +191,29 @@ export function AuditTrailPanel({
   }
 
   return (
-    <section className="flex h-full flex-col" aria-label="Audit trail">
+    <section
+      className="flex h-full flex-col"
+      aria-label={pickByLocale(locale, { en: 'Audit trail', sw: 'Nyayo za ukaguzi' })}
+    >
       <header className="flex items-center justify-between border-b border-border px-5 py-4">
         <div>
           <p className="font-mono text-caption uppercase tracking-widest text-signal-500">
-            {scope === 'platform' ? 'Platform audit chain' : 'Audit chain'}
+            {scope === 'platform'
+              ? pickByLocale(locale, {
+                  en: 'Platform audit chain',
+                  sw: 'Mnyororo wa ukaguzi wa jukwaa',
+                })
+              : pickByLocale(locale, {
+                  en: 'Audit chain',
+                  sw: 'Mnyororo wa ukaguzi',
+                })}
           </p>
           <h2 className="mt-0.5 truncate font-display text-base font-medium tracking-tight">
-            {title ?? 'This conversation'}
+            {title ??
+              pickByLocale(locale, {
+                en: 'This conversation',
+                sw: 'Mazungumzo haya',
+              })}
           </h2>
         </div>
         <Button
@@ -176,10 +222,13 @@ export function AuditTrailPanel({
           size="sm"
           onClick={() => void load()}
           className="gap-1 text-neutral-500"
-          aria-label="Reload audit trail"
+          aria-label={pickByLocale(locale, {
+            en: 'Reload audit trail',
+            sw: 'Pakia upya nyayo za ukaguzi',
+          })}
         >
           <RefreshCw className="h-3 w-3" />
-          Reload
+          {pickByLocale(locale, { en: 'Reload', sw: 'Pakia upya' })}
         </Button>
       </header>
 
@@ -187,7 +236,10 @@ export function AuditTrailPanel({
         {state.kind === 'loading' && (
           <div className="flex items-center gap-2 px-5 py-6 text-xs text-neutral-500">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            Loading the chain…
+            {pickByLocale(locale, {
+              en: 'Loading the chain…',
+              sw: 'Inapakia mnyororo…',
+            })}
           </div>
         )}
 
@@ -197,7 +249,10 @@ export function AuditTrailPanel({
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-danger" />
               <div>
                 <p className="font-medium text-foreground">
-                  Audit trail unavailable
+                  {pickByLocale(locale, {
+                    en: 'Audit trail unavailable',
+                    sw: 'Nyayo za ukaguzi hazipatikani',
+                  })}
                 </p>
                 <p className="mt-1 text-neutral-500">{state.reason}</p>
                 {state.retryable && (
@@ -208,7 +263,10 @@ export function AuditTrailPanel({
                     onClick={() => void load()}
                     className="mt-2 h-auto p-0 text-signal-500"
                   >
-                    Try again
+                    {pickByLocale(locale, {
+                      en: 'Try again',
+                      sw: 'Jaribu tena',
+                    })}
                   </Button>
                 )}
               </div>
@@ -218,7 +276,10 @@ export function AuditTrailPanel({
 
         {state.kind === 'ok' && state.records.length === 0 && (
           <div className="px-5 py-6 text-xs text-neutral-500">
-            No audit entries have been recorded for this conversation yet.
+            {pickByLocale(locale, {
+              en: 'No audit entries have been recorded for this conversation yet.',
+              sw: 'Hakuna maingizo ya ukaguzi yaliyorekodiwa kwa mazungumzo haya bado.',
+            })}
           </div>
         )}
 
@@ -239,7 +300,7 @@ export function AuditTrailPanel({
                         <span className="tabular-nums">#{r.sequenceId}</span>
                         <span>·</span>
                         <span>{formatTime(r.occurredAt)}</span>
-                        <DecisionPill decision={r.decision} />
+                        <DecisionPill decision={r.decision} locale={locale} />
                       </div>
                       <p className="mt-1 truncate text-sm font-medium text-foreground">
                         {humaniseAction(r.actionKind)}
@@ -258,7 +319,7 @@ export function AuditTrailPanel({
                       )}
                     </span>
                   </button>
-                  {isOpen && <RecordDetails record={r} />}
+                  {isOpen && <RecordDetails record={r} locale={locale} />}
                 </li>
               );
             })}
@@ -270,8 +331,17 @@ export function AuditTrailPanel({
         <footer className="border-t border-border px-5 py-3 text-micro-num uppercase tracking-widest text-neutral-500">
           <span className="inline-flex items-center gap-1.5">
             <ShieldCheck className="h-3 w-3 text-signal-500" />
-            <span className="tabular-nums">{state.records.length} entries</span>
-            <span>· chain-linked</span>
+            <span className="tabular-nums">
+              {state.records.length}{' '}
+              {pickByLocale(locale, { en: 'entries', sw: 'maingizo' })}
+            </span>
+            <span>
+              ·{' '}
+              {pickByLocale(locale, {
+                en: 'chain-linked',
+                sw: 'imeunganishwa kwa mnyororo',
+              })}
+            </span>
           </span>
         </footer>
       )}
@@ -283,37 +353,50 @@ export function AuditTrailPanel({
 // Subs
 // ─────────────────────────────────────────────────────────────────────
 
-function RecordDetails({ record }: { readonly record: AuditRecord }) {
+function RecordDetails({
+  record,
+  locale,
+}: {
+  readonly record: AuditRecord;
+  readonly locale: Locale;
+}) {
   const evidenceJson = JSON.stringify(record.evidence ?? {}, null, 2);
   return (
     <dl className="mt-3 space-y-2 rounded-md border border-border bg-background p-3 text-meta">
-      <DetailRow label="Category" value={record.actionCategory} />
+      <DetailRow
+        label={pickByLocale(locale, { en: 'Category', sw: 'Kategoria' })}
+        value={record.actionCategory}
+      />
       {record.subjectResourceUri && (
-        <DetailRow label="Subject" value={record.subjectResourceUri} mono />
+        <DetailRow
+          label={pickByLocale(locale, { en: 'Subject', sw: 'Mada' })}
+          value={record.subjectResourceUri}
+          mono
+        />
       )}
       {record.promptHash && (
         <DetailRow
-          label="Prompt hash"
+          label={pickByLocale(locale, { en: 'Prompt hash', sw: 'Heshi ya kidokezo' })}
           value={record.promptHash}
           mono
           icon={<Fingerprint className="h-3 w-3 text-signal-500" />}
         />
       )}
       <DetailRow
-        label="Prev hash"
+        label={pickByLocale(locale, { en: 'Prev hash', sw: 'Heshi iliyotangulia' })}
         value={truncateHash(record.prevHash)}
         mono
         icon={<Link2 className="h-3 w-3 text-neutral-500" />}
       />
       <DetailRow
-        label="This hash"
+        label={pickByLocale(locale, { en: 'This hash', sw: 'Heshi hii' })}
         value={truncateHash(record.thisHash)}
         mono
         icon={<Link2 className="h-3 w-3 text-signal-500" />}
       />
       {record.signature && (
         <DetailRow
-          label="Signature"
+          label={pickByLocale(locale, { en: 'Signature', sw: 'Sahihi' })}
           value={truncateHash(record.signature)}
           mono
           icon={<ShieldCheck className="h-3 w-3 text-signal-500" />}
@@ -321,7 +404,7 @@ function RecordDetails({ record }: { readonly record: AuditRecord }) {
       )}
       <div>
         <div className="font-mono text-micro-num uppercase tracking-widest text-neutral-500">
-          Evidence
+          {pickByLocale(locale, { en: 'Evidence', sw: 'Ushahidi' })}
         </div>
         <pre className="mt-1 max-h-40 overflow-auto rounded border border-border bg-surface-sunken p-2 font-mono text-caption-lg text-foreground">
           {evidenceJson}
@@ -361,7 +444,13 @@ function DetailRow({
   );
 }
 
-function DecisionPill({ decision }: { readonly decision: string }) {
+function DecisionPill({
+  decision,
+  locale,
+}: {
+  readonly decision: string;
+  readonly locale: Locale;
+}) {
   const normalized = decision.toLowerCase();
   let Icon: typeof Check;
   let classes: string;
@@ -387,7 +476,7 @@ function DecisionPill({ decision }: { readonly decision: string }) {
       ].join(' ')}
     >
       <Icon className="h-2.5 w-2.5" />
-      {decision}
+      {localizeEnumLabel(DECISION_OUTCOME_LABELS, decision, locale)}
     </span>
   );
 }

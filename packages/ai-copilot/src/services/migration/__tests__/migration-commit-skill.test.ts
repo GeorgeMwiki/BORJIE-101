@@ -17,8 +17,8 @@ describe('skill.migration.commit (amplified)', () => {
         calls.push(input);
         return {
           ok: true,
-          counts: { properties: 2, units: 3, tenants: 1 },
-          skipped: { tenants: ['dup:alice'] },
+          counts: { sites: 2, employees: 3, departments: 1 },
+          skipped: { employees: ['dup:emp_001'] },
         };
       },
     });
@@ -29,9 +29,7 @@ describe('skill.migration.commit (amplified)', () => {
         tenantId: 't1',
         actorId: 'u1',
         bundle: {
-          properties: [],
-          units: [],
-          tenants: [],
+          sites: [],
           employees: [],
           departments: [],
           teams: [],
@@ -55,7 +53,7 @@ describe('skill.migration.commit (amplified)', () => {
     });
     const result = await tool.execute(
       { runId: 'r', tenantId: 't', actorId: 'u', bundle: {
-        properties: [], units: [], tenants: [], employees: [], departments: [], teams: [],
+        sites: [], employees: [], departments: [], teams: [],
       }},
       {} as never
     );
@@ -65,61 +63,69 @@ describe('skill.migration.commit (amplified)', () => {
 });
 
 describe('skill.migration.diff_v2 UPDATE bucket', () => {
-  it('detects UPDATE when tenant phone changes', () => {
+  it('detects UPDATE when employee phone changes', () => {
     const result = migrationDiffAdvanced({
       bundle: {
-        properties: [],
-        units: [],
-        tenants: [
-          { name: 'Alice', phone: '+254700000111', unitLabel: 'A1' },
+        sites: [],
+        employees: [
+          {
+            employeeCode: 'EMP-1',
+            firstName: 'Alice',
+            lastName: 'M',
+            jobTitle: 'Geologist',
+            phone: '+254700000111',
+            employmentType: 'full_time',
+          },
         ],
-        employees: [],
         departments: [],
         teams: [],
       },
       existing: {
-        propertyNames: [],
-        unitLabelsByProperty: {},
-        tenantNames: ['Alice'],
+        siteNames: [],
         employeeCodes: [],
         departmentCodes: [],
         teamCodes: [],
       },
       existingSnapshots: {
-        tenants: { Alice: { phone: '+254700000000', unitLabel: 'A1' } },
-        units: {},
+        employees: { 'EMP-1': { phone: '+254700000000', jobTitle: 'Geologist' } },
+        sites: {},
       },
       includeSkipReasons: true,
     });
-    expect(result.toUpdate.tenants).toBe(1);
+    expect(result.toUpdate.employees).toBe(1);
   });
 
   it('marks unchanged row with skipReason', () => {
     const result = migrationDiffAdvanced({
       bundle: {
-        properties: [],
-        units: [],
-        tenants: [{ name: 'Bob', phone: '+111', unitLabel: 'B1' }],
-        employees: [],
+        sites: [],
+        employees: [
+          {
+            employeeCode: 'EMP-2',
+            firstName: 'Bob',
+            lastName: 'K',
+            jobTitle: 'Driller',
+            phone: '+111',
+            employmentType: 'full_time',
+          },
+        ],
         departments: [],
         teams: [],
       },
       existing: {
-        propertyNames: [],
-        unitLabelsByProperty: {},
-        tenantNames: ['Bob'],
+        siteNames: [],
         employeeCodes: [],
         departmentCodes: [],
         teamCodes: [],
       },
       existingSnapshots: {
-        tenants: { Bob: { phone: '+111', unitLabel: 'B1' } },
-        units: {},
+        employees: { 'EMP-2': { phone: '+111', jobTitle: 'Driller' } },
+        sites: {},
       },
       includeSkipReasons: true,
     });
-    expect(result.toUpdate.tenants).toBe(0);
-    expect(result.skipReasons.some((s) => s.kind === 'tenants')).toBe(true);
+    expect(result.toUpdate.employees).toBe(0);
+    expect(result.skipReasons.some((s) => s.kind === 'employees')).toBe(true);
   });
 
   it('has a registered ToolHandler name', () => {

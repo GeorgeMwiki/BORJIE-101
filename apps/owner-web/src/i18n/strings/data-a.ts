@@ -31,6 +31,12 @@ export const dataAStrings = {
     events: { sw: 'Matukio', en: 'Events' },
   },
 
+  // ── components/shared/EntityTimeline.tsx ───────────────────────────
+  entityTimeline: {
+    defaultTitle: { sw: 'Ratiba', en: 'Timeline' },
+    empty: { sw: 'Hakuna matukio bado.', en: 'No timeline events yet.' },
+  },
+
   // ── components/EntityTimeline/composers.ts ─────────────────────────
   composers: {
     reminder: {
@@ -258,6 +264,69 @@ export const dataAStrings = {
     },
   },
 
+  // ── components/dashboard/OwnerDashboardSurface.tsx ─────────────────
+  ownerDashboardSurface: {
+    updatedAt: (time: string) => ({
+      sw: `Imesasishwa ${time}`,
+      en: `Updated ${time}`,
+    }),
+    source: (source: string) => ({
+      sw: `chanzo: ${source}`,
+      en: `source: ${source}`,
+    }),
+    cached: { sw: '(imehifadhiwa)', en: '(cached)' },
+    refreshing: { sw: 'inasasisha…', en: 'refreshing…' },
+    offlineFallback: {
+      sw: 'Uundaji wa dashibodi haupatikani.',
+      en: 'Dashboard composition is offline.',
+    },
+    errorTitle: { sw: 'Data ya dashibodi haipatikani', en: 'Dashboard data is offline' },
+    httpStatus: (status: number) => ({
+      sw: `HTTP ${status}`,
+      en: `HTTP ${status}`,
+    }),
+    errorHelpBefore: {
+      sw: 'Uliza Ubongo wa Borjie moja kwa moja kwenye',
+      en: 'Ask Borjie Brain directly on the',
+    },
+    errorHelpLink: { sw: 'gumzo la nyumbani', en: 'home chat' },
+    errorHelpAfter: {
+      sw: '— unaweza kuvuta ishara nyingi kati ya hizi papo hapo kutoka korpasi.',
+      en: '— it can pull most of these signals on demand from the corpus.',
+    },
+  },
+
+  // ── components/dashboard/AlertQueuePanel.tsx ───────────────────────
+  alertQueuePanel: {
+    title: { sw: 'Foleni ya tahadhari', en: 'Alert queue' },
+    // Replaces the former hardcoded Swahili subhead that sat under the
+    // English title (EN/SW split-brain) — now one language per locale.
+    subtitle: {
+      sw: 'Maamuzi yanayosubiri · matukio mazito',
+      en: 'Pending decisions · high-severity incidents',
+    },
+    openCount: (count: number) => ({
+      sw: `${count} wazi`,
+      en: `${count} open`,
+    }),
+    empty: {
+      before: {
+        sw: 'Hakuna maamuzi wazi wala matukio mazito. Uliza Ubongo wa Borjie kwenye',
+        en: 'No open decisions or high-severity incidents. Ask Borjie Brain on',
+      },
+      after: {
+        sw: 'ili kuchanganua korpasi kwa lolote unaloweza kuwa umelikosa.',
+        en: 'to scan the corpus for anything you might be missing.',
+      },
+    },
+    // Localized row-source labels — the wire emits the neutral
+    // 'decision' / 'incident' enum; the FE renders the active locale.
+    source: {
+      decision: { sw: 'uamuzi', en: 'decision' },
+      incident: { sw: 'tukio', en: 'incident' },
+    },
+  },
+
   // ── components/dashboard/AiDailyBriefPanel.tsx ─────────────────────
   aiDailyBrief: {
     title: { sw: 'Muhtasari wa siku wa AI', en: 'AI daily brief' },
@@ -469,7 +538,7 @@ export const dataAStrings = {
       en: 'Register a family-office group via /api/v1/estate/groups to begin.',
     },
     noEstateBody: {
-      sw: 'Mwambie Mr. Mwikila aanze kwa "tengeneza family office".',
+      sw: 'Mwambie Bw. Mwikila aanze kwa "tengeneza family office".',
       en: 'Ask Mr. Mwikila to "create a family office" to begin.',
     },
     noEntities: { sw: 'Hakuna kampuni.', en: 'No entities yet.' },
@@ -488,7 +557,7 @@ export const dataAStrings = {
       en: 'Create a plan via /api/v1/estate/succession-plans to start.',
     },
     noPlanBody: {
-      sw: 'Mwambie Mr. Mwikila aanze kwa "tengeneza mpango wa urithi".',
+      sw: 'Mwambie Bw. Mwikila aanze kwa "tengeneza mpango wa urithi".',
       en: 'Ask Mr. Mwikila to "draft a succession plan" to begin.',
     },
     overdue: (n: number) => ({ sw: `Imepitwa siku ${n}`, en: `${n}d overdue` }),

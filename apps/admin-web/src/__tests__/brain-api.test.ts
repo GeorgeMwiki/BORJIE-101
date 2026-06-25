@@ -87,6 +87,50 @@ describe('brain-api (admin) · submitBrainTurn', () => {
     expect(body.forcePersonaId).toBe('T2_admin_strategist');
     expect(body.userText).toBe('Onyesha tenants 10 wapya');
   });
+
+  it('forwards the active locale as the Accept-Language header so the brain replies in the operator language', async () => {
+    const fetchSpy = mockFetchOnce({
+      status: 200,
+      body: {
+        threadId: 'thr_admin_sw',
+        finalPersonaId: 'T2_admin_strategist',
+        responseText: 'Karibu tena.',
+        handoffs: [],
+        toolCalls: [],
+        advisorConsulted: false,
+        proposedAction: null,
+        tokensUsed: 6,
+      },
+    });
+    await submitBrainTurn({ userText: 'Habari', language: 'sw' });
+    const call = fetchSpy.mock.calls[0] as unknown as [
+      string,
+      { headers?: Record<string, string> },
+    ];
+    expect(call[1]?.headers?.['Accept-Language']).toBe('sw');
+  });
+
+  it('omits Accept-Language when no locale is passed (gateway default en)', async () => {
+    const fetchSpy = mockFetchOnce({
+      status: 200,
+      body: {
+        threadId: 'thr_admin_default',
+        finalPersonaId: 'T2_admin_strategist',
+        responseText: 'Welcome back.',
+        handoffs: [],
+        toolCalls: [],
+        advisorConsulted: false,
+        proposedAction: null,
+        tokensUsed: 6,
+      },
+    });
+    await submitBrainTurn({ userText: 'Hello' });
+    const call = fetchSpy.mock.calls[0] as unknown as [
+      string,
+      { headers?: Record<string, string> },
+    ];
+    expect(call[1]?.headers?.['Accept-Language']).toBeUndefined();
+  });
 });
 
 describe('brain-api (admin) · createThread', () => {

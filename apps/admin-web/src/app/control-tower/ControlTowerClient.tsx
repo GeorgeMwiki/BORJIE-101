@@ -16,6 +16,7 @@ import {
   AlertTriangle,
   Bot,
   CheckCircle2,
+  Clock,
   Gauge,
   Power,
   ShieldAlert,
@@ -25,12 +26,16 @@ import {
 } from 'lucide-react';
 
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
+import { toCatalogError } from '@/lib/api-client';
 import {
-  CONTROL_META,
+  approveToggle,
+  controlMetaFor,
   fetchControls,
   postToggle,
   type ControlMeta,
   type ControlRow,
+  type PendingApproval,
   type ToggleResult,
 } from './control-tower-api';
 
@@ -72,8 +77,8 @@ const S = {
   unknown: { en: 'Unknown', sw: 'Haijulikani' },
   auditFootprint: { en: 'Audit footprint', sw: 'Alama ya ukaguzi' },
   auditBody: {
-    en: 'Every Control Tower action records to the hash-chained audit trail (append-only, tamper-evident) and emits a SOC2 security event. Toggle attempts include actor, timestamp, control id, blast-radius and the second-eye attestation. High-impact controls only change live platform state after a second operator approves.',
-    sw: 'Kila kitendo cha Mnara wa Udhibiti hurekodiwa kwenye njia ya ukaguzi ya mnyororo-heshi (ya kuongeza-tu, inayodhihirisha uchakachuaji) na hutoa tukio la usalama la SOC2. Majaribio ya kubadilisha yanajumuisha mtendaji, muhuri wa muda, kitambulisho cha kidhibiti, eneo-athari na uthibitisho wa jicho-la-pili. Vidhibiti vyenye athari kubwa hubadilisha hali hai ya jukwaa tu baada ya mendeshaji wa pili kuidhinisha.',
+    en: 'Every Control Tower action records a structured, hash-chained security-audit event (append-only, tamper-evident). Toggle attempts include actor, timestamp, control id, blast-radius and the second-eye attestation. High-impact controls only change live platform state after a second operator approves.',
+    sw: 'Kila kitendo cha Mnara wa Udhibiti hurekodi tukio la ukaguzi-usalama lililopangwa, la mnyororo-heshi (la kuongeza-tu, linalodhihirisha uchakachuaji). Majaribio ya kubadilisha yanajumuisha mtendaji, muhuri wa muda, kitambulisho cha kidhibiti, eneo-athari na uthibitisho wa jicho-la-pili. Vidhibiti vyenye athari kubwa hubadilisha hali hai ya jukwaa tu baada ya mendeshaji wa pili kuidhinisha.',
   },
   fourEyeTitle: {
     en: '4-eye confirmation required',
@@ -93,6 +98,25 @@ const S = {
   },
   cancel: { en: 'Cancel', sw: 'Ghairi' },
   applyChange: { en: 'Apply change', sw: 'Tekeleza mabadiliko' },
+  awaitingTitle: {
+    en: 'Awaiting second-operator approval',
+    sw: 'Inasubiri idhini ya mendeshaji wa pili',
+  },
+  awaitingIntro: {
+    en: 'These high-impact changes are recorded but NOT yet live. A second, different operator must approve each one before it changes platform state — you cannot approve your own proposal.',
+    sw: 'Mabadiliko haya yenye athari kubwa yamerekodiwa lakini bado HAYAJAANZA kutumika. Mendeshaji wa pili, tofauti, lazima aidhinishe kila moja kabla halijabadilisha hali ya jukwaa — huwezi kuidhinisha pendekezo lako mwenyewe.',
+  },
+  settingTo: { en: 'Setting', sw: 'Kuweka' },
+  approveSecond: { en: 'Approve (second eye)', sw: 'Idhinisha (jicho la pili)' },
+  approveFailed: { en: 'Approval failed', sw: 'Uidhinishaji umeshindwa' },
+  approvedApplied: {
+    en: 'Second-eye approval recorded — change applied to live platform state.',
+    sw: 'Idhini ya jicho-la-pili imerekodiwa — mabadiliko yametumika kwenye hali hai ya jukwaa.',
+  },
+  decisionNoteLabel: {
+    en: 'Decision note (optional — recorded on the audit trail)',
+    sw: 'Maelezo ya uamuzi (hiari — yanarekodiwa kwenye njia ya ukaguzi)',
+  },
 } as const;
 
 interface PlatformKpi {
@@ -281,15 +305,22 @@ function CategoryIcon({ category }: { category: ControlMeta['category'] }) {
  * Flipping a toggle opens a four-eye confirmation modal and POSTs the change;
  * HIGH-impact controls (kill / autonomy) land as `pending_approval` and require
  * a second operator to approve before the platform state actually changes —
- * surfaced via the returned journal id. Every attempt is SOC2-audited server-
- * side on the hash-chained trail.
+ * surfaced via the returned journal id. Every attempt records a structured,
+ * hash-chained security-audit event server-side.
  */
-export function ControlTowerClient(): JSX.Element {
-  const locale = useLocale();
+export function ControlTowerClient({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+} = {}): JSX.Element {
+  const locale = useLocale(initialLocale);
   const [controls, setControls] = useState<ReadonlyArray<ControlRow>>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pending, setPending] = useState<ControlRow | null>(null);
+  const [pendingApprovals, setPendingApprovals] = useState<
+    ReadonlyArray<PendingApproval>
+  >([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [healthKpis, setHealthKpis] = useState<ReadonlyArray<PlatformKpi>>(() =>
     kpiFallback(locale),
@@ -307,7 +338,7 @@ export function ControlTowerClient(): JSX.Element {
       setLoadError(null);
     } catch (err) {
       setLoadError(
-        err instanceof Error ? err.message : pickByLocale(locale, S.loadFailed),
+        localizeApiError(toCatalogError(err), locale),
       );
     } finally {
       setLoading(false);
@@ -319,7 +350,7 @@ export function ControlTowerClient(): JSX.Element {
   }, [refresh]);
 
   const onApplied = useCallback(
-    (result: ToggleResult) => {
+    (result: ToggleResult, controlId: string, desiredState: 'on' | 'off') => {
       setPending(null);
       if (result.status === 'pending_approval') {
         setNotice(
@@ -328,9 +359,30 @@ export function ControlTowerClient(): JSX.Element {
               ? ` (${pickByLocale(locale, S.ref)} ${result.journalId}).`
               : '.'),
         );
+        // Surface a real second-operator approval action (never an inert
+        // pending notice). The gateway rejects same-actor approvals.
+        if (result.journalId) {
+          const journalId = result.journalId;
+          setPendingApprovals((prev) =>
+            prev.some((p) => p.journalId === journalId)
+              ? prev
+              : [...prev, { journalId, controlId, desiredState }],
+          );
+        }
       } else {
         setNotice(pickByLocale(locale, S.applied));
       }
+      void refresh();
+    },
+    [refresh, locale],
+  );
+
+  const onApproved = useCallback(
+    (journalId: string) => {
+      setPendingApprovals((prev) =>
+        prev.filter((p) => p.journalId !== journalId),
+      );
+      setNotice(pickByLocale(locale, S.approvedApplied));
       void refresh();
     },
     [refresh, locale],
@@ -386,7 +438,7 @@ export function ControlTowerClient(): JSX.Element {
         ) : (
         <ul className="divide-y divide-border/60 overflow-hidden rounded-2xl border border-border bg-surface-sunken">
           {controls.map((control) => {
-            const meta = CONTROL_META[control.id];
+            const meta = controlMetaFor(control.id, locale);
             if (!meta) return null;
             return (
               <li
@@ -455,6 +507,14 @@ export function ControlTowerClient(): JSX.Element {
         )}
       </section>
 
+      {pendingApprovals.length > 0 ? (
+        <PendingApprovalsSection
+          approvals={pendingApprovals}
+          locale={locale}
+          onApproved={onApproved}
+        />
+      ) : null}
+
       <section className="rounded-2xl border border-info/30 bg-info-subtle p-5">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <ShieldCheck className="h-4 w-4 text-info" />
@@ -481,11 +541,15 @@ interface FourEyeModalProps {
   readonly control: ControlRow;
   readonly locale: Locale;
   readonly onClose: () => void;
-  readonly onApplied: (result: ToggleResult) => void;
+  readonly onApplied: (
+    result: ToggleResult,
+    controlId: string,
+    desiredState: 'on' | 'off',
+  ) => void;
 }
 
 function FourEyeModal({ control, locale, onClose, onApplied }: FourEyeModalProps) {
-  const meta = CONTROL_META[control.id];
+  const meta = controlMetaFor(control.id, locale);
   const desiredState = control.state === 'on' ? 'off' : 'on';
   const [phrase, setPhrase] = useState('');
   const [reason, setReason] = useState('');
@@ -502,10 +566,10 @@ function FourEyeModal({ control, locale, onClose, onApplied }: FourEyeModalProps
         desiredState,
         reason: reason.trim(),
       });
-      onApplied(result);
+      onApplied(result, control.id, desiredState);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : pickByLocale(locale, S.toggleFailed),
+        localizeApiError(toCatalogError(err), locale),
       );
     } finally {
       setSubmitting(false);
@@ -579,5 +643,129 @@ function FourEyeModal({ control, locale, onClose, onApplied }: FourEyeModalProps
         </Button>
       </ModalFooter>
     </Modal>
+  );
+}
+
+interface PendingApprovalsSectionProps {
+  readonly approvals: ReadonlyArray<PendingApproval>;
+  readonly locale: Locale;
+  readonly onApproved: (journalId: string) => void;
+}
+
+/**
+ * Second-operator (four-eye) approval surface. A HIGH-impact toggle lands
+ * here as `pending_approval`; the change is NOT live until a DIFFERENT
+ * operator approves it. The gateway rejects same-actor approvals
+ * (FOUR_EYE_SAME_ACTOR) so the proposer sees an honest error rather than a
+ * silent no-op.
+ */
+function PendingApprovalsSection({
+  approvals,
+  locale,
+  onApproved,
+}: PendingApprovalsSectionProps): JSX.Element {
+  return (
+    <section className="rounded-2xl border border-warning/30 bg-warning-subtle p-5">
+      <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <Clock className="h-4 w-4 text-warning" />
+        {pickByLocale(locale, S.awaitingTitle)}
+      </h3>
+      <p className="mt-2 max-w-3xl text-xs leading-relaxed text-muted-foreground">
+        {pickByLocale(locale, S.awaitingIntro)}
+      </p>
+      <ul className="mt-4 space-y-3">
+        {approvals.map((approval) => (
+          <li key={approval.journalId}>
+            <PendingApprovalRow
+              approval={approval}
+              locale={locale}
+              onApproved={onApproved}
+            />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+interface PendingApprovalRowProps {
+  readonly approval: PendingApproval;
+  readonly locale: Locale;
+  readonly onApproved: (journalId: string) => void;
+}
+
+function PendingApprovalRow({
+  approval,
+  locale,
+  onApproved,
+}: PendingApprovalRowProps): JSX.Element {
+  const meta = controlMetaFor(approval.controlId, locale);
+  const [note, setNote] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const approve = useCallback(async () => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await approveToggle(approval.journalId, note.trim());
+      onApproved(approval.journalId);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : pickByLocale(locale, S.approveFailed),
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }, [approval.journalId, note, onApproved, locale]);
+
+  return (
+    <div className="space-y-3 rounded-xl border border-border bg-background p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-sm font-medium text-foreground">
+          {meta?.title ?? approval.controlId}
+        </p>
+        <p className="font-mono text-tiny uppercase tracking-widest text-muted-foreground">
+          {pickByLocale(locale, S.ref)} {approval.journalId}
+        </p>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {pickByLocale(locale, S.settingTo)}{' '}
+        {(meta?.title ?? approval.controlId).toLowerCase()}{' '}
+        {pickByLocale(locale, S.to)}{' '}
+        <span className="font-mono uppercase text-foreground">
+          {approval.desiredState}
+        </span>
+      </p>
+      <FormField
+        label={pickByLocale(locale, S.decisionNoteLabel)}
+        name={`approve-note-${approval.journalId}`}
+      >
+        <Input
+          type="text"
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+        />
+      </FormField>
+      {error ? (
+        <Alert variant="error">
+          <span className="inline-flex items-center gap-1.5">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            {error}
+          </span>
+        </Alert>
+      ) : null}
+      <Button
+        type="button"
+        onClick={() => void approve()}
+        loading={submitting}
+        variant="warning"
+        size="sm"
+      >
+        {pickByLocale(locale, S.approveSecond)}
+      </Button>
+    </div>
   );
 }

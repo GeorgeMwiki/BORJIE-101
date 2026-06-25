@@ -3,6 +3,16 @@
 import { Card } from '@borjie/design-system';
 
 import { useDashboardAuditIntegrity } from '@/lib/internal/queries/dashboard';
+import { useLocale, type Locale } from '@/lib/locale';
+
+/**
+ * Resolve the Intl BCP-47 tag from the active locale — the
+ * locale-follows-the-user canon. NEVER hardcode `'en-GB'` in a date
+ * formatter; the operator's chosen language drives digit/date grouping.
+ */
+function bcp47For(locale: Locale): string {
+  return locale === 'sw' ? 'sw-TZ' : 'en-GB';
+}
 
 /**
  * Audit-chain integrity panel — bottom-right.
@@ -14,6 +24,7 @@ import { useDashboardAuditIntegrity } from '@/lib/internal/queries/dashboard';
  */
 export function AuditChainIntegrityPanel(): JSX.Element {
   const query = useDashboardAuditIntegrity();
+  const locale = useLocale();
 
   if (query.isLoading) {
     return (
@@ -105,7 +116,7 @@ export function AuditChainIntegrityPanel(): JSX.Element {
           </p>
         </div>
         <div className="text-xs text-neutral-500">
-          {formatWindow(data.windowStartIso, data.windowEndIso)}
+          {formatWindow(data.windowStartIso, data.windowEndIso, bcp47For(locale))}
         </div>
       </header>
       {!data.valid && data.firstBrokenEntryId ? (
@@ -126,11 +137,11 @@ export function AuditChainIntegrityPanel(): JSX.Element {
   );
 }
 
-function formatWindow(startIso: string, endIso: string): string {
+function formatWindow(startIso: string, endIso: string, bcp47: string): string {
   const fmt = (iso: string) => {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return iso;
-    return d.toLocaleString('en-GB', {
+    return d.toLocaleString(bcp47, {
       day: '2-digit',
       month: 'short',
       hour: '2-digit',

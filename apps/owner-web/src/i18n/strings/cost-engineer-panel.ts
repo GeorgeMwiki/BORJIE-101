@@ -32,6 +32,10 @@ export const costEngineerPanelStrings = {
   opex: { en: 'Opex buckets', sw: 'Mafungu ya gharama za uendeshaji' },
   opexLabelPlaceholder: { en: 'Label', sw: 'Lebo' },
   opexAmountPlaceholder: { en: 'Amount', sw: 'Kiasi' },
+  // Seed labels for the two starter opex rows — localized so a fresh panel
+  // never renders a hardcoded English token under an active sw locale.
+  opexSeedDiesel: { en: 'Diesel', sw: 'Dizeli' },
+  opexSeedWages: { en: 'Wages', sw: 'Mishahara' },
   addOpex: { en: '+ Add bucket', sw: '+ Ongeza fungu' },
   remove: { en: 'Remove', sw: 'Ondoa' },
   compute: { en: 'Compute analysis', sw: 'Kokotoa uchambuzi' },

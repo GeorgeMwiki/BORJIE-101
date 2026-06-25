@@ -10,7 +10,7 @@ export const personalKbPageStrings = {
     sw: 'Vitu vyote nilivyokuelezea kuhusu mimi',
   },
   body: {
-    en: 'Every preference, recurring fact, and context you have shared with Borjie. Crosses tenant boundaries — your assistant remembers you, not the company you happen to be working with.',
-    sw: 'Kila pendeleo, ukweli unaojirudia, na muktadha uliyoshiriki na Borjie. Unavuka mipaka ya mashirika — msaidizi wako anakukumbuka wewe, si kampuni unayofanya nayo kazi.',
+    en: 'Every preference, recurring fact, and context you have shared with Borjie. Crosses tenant boundaries: your assistant remembers you, not the company you happen to be working with.',
+    sw: 'Kila pendeleo, ukweli unaojirudia, na muktadha uliyoshiriki na Borjie. Unavuka mipaka ya mashirika: msaidizi wako anakukumbuka wewe, si kampuni unayofanya nayo kazi.',
   },
 } as const;

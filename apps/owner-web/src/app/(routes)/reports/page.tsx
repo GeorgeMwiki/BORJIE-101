@@ -4,6 +4,7 @@ import { PageHero } from '@/components/shared/PageHero';
 import { ReportForm } from '@/components/reports/ReportForm';
 import { ReportPlayerPanel } from '@/components/reports/ReportPlayerPanel';
 import { getOwnerSession } from '@/lib/session';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
 
 /**
@@ -19,6 +20,9 @@ import { routesBStrings as S } from '@/i18n/strings/routes-b';
 export default async function ReportsPage() {
   const session = await getOwnerSession();
   const isSw = session.languagePreference === 'sw';
+  // Seed the client island from the server-resolved `borjie_locale` cookie so
+  // its first paint matches the SSR `<html lang>` (no EN-under-SW split-brain).
+  const initialLocale = await readLocaleFromServerCookies();
   return (
     <div className="space-y-8 px-8 py-8">
       <PageHero
@@ -42,7 +46,7 @@ export default async function ReportsPage() {
           </>
         }
       />
-      <ReportPlayerPanel />
+      <ReportPlayerPanel initialLocale={initialLocale} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <ReportForm />

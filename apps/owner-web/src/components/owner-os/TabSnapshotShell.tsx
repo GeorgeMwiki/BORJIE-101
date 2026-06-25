@@ -8,7 +8,7 @@
  * When a tab is asleep, this shell renders a low-weight placeholder that
  * mirrors the panel's previous shape (pulled from the snapshot in
  * localStorage). Borjie DNA: navy bg-card, hairline border, gold accent,
- * cream text — never LitFin orange.
+ * cream text — never the source kit's orange.
  *
  * Three modes:
  *   - sleeping (default): static placeholder.

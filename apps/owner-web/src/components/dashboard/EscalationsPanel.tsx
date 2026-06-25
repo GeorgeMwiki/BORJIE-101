@@ -25,9 +25,11 @@ import { useMemo, type ReactElement } from 'react';
 import { Button, Card } from '@borjie/design-system';
 import { dictionaries } from '@/i18n/dictionaries';
 import { makeT, type TFn } from '@/i18n/resolve';
-import { useLocale } from '@/lib/locale';
+import { useLocale, pickByLocale } from '@/lib/locale';
+import { type Locale } from '@/lib/locale-shared';
 import { useEscalations, type EscalationAction } from '@/lib/useEscalations';
 import {
+  type EscalationContext,
   type EscalationSeverity,
   type EscalationStatus,
   type MiningEscalationRow,
@@ -59,6 +61,24 @@ function severityLabel(t: TFn, s: EscalationSeverity): string {
 
 function statusLabel(t: TFn, s: EscalationStatus): string {
   return t(`escalations.status${s.charAt(0).toUpperCase()}${s.slice(1)}`);
+}
+
+/**
+ * Resolve the escalation narrative in the ACTIVE locale from the
+ * locale-neutral `{ en, sw }` wire pair. When the active locale's side is
+ * missing (a legacy row whose English was never captured), render a visible
+ * localized placeholder — NEVER the other language's prose (that would be the
+ * zero-mix breach this panel exists to close).
+ */
+function escalationBody(
+  context: EscalationContext,
+  locale: Locale,
+  t: TFn,
+): string {
+  const value = pickByLocale(locale, context);
+  return value && value.trim().length > 0
+    ? value
+    : t('escalations.bodyUnavailable');
 }
 
 /** Locale-aware relative age; falls back to a localized date string. */
@@ -140,6 +160,7 @@ export function EscalationsPanel({
                 key={row.id}
                 row={row}
                 t={t}
+                locale={locale}
                 anyPending={pendingId !== null}
                 busyAction={pendingId === row.id ? pendingAction : null}
                 onAct={act}
@@ -155,11 +176,12 @@ export function EscalationsPanel({
 function EscalationRow(props: {
   readonly row: MiningEscalationRow;
   readonly t: TFn;
+  readonly locale: Locale;
   readonly anyPending: boolean;
   readonly busyAction: EscalationAction | null;
   readonly onAct: (id: string, action: EscalationAction) => void;
 }): ReactElement {
-  const { row, t, anyPending, busyAction, onAct } = props;
+  const { row, t, locale, anyPending, busyAction, onAct } = props;
   const ackLabel =
     busyAction === 'acknowledge'
       ? t('escalations.acknowledging')
@@ -175,7 +197,7 @@ function EscalationRow(props: {
     >
       <div className="flex items-start justify-between gap-2">
         <p className="min-w-0 flex-1 text-sm text-foreground">
-          {row.contextSw}
+          {escalationBody(row.context, locale, t)}
         </p>
         <div className="flex shrink-0 items-center gap-1">
           <span className={`pill ${SEVERITY_PILL[row.severity]}`}>

@@ -18,6 +18,7 @@ import {
 } from '@/lib/internal/queries/analytics';
 import { DataSourceBadge } from '../DataSourceBadge';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
 
 const S = {
   funnelTitle: { en: 'Activation funnel', sw: 'Funeli ya uwezeshaji' },
@@ -77,17 +78,17 @@ export function AnalyticsView({
       <FunnelSection
         locale={locale}
         isPending={funnel.isPending}
-        error={funnel.isError ? funnel.error.message : null}
+        error={funnel.isError ? localizeApiError(funnel.error, locale) : null}
         steps={funnel.data?.steps ?? []}
         windowDays={funnel.data?.windowDays ?? 90}
       />
       <CohortSection
         locale={locale}
         isPending={cohorts.isPending}
-        error={cohorts.isError ? cohorts.error.message : null}
+        error={cohorts.isError ? localizeApiError(cohorts.error, locale) : null}
         cohorts={cohorts.data?.cohorts ?? []}
       />
-      <DataSourceBadge source="live" />
+      <DataSourceBadge source="live" locale={locale} />
     </div>
   );
 }

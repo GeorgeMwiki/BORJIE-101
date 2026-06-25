@@ -20,7 +20,17 @@ const LOCALES: Readonly<Record<string, string>> = Object.freeze({
   USD: 'en-US',
 });
 
+/**
+ * Placeholder for a non-finite numeric input (NaN / Infinity / null /
+ * undefined coerced to NaN). `Intl.NumberFormat().format(NaN)` does NOT
+ * throw — it returns `"$NaN"` / `"NaN"` — so the `catch` below never
+ * fires for bad numbers; a KPI tile would render `$NaN` to the user.
+ * Guard explicitly and degrade to an em-dash instead.
+ */
+const NON_FINITE_PLACEHOLDER = '—';
+
 export function formatCurrency(value: number, currency: Currency): string {
+  if (!Number.isFinite(value)) return `${currency} ${NON_FINITE_PLACEHOLDER}`;
   try {
     return new Intl.NumberFormat(LOCALES[currency], {
       style: 'currency',
@@ -33,6 +43,7 @@ export function formatCurrency(value: number, currency: Currency): string {
 }
 
 export function formatPercent(value: number, fractionDigits = 1): string {
+  if (!Number.isFinite(value)) return NON_FINITE_PLACEHOLDER;
   try {
     return new Intl.NumberFormat('en-US', {
       style: 'percent',
@@ -44,6 +55,7 @@ export function formatPercent(value: number, fractionDigits = 1): string {
 }
 
 export function formatNumber(value: number): string {
+  if (!Number.isFinite(value)) return NON_FINITE_PLACEHOLDER;
   try {
     return new Intl.NumberFormat('en-US').format(value);
   } catch {

@@ -10,7 +10,7 @@
  *   - cream foreground for body text
  *   - red `text-destructive` reserved for warnings
  *
- * SURPASSES LitFin: the renderer supports four block types (vs LitFin's
+ * Exceeds the reference renderer: the renderer supports four block types (vs the reference's
  * two), each tuned to a strategic-intent frame:
  *   - concept_card  — TEACH frame, bordered card + bullets + bloom badge
  *   - metric_strip  — ASSESS frame, three KPI tiles
@@ -100,7 +100,7 @@ function ConceptCard({
   readonly onGoWider?: (payload: { readonly title: string; readonly point: string | null }) => void;
   readonly onRelatedClick?: (concept: string) => void;
 }): ReactElement {
-  // Hand off to the full-fidelity chrome renderer (matches the LitFin
+  // Hand off to the full-fidelity chrome renderer (matches the reference
   // stepper learning chat ConceptCard pixel-by-pixel — Borjie tokens).
   // `exactOptionalPropertyTypes` rejects literal `undefined`, so we
   // only include the keys that are actually present on the incoming

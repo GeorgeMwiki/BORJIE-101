@@ -100,6 +100,244 @@ describe('reminders-dispatch worker', () => {
     expect(db.execute).toHaveBeenCalled();
   });
 
+  it('dispatches email in the project-default locale (en) when no localeForOwner resolver is wired', async () => {
+    const db = makeStubDb([
+      {
+        id: 'reminder-loc-default',
+        tenant_id: 't-1',
+        owner_id: 'u-1',
+        title: 'Renewal due',
+        body: 'PML renews in 7 days',
+        channel: 'email',
+        payload: {},
+        idempotency_key: 'idem-loc-default',
+      },
+    ]);
+    const localeSpyEmail = {
+      name: 'in-memory',
+      configured: true,
+      send: vi.fn(async () => ({
+        status: 'sent' as const,
+        provider: 'in-memory',
+        providerRef: 'mem-loc-1',
+      })),
+    };
+    const w = createRemindersDispatchWorker({
+      db,
+      logger: stubLogger,
+      emailProvider: localeSpyEmail,
+      smsProvider: stubSmsProvider,
+      emailForOwner: async () => 'owner@example.com',
+      // No localeForOwner → honest-degrade to the default locale.
+      enabled: true,
+    });
+    await w.tickOnce();
+    expect(localeSpyEmail.send).toHaveBeenCalledOnce();
+    expect(localeSpyEmail.send.mock.calls[0][0].locale).toBe('en');
+  });
+
+  it('dispatches email + SMS in the recipient locale resolved by localeForOwner (sw owner → sw)', async () => {
+    const dbEmail = makeStubDb([
+      {
+        id: 'reminder-loc-sw',
+        tenant_id: 't-1',
+        owner_id: 'u-sw',
+        title: 'Ukumbusho',
+        body: 'Leseni inaisha',
+        channel: 'email',
+        payload: {},
+        idempotency_key: 'idem-loc-sw-email',
+      },
+    ]);
+    const swEmail = {
+      name: 'in-memory',
+      configured: true,
+      send: vi.fn(async () => ({
+        status: 'sent' as const,
+        provider: 'in-memory',
+        providerRef: 'mem-sw-1',
+      })),
+    };
+    const wEmail = createRemindersDispatchWorker({
+      db: dbEmail,
+      logger: stubLogger,
+      emailProvider: swEmail,
+      smsProvider: stubSmsProvider,
+      emailForOwner: async () => 'owner@example.com',
+      localeForOwner: async () => 'sw',
+      enabled: true,
+    });
+    await wEmail.tickOnce();
+    expect(swEmail.send).toHaveBeenCalledOnce();
+    expect(swEmail.send.mock.calls[0][0].locale).toBe('sw');
+
+    const dbSms = makeStubDb([
+      {
+        id: 'reminder-loc-sw-sms',
+        tenant_id: 't-1',
+        owner_id: 'u-sw',
+        title: 'Ukumbusho',
+        body: 'Leseni inaisha',
+        channel: 'sms',
+        payload: {},
+        idempotency_key: 'idem-loc-sw-sms',
+      },
+    ]);
+    const swSms = {
+      name: 'sms-ok',
+      configured: true,
+      send: vi.fn(async () => ({
+        status: 'sent' as const,
+        provider: 'sms-ok',
+        providerRef: 'sms-sw-1',
+      })),
+    };
+    const wSms = createRemindersDispatchWorker({
+      db: dbSms,
+      logger: stubLogger,
+      emailProvider: okEmailProvider,
+      smsProvider: swSms,
+      phoneForOwner: async () => '+255700000000',
+      localeForOwner: async () => 'sw',
+      enabled: true,
+    });
+    await wSms.tickOnce();
+    expect(swSms.send).toHaveBeenCalledOnce();
+    expect(swSms.send.mock.calls[0][0].locale).toBe('sw');
+  });
+
+  it('falls back to the default locale (en) when localeForOwner faults or returns null', async () => {
+    const db = makeStubDb([
+      {
+        id: 'reminder-loc-null',
+        tenant_id: 't-1',
+        owner_id: 'u-1',
+        title: 'Renewal due',
+        body: 'PML renews in 7 days',
+        channel: 'email',
+        payload: {},
+        idempotency_key: 'idem-loc-null',
+      },
+    ]);
+    const nullLocaleEmail = {
+      name: 'in-memory',
+      configured: true,
+      send: vi.fn(async () => ({
+        status: 'sent' as const,
+        provider: 'in-memory',
+        providerRef: 'mem-null-1',
+      })),
+    };
+    const w = createRemindersDispatchWorker({
+      db,
+      logger: stubLogger,
+      emailProvider: nullLocaleEmail,
+      smsProvider: stubSmsProvider,
+      emailForOwner: async () => 'owner@example.com',
+      localeForOwner: async () => {
+        throw new Error('resolver boom');
+      },
+      enabled: true,
+    });
+    await w.tickOnce();
+    expect(nullLocaleEmail.send).toHaveBeenCalledOnce();
+    expect(nullLocaleEmail.send.mock.calls[0][0].locale).toBe('en');
+  });
+
+  it('renders the __localized sw title/body when the recipient locale is sw (single-language body)', async () => {
+    const db = makeStubDb([
+      {
+        id: 'reminder-bag-sw',
+        tenant_id: 't-1',
+        owner_id: 'u-sw',
+        // Columns hold the EN default (worker fallback); the bag carries both.
+        title: 'Renewal due',
+        body: 'PML renews in 7 days',
+        channel: 'email',
+        payload: {
+          source: 'md-commitment',
+          __localized: {
+            en: { title: 'Renewal due', body: 'PML renews in 7 days' },
+            sw: { title: 'Upyaji unahitajika', body: 'PML inaisha baada ya siku 7' },
+          },
+        },
+        idempotency_key: 'idem-bag-sw',
+      },
+    ]);
+    const bagEmail = {
+      name: 'in-memory',
+      configured: true,
+      send: vi.fn(async () => ({
+        status: 'sent' as const,
+        provider: 'in-memory',
+        providerRef: 'mem-bag-1',
+      })),
+    };
+    const w = createRemindersDispatchWorker({
+      db,
+      logger: stubLogger,
+      emailProvider: bagEmail,
+      smsProvider: stubSmsProvider,
+      emailForOwner: async () => 'owner@example.com',
+      localeForOwner: async () => 'sw',
+      enabled: true,
+    });
+    await w.tickOnce();
+    expect(bagEmail.send).toHaveBeenCalledOnce();
+    const sent = bagEmail.send.mock.calls[0][0];
+    expect(sent.locale).toBe('sw');
+    expect(sent.payload.title).toBe('Upyaji unahitajika');
+    expect(sent.payload.body).toBe('PML inaisha baada ya siku 7');
+    // The EN default copy must NOT leak into the SW dispatch.
+    expect(sent.payload.body).not.toContain('renews');
+  });
+
+  it('falls back to the row title/body columns when the __localized bag lacks the resolved locale', async () => {
+    const db = makeStubDb([
+      {
+        id: 'reminder-bag-missing-sw',
+        tenant_id: 't-1',
+        owner_id: 'u-sw',
+        title: 'Renewal due',
+        body: 'PML renews in 7 days',
+        channel: 'email',
+        payload: {
+          source: 'md-commitment',
+          // Only an en entry — no sw. A sw owner falls back to the en columns
+          // (a clean single language), never a half-translated mix.
+          __localized: {
+            en: { title: 'Renewal due', body: 'PML renews in 7 days' },
+          },
+        },
+        idempotency_key: 'idem-bag-missing-sw',
+      },
+    ]);
+    const fbEmail = {
+      name: 'in-memory',
+      configured: true,
+      send: vi.fn(async () => ({
+        status: 'sent' as const,
+        provider: 'in-memory',
+        providerRef: 'mem-fb-1',
+      })),
+    };
+    const w = createRemindersDispatchWorker({
+      db,
+      logger: stubLogger,
+      emailProvider: fbEmail,
+      smsProvider: stubSmsProvider,
+      emailForOwner: async () => 'owner@example.com',
+      localeForOwner: async () => 'sw',
+      enabled: true,
+    });
+    await w.tickOnce();
+    expect(fbEmail.send).toHaveBeenCalledOnce();
+    const sent = fbEmail.send.mock.calls[0][0];
+    expect(sent.locale).toBe('sw');
+    expect(sent.payload.title).toBe('Renewal due');
+    expect(sent.payload.body).toBe('PML renews in 7 days');
+  });
+
   it('marks slack rows failed when webhook url not configured', async () => {
     delete process.env.SLACK_WEBHOOK_URL;
     const db = makeStubDb([

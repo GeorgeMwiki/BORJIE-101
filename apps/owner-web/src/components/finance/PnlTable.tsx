@@ -3,15 +3,16 @@
 import { Table, TableBody, TableRow, TableCell } from '@borjie/design-system';
 import type { PnLRow } from '@/lib/types/finance';
 import { formatMoneyMillions, LAUNCH_CURRENCY } from '@/lib/format';
-import { useLocale } from '@/lib/locale';
+import { useLocale, type Locale } from '@/lib/locale';
 import { financeTablesStrings as S } from '@/i18n/strings/finance-tables';
 
 interface PnlTableProps {
   readonly rows: ReadonlyArray<PnLRow>;
+  readonly initialLocale?: Locale;
 }
 
-export function PnlTable({ rows }: PnlTableProps) {
-  const locale = useLocale();
+export function PnlTable({ rows, initialLocale }: PnlTableProps) {
+  const locale = useLocale(initialLocale);
   const groupLabel: Record<PnLRow['group'], string> = {
     revenue: S.pnl.groupRevenue[locale],
     cogs: S.pnl.groupCogs[locale],

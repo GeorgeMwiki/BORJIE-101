@@ -19,7 +19,7 @@ import { pickByLocale, type Locale } from '@/lib/locale-shared';
 /**
  * Sidebar — dense left rail for the Borjie admin console.
  *
- * Mirrors the LitFin admin/officer sidebar shape (logo at top, grouped
+ * Mirrors the canonical admin/officer sidebar shape (logo at top, grouped
  * nav, active-route highlight), using Borjie navy/gold tokens. Items map
  * to the eight admin-web primary surfaces called out in the parity brief;
  * deeper screens still live under /internal/* and are reachable from the
@@ -125,8 +125,17 @@ export function Sidebar({ locale = 'en' }: SidebarProps = {}): JSX.Element {
         })}
       </nav>
 
+      {/* Footer = the protection ACTUALLY enforced on this console, not an
+          aspirational one. SSO and IP allow-listing are NOT wired (no SAML/
+          OIDC, no IP gate anywhere in admin-web), so advertising them was a
+          false security claim (D26 honesty). What IS enforced is an
+          operator-only session gate (middleware + api-gateway re-check), so
+          that is what the chrome states — localized, single-language. */}
       <div className="border-t border-border px-5 py-4 text-tiny font-mono uppercase tracking-widest text-neutral-500">
-        SSO · IP allow-list
+        {pickByLocale(locale, {
+          en: 'Operator-only · session-gated',
+          sw: 'Waendeshaji pekee · kikao kimethibitishwa',
+        })}
       </div>
     </aside>
   );

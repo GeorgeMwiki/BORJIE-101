@@ -3,6 +3,9 @@
 import { X } from 'lucide-react';
 import type { LmbmNode } from '@/lib/types/lmbm';
 import { fmtDate } from '@/lib/format';
+import { useLocale, pickByLocale } from '@/lib/locale';
+import { enumLabel } from '@/components/owner-os/panels/enum-label';
+import { lmbmStrings as S } from '@/i18n/strings/lmbm';
 
 interface NodeDetailProps {
   readonly node: LmbmNode | null;
@@ -14,10 +17,11 @@ interface NodeDetailProps {
  * valid_to (bi-temporal), and the evidence chain that wrote this node.
  */
 export function NodeDetail({ node, onClose }: NodeDetailProps) {
+  const locale = useLocale();
   if (!node) {
     return (
       <aside className="flex h-chart-md w-full flex-col rounded-lg border border-dashed border-border bg-surface/30 px-4 py-4 text-sm text-muted-foreground">
-        Select a node to see its attributes and evidence chain.
+        {pickByLocale(locale, S.selectNode)}
       </aside>
     );
   }
@@ -26,7 +30,7 @@ export function NodeDetail({ node, onClose }: NodeDetailProps) {
       <header className="flex items-start justify-between gap-2 border-b border-border px-4 py-3">
         <div>
           <div className="text-tiny uppercase tracking-wide text-muted-foreground">
-            {node.kind}
+            {enumLabel('lmbmNodeKind', node.kind, locale)}
           </div>
           <div className="mt-0.5 text-sm font-medium text-foreground">
             {node.label}
@@ -35,7 +39,7 @@ export function NodeDetail({ node, onClose }: NodeDetailProps) {
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close"
+          aria-label={pickByLocale(locale, S.close)}
           className="rounded-md p-1 text-muted-foreground hover:text-foreground"
         >
           <X className="h-4 w-4" />
@@ -44,15 +48,16 @@ export function NodeDetail({ node, onClose }: NodeDetailProps) {
       <div className="flex-1 space-y-4 overflow-y-auto px-4 py-3 text-sm">
         <section>
           <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
-            Validity
+            {pickByLocale(locale, S.validity)}
           </div>
           <div className="text-foreground">
-            {fmtDate(node.validFrom)} → {node.validTo ? fmtDate(node.validTo) : 'open'}
+            {fmtDate(node.validFrom)} →{' '}
+            {node.validTo ? fmtDate(node.validTo) : pickByLocale(locale, S.validityOpen)}
           </div>
         </section>
         <section>
           <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
-            Attributes
+            {pickByLocale(locale, S.attributes)}
           </div>
           <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
             {Object.entries(node.attributes).map(([k, v]) => (
@@ -65,7 +70,7 @@ export function NodeDetail({ node, onClose }: NodeDetailProps) {
         </section>
         <section>
           <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">
-            Evidence chain
+            {pickByLocale(locale, S.evidenceChain)}
           </div>
           <ul className="space-y-2 text-xs">
             {node.evidence.map((ev, idx) => (
@@ -76,7 +81,7 @@ export function NodeDetail({ node, onClose }: NodeDetailProps) {
                 <div className="text-muted-foreground">{ev.source}</div>
                 <div className="mt-1 italic text-muted-foreground">{ev.excerpt}</div>
                 <div className="mt-1 text-tiny text-muted-foreground">
-                  confidence {(ev.confidence * 100).toFixed(0)}%
+                  {pickByLocale(locale, S.confidence((ev.confidence * 100).toFixed(0)))}
                 </div>
               </li>
             ))}

@@ -8,6 +8,7 @@ import { useAuditLogQuery } from '@/lib/internal/queries/audit-log';
 import { useTenantsQuery } from '@/lib/internal/queries/tenants';
 import type { AuditEvent } from '@/lib/internal/types';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
 
 const SELECT_CLASS =
   'rounded-md border border-border bg-surface-sunken px-3 py-2 text-sm text-foreground';
@@ -67,7 +68,7 @@ export function AuditLogViewer({
     );
   }
   if (query.isError) {
-    return <p className="text-sm text-danger">{query.error.message}</p>;
+    return <p className="text-sm text-danger">{localizeApiError(query.error, locale)}</p>;
   }
 
   return (
@@ -111,7 +112,7 @@ export function AuditLogViewer({
         <span>
           {filtered.length.toLocaleString()} {pickByLocale(locale, S.events)}
         </span>
-        <DataSourceBadge source={query.data?.source ?? 'live'} />
+        <DataSourceBadge source={query.data?.source ?? 'live'} locale={locale} />
       </div>
 
       {filtered.length === 0 ? (

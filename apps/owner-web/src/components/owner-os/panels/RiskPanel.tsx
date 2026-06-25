@@ -17,6 +17,7 @@ import {
   useRiskCliffStatus,
   useOpenCriticalIncidentCount,
   useKillswitchStatus,
+  type KillswitchLevel,
 } from '@/lib/queries/risk-snapshot';
 
 const RISK_DESCRIPTOR: OwnerOSTabDescriptor = {
@@ -77,9 +78,15 @@ function fmtUsdExposure(usd: number, locale: Locale): string {
   return formatLargeMoney(usd, 'USD', locale);
 }
 
-/** Kill-switch level → display label pair. */
+/**
+ * Kill-switch level → display label pair. `level` is already clamped to the
+ * closed `KillswitchLevel` enum at the adapter boundary, so every branch is
+ * exhaustive — an unrecognized wire value arrives here as `'unknown'` (the
+ * fail-SAFE warning render), never an off-enum string that would fall through
+ * to a wrong "HALTED" claim or `undefined`-deref a lookup.
+ */
 function killswitchLabel(
-  level: 'live' | 'degraded' | 'halt' | null | undefined,
+  level: KillswitchLevel | null | undefined,
   isLoading: boolean,
   isError: boolean,
   isSw: boolean,
@@ -87,7 +94,7 @@ function killswitchLabel(
   if (isLoading) {
     return { value: isSw ? 'Inapakia…' : 'Loading…', tone: 'default' };
   }
-  if (isError || level === null || level === undefined) {
+  if (isError || level === null || level === undefined || level === 'unknown') {
     return { value: isSw ? 'Haijulikani' : 'Unknown', tone: 'warning' };
   }
   if (level === 'live') {

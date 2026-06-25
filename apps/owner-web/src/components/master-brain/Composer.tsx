@@ -1,31 +1,46 @@
 'use client';
 
-import { useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Send, Square } from 'lucide-react';
+import { pickByLocale, type Locale } from '@/lib/locale';
+import { masterBrainComposerStrings as S } from '@/i18n/strings/master-brain-composer';
 
-const schema = z.object({
-  content: z
-    .string()
-    .min(1, 'Type a question to send.')
-    .max(2000, 'Keep prompts under 2000 chars.'),
-});
-type FormValues = z.infer<typeof schema>;
+interface FormValues {
+  readonly content: string;
+}
 
 interface ComposerProps {
   readonly onSubmit: (content: string) => void;
   readonly onAbort: () => void;
   readonly busy: boolean;
+  /** Active locale — every caption + validation message renders in it. */
+  readonly locale: Locale;
 }
 
 /**
  * Composer at the bottom of the chat surface. Zod-validated via
  * react-hook-form so a blank submit is blocked and overlong prompts
  * fail fast. Enter sends; Shift+Enter inserts a newline.
+ *
+ * All copy (placeholder, Send/Stop captions + aria-labels, the two
+ * validation messages) renders strictly in the active locale — mirroring
+ * `ask/AskComposer.tsx`. The schema is built per-locale so the zod error
+ * surfaced by react-hook-form is in the owner's language.
  */
-export function Composer({ onSubmit, onAbort, busy }: ComposerProps) {
+export function Composer({ onSubmit, onAbort, busy, locale }: ComposerProps) {
+  const schema = useMemo(
+    () =>
+      z.object({
+        content: z
+          .string()
+          .min(1, pickByLocale(locale, S.emptyError))
+          .max(2000, pickByLocale(locale, S.tooLongError)),
+      }),
+    [locale],
+  );
   const {
     register,
     handleSubmit,
@@ -63,7 +78,7 @@ export function Composer({ onSubmit, onAbort, busy }: ComposerProps) {
           })}
           onKeyDown={onKey}
           rows={Math.min(6, Math.max(1, draft.split('\n').length))}
-          placeholder="Ask the Master Brain in Swahili or English. Enter to send, Shift+Enter for a new line."
+          placeholder={pickByLocale(locale, S.placeholder)}
           className="w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder-neutral-500 focus:outline-none focus:ring-1 focus:ring-warning"
         />
         {errors.content ? (
@@ -74,18 +89,18 @@ export function Composer({ onSubmit, onAbort, busy }: ComposerProps) {
         <button
           type="button"
           onClick={onAbort}
-          aria-label="Stop generating"
+          aria-label={pickByLocale(locale, S.stopAria)}
           className="inline-flex items-center gap-1 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive hover:bg-destructive/20"
         >
-          <Square className="h-4 w-4" aria-hidden="true" /> Stop
+          <Square className="h-4 w-4" aria-hidden="true" /> {pickByLocale(locale, S.stop)}
         </button>
       ) : (
         <button
           type="submit"
-          aria-label="Send message"
+          aria-label={pickByLocale(locale, S.sendAria)}
           className="inline-flex items-center gap-1 rounded-md border border-warning bg-warning-subtle/30 px-3 py-2 text-sm text-warning hover:bg-warning-subtle/50"
         >
-          <Send className="h-4 w-4" aria-hidden="true" /> Send
+          <Send className="h-4 w-4" aria-hidden="true" /> {pickByLocale(locale, S.send)}
         </button>
       )}
     </form>

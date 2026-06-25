@@ -8,7 +8,7 @@
  * Live-only: failures propagate to react-query's `error` channel.
  */
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, toApiError } from '@/lib/api-client';
 import type { SloMetric } from '@/lib/internal/types';
 
 const KEY = ['internal', 'slo'] as const;
@@ -50,7 +50,7 @@ export function useSloQuery() {
     queryKey: KEY,
     queryFn: async (): Promise<SloResult> => {
       const res = await apiClient.get<ReadonlyArray<RawSloRow>>('/slo');
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return { rows: res.data.map(adaptSlo), source: 'live' };
     },
   });

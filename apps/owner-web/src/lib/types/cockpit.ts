@@ -48,13 +48,18 @@ export interface CockpitData {
     readonly red: number;
   };
   readonly marketplace: {
-    readonly openOffers: number;
-    readonly newInquiries7d: number;
-    readonly topBuyer: string;
+    // `null` = the marketplace feed is not wired in this deployment (no
+    // listings / inquiries source). The card renders an honest em-dash —
+    // never a fabricated `0` offers / empty top-buyer rendered as truth.
+    readonly openOffers: number | null;
+    readonly newInquiries7d: number | null;
+    readonly topBuyer: string | null;
   };
   readonly fxAndGold: {
-    readonly goldSpotUsdOz: number;
-    readonly tzsUsd: number;
+    // `null` = the `fx_rates` benchmark feed has not yet written this pair.
+    // The card renders an honest em-dash, not a fabricated $0/oz or TZS/USD 0.
+    readonly goldSpotUsdOz: number | null;
+    readonly tzsUsd: number | null;
     readonly sellWindowOpen: boolean;
     readonly daysToCliff27Mar: number;
   };

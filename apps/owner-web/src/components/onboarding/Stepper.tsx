@@ -4,8 +4,8 @@ import { Check } from 'lucide-react';
 
 export interface StepperStep {
   readonly id: string;
+  /** The step label for the ACTIVE locale only (already locale-resolved). */
   readonly label: string;
-  readonly labelSw: string;
 }
 
 interface StepperProps {
@@ -18,8 +18,8 @@ interface StepperProps {
  *
  * Renders one circle per step. Completed steps show a check, the
  * active step is highlighted in `warning`, and pending steps are
- * muted. Bilingual labels (English + Swahili) sit underneath the
- * active step so the owner always sees both languages.
+ * muted. The label sits underneath each step in the active locale
+ * only (the caller resolves it) — never two languages at once.
  */
 export function Stepper({ steps, current }: StepperProps) {
   return (
@@ -57,13 +57,6 @@ export function Stepper({ steps, current }: StepperProps) {
                 }`}
               >
                 {step.label}
-              </p>
-              <p
-                className={`text-tiny italic ${
-                  isActive ? 'text-neutral-400' : 'text-neutral-600'
-                }`}
-              >
-                {step.labelSw}
               </p>
             </div>
           </li>

@@ -12,6 +12,7 @@ import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
 import { StatusPill } from '@/components/shared/StatusPill';
 import { pickByLocale } from '@/lib/locale-shared';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
+import { estateLabels, labelFor } from '@/i18n/strings/estate-lmbm';
 
 interface EstateOverviewProps {
   readonly locale: 'sw' | 'en';
@@ -150,12 +151,16 @@ function EntityRow({ node, locale, depth }: EntityRowProps) {
             {e.name}
           </div>
           <div className="text-xs text-muted-foreground">
-            {e.kind} · {Number(e.ownershipPct).toFixed(1)}%
+            {labelFor(estateLabels.entityKind, e.kind, locale)} ·{' '}
+            {Number(e.ownershipPct).toFixed(1)}%
           </div>
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <StatusPill tone={tone as 'green' | 'amber' | 'red' | 'neutral'} label={e.status} />
+        <StatusPill
+          tone={tone as 'green' | 'amber' | 'red' | 'neutral'}
+          label={labelFor(estateLabels.entityStatus, e.status, locale)}
+        />
         <ChevronRight className="h-4 w-4 text-muted-foreground" />
       </div>
     </div>

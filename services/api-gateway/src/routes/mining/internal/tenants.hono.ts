@@ -24,8 +24,10 @@ import {
   decisionTraces,
   complianceEscalations,
   ledgerEntries,
+  accounts,
   withServiceRoleContext,
 } from '@borjie/database';
+import { CURRENCY_DECIMALS } from '@borjie/domain-models';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware, requireRole } from '../../../middleware/hono-auth';
 import { databaseMiddleware } from '../../../middleware/database';
@@ -213,15 +215,15 @@ app.openapi(
 // router-level requireRole(SUPER_ADMIN, ADMIN). All three are read-only.
 // ───────────────────────────────────────────────────────────────────────────
 
-// ISO-4217 zero-decimal currencies: their `amount_minor_units` IS the major
-// amount (no subunit), so converting to major divides by 10^0, not 10^2.
-const ZERO_DECIMAL_CURRENCIES = new Set([
-  'TZS', 'UGX', 'RWF', 'BIF', 'DJF', 'GNF', 'KMF', 'XAF', 'XOF', 'XPF',
-  'JPY', 'KRW', 'PYG', 'ISK', 'CLP', 'VUV',
-]);
-
+// Integer-minor-units → major, currency-aware off the canonical ISO-4217
+// decimal table (no hand-rolled zero-decimal set to drift from the standard,
+// and 3-/4-decimal currencies — BHD/KWD/JOD, CLF — scale correctly). Mirrors
+// the `CURRENCY_DECIMALS[currency] ?? 2` pattern in
+// services/api-gateway/src/composition/ledger/cooperative-distribution.ts.
 function minorToMajor(minor: number, currency: string): number {
-  return ZERO_DECIMAL_CURRENCIES.has(currency) ? minor : minor / 100;
+  const decimals = CURRENCY_DECIMALS[currency] ?? 2;
+  const factor = decimals === 0 ? 1 : Math.pow(10, decimals);
+  return minor / factor;
 }
 
 // GET /:id/operator-summary — the three live counts behind the overview tiles.
@@ -313,8 +315,24 @@ app.get('/:id/operators', async (c) => {
 
 // GET /:id/invoices — invoice history. No discrete invoices table exists; the
 // honest source is the double-entry ledger's PLATFORM_FEE postings (real money
-// movement). Empty until the tenant is billed — the UI renders an honest empty
-// state, never a fabricated invoice list.
+// movement Borjie billed the tenant). Empty until the tenant is billed — the UI
+// renders an honest empty state, never a fabricated invoice list.
+//
+// A PLATFORM_FEE journal posts TWO legs (a CREDIT into PLATFORM_HOLDING and a
+// DEBIT into PLATFORM_REVENUE). Counting `type = 'PLATFORM_FEE'` alone would
+// surface BOTH and double-count every fee, and would also pull in any other
+// payable leg sharing a journal. We anchor to the single canonical "fee earned"
+// leg by joining the offsetting account and pinning it to the DEBIT into the
+// PLATFORM_REVENUE account — so each fee renders exactly once and no
+// royalty-payable / tax-payable leg can leak in.
+//
+// `postedAt` is NOT NULL DEFAULT now() in the schema, so it can NEVER tell us
+// whether the tenant has SETTLED — every posted entry would read "Paid". We
+// therefore do NOT fabricate a settlement status. The row is an accounting
+// fact: the fee has been POSTED to the ledger. We emit `status: 'Posted'` and
+// expose `postedAt` honestly; a true charged/paid/overdue distinction needs a
+// settlement source (payment_intents.status) the platform-fee leg does not
+// carry yet.
 app.get('/:id/invoices', async (c) => {
   const db = c.get('db');
   const id = c.req.param('id');
@@ -326,28 +344,62 @@ app.get('/:id/invoices', async (c) => {
         amountMinorUnits: ledgerEntries.amountMinorUnits,
         currency: ledgerEntries.currency,
         postedAt: ledgerEntries.postedAt,
-        effectiveDate: ledgerEntries.effectiveDate,
         description: ledgerEntries.description,
       })
       .from(ledgerEntries)
+      .innerJoin(accounts, eq(accounts.id, ledgerEntries.accountId))
       .where(
-        and(eq(ledgerEntries.tenantId, id), eq(ledgerEntries.type, 'PLATFORM_FEE')),
+        and(
+          eq(ledgerEntries.tenantId, id),
+          eq(ledgerEntries.type, 'PLATFORM_FEE'),
+          // Canonical leg: the DEBIT into the platform-revenue account. This
+          // excludes the offsetting PLATFORM_HOLDING credit (the double-count)
+          // and any royalty-payable / tax-payable leg on the same journal.
+          eq(ledgerEntries.direction, 'DEBIT'),
+          eq(accounts.type, 'PLATFORM_REVENUE'),
+        ),
       )
-      .orderBy(desc(ledgerEntries.effectiveDate))
+      .orderBy(desc(ledgerEntries.postedAt))
       .limit(50),
   );
   const data = rows.map((r) => ({
     id: r.invoiceId ?? r.id,
-    issuedAt: (r.postedAt ?? r.effectiveDate).toISOString(),
+    issuedAt: r.postedAt.toISOString(),
     amount: minorToMajor(r.amountMinorUnits, r.currency),
     currency: r.currency,
-    // A posted double-entry PLATFORM_FEE is a settled accounting fact; an entry
-    // with no postedAt is still pending. We expose the LEDGER posting status,
-    // never a fabricated payment status.
-    status: r.postedAt ? ('Paid' as const) : ('Open' as const),
+    // Honest accounting fact: this PLATFORM_FEE leg has been POSTED to the
+    // immutable ledger. We never derive a charged/paid/overdue settlement
+    // status from `postedAt` (NOT NULL DEFAULT now() → structurally always set).
+    status: 'Posted' as const,
     ...(r.description ? { description: r.description } : {}),
   }));
   return c.json({ success: true as const, data }, 200);
+});
+
+// GET /:id — single tenant detail for the admin TenantDetail screen. Same
+// source and same (un-scoped) read as the list endpoint above: the `tenants`
+// rows ARE the tenant index, so they are read on the admin's own request DB
+// (not service-role) and the surface is gated by the router-level
+// requireRole(SUPER_ADMIN, ADMIN). Registered AFTER the `/:id/...` detail
+// routes; `/:id` matches a single path segment so it never shadows them.
+app.get('/:id', async (c) => {
+  const db = c.get('db');
+  const id = c.req.param('id');
+  const [row] = await db
+    .select()
+    .from(tenants)
+    .where(eq(tenants.id, id))
+    .limit(1);
+  if (!row) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'NOT_FOUND', message: 'Tenant not found' },
+      },
+      404,
+    );
+  }
+  return c.json({ success: true as const, data: row }, 200);
 });
 
 export const miningInternalTenantsRouter = app;

@@ -12,7 +12,7 @@ import { routesAStrings as S } from '@/i18n/strings/routes-a';
 /**
  * O-W-12 — Cost & finance.
  *
- * Composition mirrors LitFin's borrower-finance page rhythm:
+ * Composition follows the reference finance-page rhythm:
  *  1. Page hero with primary CTA (draft month-end royalty).
  *  2. Royalty draft panel — monthly cards with mineral / rate /
  *     draft amount / signature status + a one-click batch-sign CTA.

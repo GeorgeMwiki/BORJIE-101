@@ -40,6 +40,7 @@ import { buyers, offtakeAgreements, tenants } from '@borjie/database';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { createLogger } from '../../utils/logger';
+import { enqueueSettlementRequested } from '../../services/offtake-settlement';
 
 const moduleLogger = createLogger('mining-buyers-documents');
 
@@ -317,7 +318,8 @@ export function createMiningBuyersDocumentsRouter(): Hono {
       const counterparty = await counterpartyFor(db, tenantId);
 
       // Idempotent — re-signing an already-signed document returns the
-      // current state with a meta flag (no second transition, no error).
+      // current state with a meta flag (no second transition, no error, and
+      // crucially NO second settlement enqueue — see below).
       if (existing.status === 'signed') {
         return c.json(
           {
@@ -328,25 +330,70 @@ export function createMiningBuyersDocumentsRouter(): Hono {
         );
       }
 
+      // MONEY-FLOW (mining-bid-accept-no-payment-trigger): the offtake
+      // lifecycle is pending_signature → signed → (settlement). Either party
+      // can complete the signature; whichever signs FIRST flips the agreement
+      // to `signed` and MUST enqueue `settlement.requested` so the money leg
+      // is not dark on a buyer-first sign. The flip + the enqueue run in ONE
+      // transaction (the same shape as the seller-sign path) so they commit
+      // or roll back together, and an optimistic compare-and-set on
+      // `status = 'pending_signature'` makes the transition — and therefore
+      // the enqueue — fire EXACTLY ONCE even under a concurrent double-sign.
       const signedAt = new Date();
-      const [row] = await db
-        .update(offtakeAgreements)
-        .set({ status: 'signed', signedAt, updatedAt: signedAt })
-        .where(
-          and(
-            eq(offtakeAgreements.id, id),
-            eq(offtakeAgreements.tenantId, tenantId),
-            eq(offtakeAgreements.buyerId, buyer.id),
-          ),
-        )
-        .returning();
+      const txResult = await db.transaction(async (tx: any) => {
+        const [row] = await tx
+          .update(offtakeAgreements)
+          .set({ status: 'signed', signedAt, updatedAt: signedAt })
+          .where(
+            and(
+              eq(offtakeAgreements.id, id),
+              eq(offtakeAgreements.tenantId, tenantId),
+              eq(offtakeAgreements.buyerId, buyer.id),
+              // CAS: only the row still pending_signature wins. A racing
+              // signer (or the seller-sign path) that already flipped it
+              // matches zero rows here → no second enqueue.
+              eq(offtakeAgreements.status, 'pending_signature'),
+            ),
+          )
+          .returning();
+        if (!row) {
+          // Lost the race to another signer — the winning transaction already
+          // enqueued settlement. Return the latest known state, no enqueue.
+          return { row: existing, enqueued: false as const };
+        }
+        await enqueueSettlementRequested(tx, {
+          tenantId,
+          agreement: {
+            id: String(row.id),
+            bidId: String(row.bidId),
+            listingId: String(row.listingId),
+            buyerId: String(row.buyerId),
+            buyerTenantId:
+              (row.buyerTenantId as string | null | undefined) ?? null,
+            agreedPriceTzs: String(row.agreedPriceTzs),
+            quantityKg: String(row.quantityKg),
+          },
+          signedBy: userId,
+          source: 'buyer-document-sign',
+          signedAt,
+        });
+        return { row, enqueued: true as const };
+      });
+
       moduleLogger.info('buyer document signed', {
         evt: 'buyer_document_signed',
         tenantId,
         documentId: id,
         buyerId: buyer.id,
+        settlementEnqueued: txResult.enqueued,
       });
-      return c.json({ data: projectDocument(row ?? existing, counterparty) }, 200);
+      return c.json(
+        {
+          data: projectDocument(txResult.row, counterparty),
+          meta: { settlementEnqueued: txResult.enqueued },
+        },
+        200,
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : 'sign failed';
       moduleLogger.error('buyer document sign failed', {

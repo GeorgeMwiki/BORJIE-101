@@ -43,7 +43,7 @@ export const fleetMaintenanceStrings = {
   },
 
   // ── surface (FleetMaintenanceSurface) ──────────────────────────────
-  surfaceTitle: { en: 'Asset maintenance — last 30 days', sw: 'Matengenezo ya mali — siku 30 zilizopita' },
+  surfaceTitle: { en: 'Asset maintenance, last 30 days', sw: 'Matengenezo ya mali, siku 30 zilizopita' },
   surfaceSubtitle: {
     en: 'Live maintenance events grouped by asset, with predictive due-soon / overdue flags.',
     sw: 'Matukio hai ya matengenezo yaliyopangwa kwa mali, yenye vidokezo vya utabiri vya kukaribia / kuchelewa.',
@@ -62,6 +62,18 @@ export const fleetMaintenanceStrings = {
   flagDueSoon: { en: 'due soon', sw: 'hivi karibuni' },
   eventCountOne: { en: 'event', sw: 'tukio' },
   eventCountMany: { en: 'events', sw: 'matukio' },
+
+  // ── kind enum (closed gateway vocabulary; rendered in the Kind column) ─
+  kindScheduledService: { en: 'Scheduled service', sw: 'Huduma iliyopangwa' },
+  kindRepair: { en: 'Repair', sw: 'Marekebisho' },
+  kindInspectionEnum: { en: 'Inspection', sw: 'Ukaguzi' },
+  kindUnknown: { en: 'Other', sw: 'Nyingine' },
+
+  // ── status enum (closed; rendered in the Status pill) ──────────────
+  statusOpen: { en: 'Open', sw: 'Wazi' },
+  statusInProgress: { en: 'In progress', sw: 'Inaendelea' },
+  statusCompleted: { en: 'Completed', sw: 'Imekamilika' },
+  statusCancelled: { en: 'Cancelled', sw: 'Imeghairiwa' },
   tableEmpty: {
     en: 'No maintenance events in the last 30 days.',
     sw: 'Hakuna matengenezo siku 30 zilizopita.',

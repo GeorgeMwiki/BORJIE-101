@@ -187,7 +187,11 @@
     "status_queued": "Queued",
     "status_processing": "Processing",
     "status_ready": "Ready",
-    "status_failed": "Failed"
+    "status_failed": "Failed",
+    "upload_document": "Upload document",
+    "attach_document": "Attach document",
+    "upload_no_file": "No file selected.",
+    "upload_failed": "Could not upload the document. Please try again."
   },
   "documents_intel": {
     "tab_title": "Living documents",
@@ -281,6 +285,19 @@
     "load_failed": "Could not load chat",
     "assistant_thinking": "Mr. Mwikila is replying",
     "no_thread": "This bid has no message thread yet. A chat opens once the seller responds to your offer."
+  },
+  "entity": {
+    "kind": {
+      "site": "Site",
+      "licence": "Licence",
+      "parcel": "Parcel",
+      "counterparty": "Counterparty",
+      "document": "Document",
+      "scope": "Scope",
+      "employee": "Employee",
+      "subsidiary": "Subsidiary",
+      "custom": "Item"
+    }
   },
   "auth": {
     "login_title": "Welcome to Borjie Buyers",

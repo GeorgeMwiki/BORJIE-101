@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { ArrowRight, Brain, Calculator, FileCheck, Users } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useT } from '@/i18n/t.client';
-import type { Locale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { tailStrings as TS } from '@/i18n/strings/tail';
 import { useOwnerBrief } from '@/lib/queries/owner-brief';
 import type {
   AdvisorSlot,
@@ -39,21 +40,40 @@ export function DashboardBriefSummary({
   readonly initialLocale?: Locale | undefined;
 } = {}): JSX.Element {
   const t = useT(initialLocale);
+  const locale = useLocale(initialLocale);
   const query = useOwnerBrief();
   const brief = query.data?.brief ?? null;
 
   return (
     <div className="space-y-10" data-testid="dashboard-brief-summary">
       <MetricStrip brief={brief} offline={Boolean(query.error)} t={t} />
-      <TodaysActions decisions={brief?.decisions.items ?? []} t={t} />
+      <TodaysActions
+        decisions={brief?.decisions.items ?? []}
+        t={t}
+        locale={locale}
+      />
       <ThisWeek licences={brief?.licenceHealth.items ?? []} t={t} />
       <BrainStream
         advisor={brief?.advisor ?? null}
         decisions={brief?.decisions.items ?? []}
         t={t}
+        locale={locale}
       />
     </div>
   );
+}
+
+/**
+ * ZERO-MIX: localize a decisions-slot `summary`, which is now a STABLE
+ * incident-kind TOKEN (the gateway no longer emits free-form prose). Maps
+ * through the canonical incident-kind table shared with AlertQueuePanel /
+ * the safety + people surfaces; an unknown token resolves to the localized
+ * "Other", never a raw English enum on a Swahili surface.
+ */
+function decisionKindLabel(token: string, locale: Locale): string {
+  const map = TS.incident.kind;
+  const leaf = map[token.toLowerCase() as keyof typeof map] ?? map.unknown;
+  return pickByLocale(locale, leaf);
 }
 
 type T = ReturnType<typeof useT>;
@@ -122,9 +142,10 @@ function shiftSub(shifts: number, t: T): string {
 interface TodaysActionsProps {
   readonly decisions: ReadonlyArray<DecisionItem>;
   readonly t: T;
+  readonly locale: Locale;
 }
 
-function TodaysActions({ decisions, t }: TodaysActionsProps): JSX.Element {
+function TodaysActions({ decisions, t, locale }: TodaysActionsProps): JSX.Element {
   const items = decisions.slice(0, 4);
   return (
     <section aria-labelledby="todays-actions-heading">
@@ -136,8 +157,11 @@ function TodaysActions({ decisions, t }: TodaysActionsProps): JSX.Element {
           {items.map((item) => (
             <ActionCard
               key={item.id}
-              title={item.summary}
-              context={item.kind}
+              // ZERO-MIX: `summary` is the locale-neutral incident-kind token;
+              // `kind` is the constant `'incident'` source token. Both render
+              // through localized tables — never a raw enum on the surface.
+              title={decisionKindLabel(item.summary, locale)}
+              context={t('dashboard.actionDecisionContext')}
               ctaLabel={t('dashboard.actionReviewDecision')}
               ctaHref="/master-brain"
             />
@@ -186,9 +210,10 @@ interface BrainStreamProps {
   readonly advisor: AdvisorSlot | null;
   readonly decisions: ReadonlyArray<DecisionItem>;
   readonly t: T;
+  readonly locale: Locale;
 }
 
-function BrainStream({ advisor, decisions, t }: BrainStreamProps): JSX.Element {
+function BrainStream({ advisor, decisions, t, locale }: BrainStreamProps): JSX.Element {
   const rows = decisions.slice(0, 3);
   const hasContent = Boolean(advisor) || rows.length > 0;
   return (
@@ -219,11 +244,19 @@ function BrainStream({ advisor, decisions, t }: BrainStreamProps): JSX.Element {
               {advisor ? (
                 <BrainStreamRow
                   title={t('dashboard.brainAdvisorTitle')}
+                  // ZERO-MIX: model-authored prose, pinned server-side; attribute
+                  // it with the advisor's locale.
                   detail={advisor.insight}
+                  detailLang={advisor.lang ?? 'en'}
                 />
               ) : null}
               {rows.map((d) => (
-                <BrainStreamRow key={d.id} title={d.summary} detail={d.kind} />
+                <BrainStreamRow
+                  key={d.id}
+                  // ZERO-MIX: `summary` is the locale-neutral incident-kind token.
+                  title={decisionKindLabel(d.summary, locale)}
+                  detail={t('dashboard.actionDecisionContext')}
+                />
               ))}
             </>
           ) : (
@@ -348,15 +381,26 @@ function EventCard({ title, when }: EventCardProps): JSX.Element {
 interface BrainStreamRowProps {
   readonly title: string;
   readonly detail: string;
+  /**
+   * ZERO-MIX: BCP-47 lang for the `detail` when it is model-authored prose
+   * pinned to a specific locale (the advisor insight). Omitted for
+   * locale-resolved copy that already matches the active locale.
+   */
+  readonly detailLang?: 'en' | 'sw';
 }
 
-function BrainStreamRow({ title, detail }: BrainStreamRowProps): JSX.Element {
+function BrainStreamRow({ title, detail, detailLang }: BrainStreamRowProps): JSX.Element {
   return (
     <div className="flex items-start gap-3">
       <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-signal-500" />
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium text-foreground">{title}</div>
-        <div className="truncate text-xs text-neutral-400">{detail}</div>
+        <div
+          className="truncate text-xs text-neutral-400"
+          {...(detailLang ? { lang: detailLang } : {})}
+        >
+          {detail}
+        </div>
       </div>
     </div>
   );

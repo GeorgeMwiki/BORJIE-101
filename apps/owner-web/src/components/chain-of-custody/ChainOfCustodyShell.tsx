@@ -7,11 +7,15 @@ import {
   Search,
   ShieldAlert,
 } from 'lucide-react';
-import { Button, Input, Skeleton } from '@borjie/design-system';
+import { Alert, Button, Input, Skeleton } from '@borjie/design-system';
 import { useChainOfCustody, type ChainStep } from '@/lib/queries/ops';
 import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
-import { chainOfCustodyStrings as S } from '@/i18n/strings/chain-of-custody';
+import { fmtDateForLocale, fmtTimeForLocale } from '@/lib/format';
+import {
+  chainOfCustodyStrings as S,
+  chainActionLabels,
+} from '@/i18n/strings/chain-of-custody';
 
 /**
  * Chain-of-custody visualiser — owner enters a parcelId, sees the
@@ -21,11 +25,15 @@ import { chainOfCustodyStrings as S } from '@/i18n/strings/chain-of-custody';
  * server response (`verification.ok` and `verification.brokenAt`) so
  * any tamper is rendered as a red badge with the broken step index.
  */
-export function ChainOfCustodyShell() {
-  const locale = useLocale();
+export function ChainOfCustodyShell({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+}) {
+  const locale = useLocale(initialLocale);
   const [input, setInput] = useState('');
   const [parcelId, setParcelId] = useState<string | null>(null);
-  const { data, isLoading } = useChainOfCustody(parcelId);
+  const { data, isLoading, isError, refetch } = useChainOfCustody(parcelId);
   const payload = data?.data ?? null;
   const steps = payload?.steps ?? [];
   const verification = payload?.verification ?? null;
@@ -65,6 +73,20 @@ export function ChainOfCustodyShell() {
             <Skeleton key={i} className="h-24 rounded-2xl border border-border" />
           ))}
         </div>
+      ) : isError ? (
+        <Alert variant="error">
+          <div className="flex flex-col gap-3">
+            <div>
+              <p className="font-medium">{pickByLocale(locale, S.loadFailedTitle)}</p>
+              <p className="text-sm">{pickByLocale(locale, S.loadFailedBody)}</p>
+            </div>
+            <div>
+              <Button size="sm" variant="outline" onClick={() => void refetch()}>
+                {pickByLocale(locale, S.retry)}
+              </Button>
+            </div>
+          </div>
+        </Alert>
       ) : steps.length === 0 ? (
         <ScreenEmptyState
           icon={<ShieldAlert className="h-6 w-6" />}
@@ -120,10 +142,12 @@ function StepCard({ step, locale }: { readonly step: ChainStep; readonly locale:
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium uppercase tracking-eyebrow text-signal-500">
-            {step.action.replace(/_/g, ' ')}
+            {chainActionLabels[step.action]
+              ? pickByLocale(locale, chainActionLabels[step.action]!)
+              : step.action.replace(/_/g, ' ')}
           </span>
           <span className="text-xs text-muted-foreground">
-            {new Date(step.happenedAt).toLocaleString()}
+            {`${fmtDateForLocale(step.happenedAt, locale)} · ${fmtTimeForLocale(step.happenedAt, locale)}`}
           </span>
         </div>
         <p className="mt-1 text-sm text-foreground">

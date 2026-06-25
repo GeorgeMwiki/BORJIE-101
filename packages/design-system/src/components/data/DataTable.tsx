@@ -121,7 +121,20 @@ export interface DataTableProps<T> extends React.HTMLAttributes<HTMLDivElement> 
   columns: Column<T>[];
   keyExtractor: (item: T, index: number) => string;
   isLoading?: boolean;
+  /**
+   * Single-locale empty-state text the caller resolves for the active locale.
+   * Defaults to a neutral English placeholder; pass a localized string (or use
+   * `emptyState` for a localized node) so the empty row never renders copy in
+   * the wrong language (zero-mix canon). Not required — the build-time gate
+   * that would force every caller to supply this is deferred.
+   */
   emptyMessage?: string;
+  /**
+   * Optional fully-rendered, single-locale empty-state node. When provided it
+   * takes precedence over `emptyMessage`, letting callers drop in a localized
+   * illustration / CTA instead of plain text.
+   */
+  emptyState?: React.ReactNode;
   onRowClick?: (item: T) => void;
   /** Pagination: page size (items per page). If set, enables pagination */
   pageSize?: number;
@@ -161,6 +174,7 @@ function DataTable<T>({
   keyExtractor,
   isLoading,
   emptyMessage = 'No data available',
+  emptyState,
   onRowClick,
   pageSize,
   currentPage: controlledPage,
@@ -325,7 +339,7 @@ function DataTable<T>({
           </TableHeader>
         </Table>
         <div className="flex h-24 items-center justify-center text-muted-foreground">
-          {emptyMessage}
+          {emptyState ?? emptyMessage}
         </div>
       </div>
     );

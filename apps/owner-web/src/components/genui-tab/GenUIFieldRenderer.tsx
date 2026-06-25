@@ -30,11 +30,12 @@
  */
 
 import { type ChangeEvent, useRef, useState, type ReactElement } from 'react';
-import { API_BASE, ApiError } from '@/lib/api-client';
+import { API_BASE, ApiError, localizeError } from '@/lib/api-client';
 import { getCsrfHeaders } from '@/lib/csrf';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { getFieldKindMetadata, type PortalTabField } from '@borjie/portal-genui';
 import { useT } from '@/i18n/t.client';
+import { useLocale } from '@/lib/locale';
 import type { TFn } from '@/i18n/resolve';
 
 import { toSafeText } from './sanitize';
@@ -354,6 +355,9 @@ function FileUploadControl({
 }): ReactElement {
   const [uploadState, setUploadState] = useState<UploadState>({ kind: 'idle' });
   const inputRef = useRef<HTMLInputElement>(null);
+  // Active locale for localizing a gateway error by its stable CODE (the raw
+  // English `.message` would be language MIXING under `sw`).
+  const locale = useLocale();
 
   const handleChange = async (e: ChangeEvent<HTMLInputElement>): Promise<void> => {
     const file = e.target.files?.[0];
@@ -406,8 +410,9 @@ function FileUploadControl({
       bind.onChange(uploadedUrl);
       setUploadState({ kind: 'done', url: uploadedUrl });
     } catch (err) {
-      const message = err instanceof Error ? err.message : t('genuiTab.fieldUploadFailed');
-      setUploadState({ kind: 'error', message });
+      // Localize the gateway error by its stable CODE — never the raw English
+      // `.message` (rendering that under `sw` is language MIXING).
+      setUploadState({ kind: 'error', message: localizeError(err, locale) });
       // Reset the input so the user can retry.
       if (inputRef.current) inputRef.current.value = '';
     }

@@ -12,6 +12,8 @@ import {
   useDeclineProposal,
 } from '@/lib/internal/wave9/queries';
 import type { Proposal } from '@/lib/internal/wave9/api';
+import { localizeApiError } from '@borjie/error-catalog';
+import { localizeEnumLabel, PROPOSAL_STATUS_LABELS } from '@/lib/internal/enum-labels';
 
 /**
  * Proposals approval queue (I-W-22).
@@ -38,6 +40,9 @@ const S = {
   declineReasonPlaceholder: { en: 'Why is this being declined?', sw: 'Kwa nini hili linakataliwa?' },
   decline: { en: 'Decline', sw: 'Kataa' },
   enterReason: { en: 'Enter a decline reason first.', sw: 'Weka sababu ya kukataa kwanza.' },
+  approveOk: { en: 'Proposal', sw: 'Pendekezo' },
+  approveFailed: { en: 'Approve failed', sw: 'Kuidhinisha kumeshindwa' },
+  declineFailed: { en: 'Decline failed', sw: 'Kukataa kumeshindwa' },
 } as const;
 
 export function ProposalsQueue({
@@ -64,8 +69,20 @@ export function ProposalsQueue({
     approve.mutate(
       { id: p.id, approverTier: tier },
       {
-        onSuccess: (res) => announce(`Proposal ${res.id.slice(0, 8)}… → ${res.status}`, 'success'),
-        onError: (err) => announce(`Approve failed: ${err.message}`, 'danger'),
+        onSuccess: (res) =>
+          announce(
+            `${pickByLocale(locale, S.approveOk)} ${res.id.slice(0, 8)}… → ${localizeEnumLabel(
+              PROPOSAL_STATUS_LABELS,
+              res.status,
+              locale,
+            )}`,
+            'success',
+          ),
+        onError: (err) =>
+          announce(
+            `${pickByLocale(locale, S.approveFailed)}: ${localizeApiError(err, locale)}`,
+            'danger',
+          ),
       },
     );
   }
@@ -79,8 +96,20 @@ export function ProposalsQueue({
     decline.mutate(
       { id: p.id, reason },
       {
-        onSuccess: (res) => announce(`Proposal ${res.id.slice(0, 8)}… → ${res.status}`, 'success'),
-        onError: (err) => announce(`Decline failed: ${err.message}`, 'danger'),
+        onSuccess: (res) =>
+          announce(
+            `${pickByLocale(locale, S.approveOk)} ${res.id.slice(0, 8)}… → ${localizeEnumLabel(
+              PROPOSAL_STATUS_LABELS,
+              res.status,
+              locale,
+            )}`,
+            'success',
+          ),
+        onError: (err) =>
+          announce(
+            `${pickByLocale(locale, S.declineFailed)}: ${localizeApiError(err, locale)}`,
+            'danger',
+          ),
       },
     );
   }
@@ -94,7 +123,7 @@ export function ProposalsQueue({
     );
   }
   if (query.isError) {
-    return <Alert variant="error">{query.error.message}</Alert>;
+    return <Alert variant="error">{localizeApiError(query.error, locale)}</Alert>;
   }
 
   const items = query.data ?? [];

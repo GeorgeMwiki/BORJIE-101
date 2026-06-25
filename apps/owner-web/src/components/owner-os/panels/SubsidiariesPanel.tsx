@@ -15,6 +15,7 @@ import {
 import { PanelHero } from './PanelHero';
 import { PanelDataTable, type PanelColumn } from './PanelDataTable';
 import { AskMwikilaCta } from './AskMwikilaCta';
+import { enumLabelSw } from './enum-label';
 import type { OwnerOSPanelProps } from './types';
 
 const SUBSIDIARIES_DESCRIPTOR: OwnerOSTabDescriptor = {
@@ -69,7 +70,7 @@ function subsidiaryColumns(
     {
       key: 'kind',
       header: isSw ? P.subsidiaries.colKind.sw : P.subsidiaries.colKind.en,
-      render: (r) => r.kind,
+      render: (r) => enumLabelSw('entityKind', r.kind, isSw),
     },
     {
       key: 'ownership',
@@ -82,7 +83,7 @@ function subsidiaryColumns(
     {
       key: 'status',
       header: isSw ? P.subsidiaries.colStatus.sw : P.subsidiaries.colStatus.en,
-      render: (r) => r.status,
+      render: (r) => enumLabelSw('entityStatus', r.status, isSw),
     },
   ];
 }

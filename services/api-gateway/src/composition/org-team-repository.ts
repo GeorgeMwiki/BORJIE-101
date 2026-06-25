@@ -38,6 +38,11 @@
 import { randomUUID } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 
+import {
+  resolveEscalationContextEn,
+  withContextEn,
+} from './escalation-context.js';
+
 import type { Provenance } from '../services/provenance';
 
 // ── shared result + row types ──────────────────────────────────────────
@@ -474,19 +479,27 @@ export class OrgTeamRepository {
     const severity = mapOrgSeverityToMining(input.severity);
     const sourceKind = deriveMiningSourceKind(input.category, input.relatedTaskId);
     const contextSw = `${input.title}\n\n${input.reason}`;
+    // Born locale-complete: capture the English narrative in the `context`
+    // bag so the escalations GET projection serves a real body to EN owners
+    // (not the `escalations.bodyUnavailable` placeholder). Best-effort —
+    // null when translation is unavailable; never the untranslated source.
+    const contextEn = await resolveEscalationContextEn(contextSw, tenantId);
     const toUserId = input.escalatedToStaffId;
     const toRole = input.escalatedToStaffId === null ? 'manager' : null;
     const sourceId = input.relatedTaskId;
-    const contextBag = {
-      orgPath: true,
-      category: input.category,
-      originalSeverity: input.severity,
-      title: input.title,
-      escalatedToStaffId: input.escalatedToStaffId,
-      relatedTaskId: input.relatedTaskId,
-      relatedSubject: input.relatedSubject,
-      originSessionId,
-    };
+    const contextBag = withContextEn(
+      {
+        orgPath: true,
+        category: input.category,
+        originalSeverity: input.severity,
+        title: input.title,
+        escalatedToStaffId: input.escalatedToStaffId,
+        relatedTaskId: input.relatedTaskId,
+        relatedSubject: input.relatedSubject,
+        originSessionId,
+      },
+      contextEn,
+    );
 
     // INSERT ... RETURNING lets the DB default the uuid `id` (avoids a
     // text/uuid cast on the parameterized id) and reads the row back in one

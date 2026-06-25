@@ -1,5 +1,8 @@
 'use client';
 
+import { useLocale, pickByLocale } from '@/lib/locale';
+import { lmbmExtra } from '@/i18n/strings/estate-lmbm';
+
 interface TimeTravelSliderProps {
   readonly asOf: string;
   readonly onChange: (asOf: string) => void;
@@ -11,6 +14,7 @@ interface TimeTravelSliderProps {
  * how the LMBM looked when (e.g.) a specific licence was granted.
  */
 export function TimeTravelSlider({ asOf, onChange }: TimeTravelSliderProps) {
+  const locale = useLocale();
   const today = new Date();
   const minDate = new Date(today);
   minDate.setFullYear(today.getFullYear() - 1);
@@ -24,7 +28,9 @@ export function TimeTravelSlider({ asOf, onChange }: TimeTravelSliderProps) {
   );
   return (
     <div className="flex items-center gap-3 rounded-md border border-border bg-surface/40 px-4 py-3 text-xs text-muted-foreground">
-      <span className="uppercase tracking-wide text-muted-foreground">As-of</span>
+      <span className="uppercase tracking-wide text-muted-foreground">
+        {pickByLocale(locale, lmbmExtra.asOf)}
+      </span>
       <input
         type="range"
         min={0}

@@ -403,6 +403,10 @@
     "h": "40a3d58e1619a9bb",
     "sw": "{legalName} - {region} - Maeneo {sites}, mpango: {plan}"
   },
+  "dashboard.sublineNoSites": {
+    "h": "a1b0c3c77331e8dd",
+    "sw": "{legalName} - {region} - mpango: {plan}"
+  },
   "dashboard.ctaAsk": {
     "h": "56f69ae3d3b7c263",
     "sw": "Uliza Borjie"
@@ -653,7 +657,7 @@
   },
   "nav.tenant": {
     "h": "e23969d284c3424c",
-    "sw": "Mpangaji"
+    "sw": "Shirika"
   },
   "nav.ownerCockpit": {
     "h": "f9bbd2e991128909",
@@ -674,6 +678,10 @@
   "nav.sectionMoney": {
     "h": "5ccc2e8715d7a17c",
     "sw": "Fedha"
+  },
+  "nav.sectionEstate": {
+    "h": "bd07e6a93feec1a8",
+    "sw": "Miliki"
   },
   "nav.sectionCompliance": {
     "h": "4a109cc49467be33",
@@ -858,6 +866,22 @@
   "nav.estate": {
     "h": "bd07e6a93feec1a8",
     "sw": "Shamba"
+  },
+  "nav.estateAssets": {
+    "h": "99b7522fe35baae6",
+    "sw": "Daftari la Mali"
+  },
+  "nav.estateSuccession": {
+    "h": "449bdb1124ef388e",
+    "sw": "Urithi"
+  },
+  "nav.estateEntities": {
+    "h": "7fdb3ccec0e0d236",
+    "sw": "Kampuni za Miliki"
+  },
+  "nav.estateCapitalMovements": {
+    "h": "5c3344659ba29c32",
+    "sw": "Mitiririko ya Mtaji"
   },
   "nav.inbox": {
     "h": "94835ea2fcf775cd",
@@ -1163,6 +1187,30 @@
     "h": "f9236d9e87b6235e",
     "sw": "Thibitisha"
   },
+  "reminders.loading": {
+    "h": "ba3bbbe10d8bef66",
+    "sw": "Inapakia…"
+  },
+  "reminders.loadError": {
+    "h": "9300f2b60439d27f",
+    "sw": "Imeshindwa kupakia vikumbusho. Jaribu tena hivi karibuni."
+  },
+  "reminders.createError": {
+    "h": "f2982f586092c1c9",
+    "sw": "Imeshindwa kupanga kikumbusho. Jaribu tena."
+  },
+  "reminders.cancelError": {
+    "h": "0c5d0c5443347c7a",
+    "sw": "Imeshindwa kufuta kikumbusho. Jaribu tena."
+  },
+  "reminders.acknowledgeError": {
+    "h": "bfc0ef5e31721289",
+    "sw": "Imeshindwa kuthibitisha kikumbusho. Jaribu tena."
+  },
+  "reminders.dispatchFailed": {
+    "h": "b486522010d5f8a6",
+    "sw": "Uwasilishaji umeshindwa"
+  },
   "sandboxQueue.committed": {
     "h": "31e27a6a30e4eaf4",
     "sw": "Imethibitishwa kwenye mfumo hai."
@@ -1187,6 +1235,10 @@
     "h": "ef3a8007ce95bc11",
     "sw": "Inapakia maandishi yaliyohifadhiwa…"
   },
+  "sandboxQueue.emptyTitle": {
+    "h": "28dd5413ca47887a",
+    "sw": "Hakuna maandishi yaliyowekwa tayari"
+  },
   "sandboxQueue.empty": {
     "h": "65df98cad284afb0",
     "sw": "Hakuna maandishi yaliyohifadhiwa katika muonekano huu."
@@ -1207,9 +1259,29 @@
     "h": "ab604a360777735f",
     "sw": "Kataa"
   },
+  "sandboxQueue.loadError": {
+    "h": "8fe2cecf7cb36e4e",
+    "sw": "Imeshindwa kupakia maandishi yaliyohifadhiwa. Jaribu tena hivi karibuni."
+  },
+  "sandboxQueue.filterAll": {
+    "h": "a52ace420f2175d0",
+    "sw": "Zote"
+  },
   "headBriefing.unavailable": {
     "h": "aa2c7d4fa336c2ea",
     "sw": "Mkutano wa asubuhi haupatikani sasa hivi."
+  },
+  "headBriefing.error.noSession": {
+    "h": "b529fce2bfae76bd",
+    "sw": "Kipindi chako kimeisha muda. Tafadhali ingia tena."
+  },
+  "headBriefing.error.unavailable": {
+    "h": "95ffa3624e32c71c",
+    "sw": "Muhtasari haukuweza kupakiwa sasa hivi."
+  },
+  "headBriefing.error.fetchFailed": {
+    "h": "1d967c3d791a18fc",
+    "sw": "Hatukuweza kufikia huduma ya muhtasari."
   },
   "headBriefing.noContent": {
     "h": "d6a919e97f4d390b",
@@ -1531,6 +1603,10 @@
     "h": "5be3c2c8354e1eb9",
     "sw": "Imetatuliwa"
   },
+  "escalations.bodyUnavailable": {
+    "h": "dffa66b3afb42297",
+    "sw": "Hakuna maelezo yanayopatikana kwa lugha hii."
+  },
   "evidence.title": {
     "h": "03867aea70acaf4c",
     "sw": "Ushahidi"
@@ -1783,8 +1859,8 @@
     "h": "443dc6387d736492",
     "sw": "Mkaguzi ameiweka alama jibu hili kwa ukaguzi."
   },
-  "sandboxQueue.emptyTitle": {
-    "h": "28dd5413ca47887a",
-    "sw": "Hakuna maandishi yaliyowekwa tayari"
+  "dashboard.actionDecisionContext": {
+    "h": "35dccf9c8385bf83",
+    "sw": "Uamuzi wazi unasubiri ukaguzi"
   }
 }

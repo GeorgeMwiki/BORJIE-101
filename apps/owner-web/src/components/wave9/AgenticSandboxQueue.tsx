@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Inbox } from 'lucide-react';
 import { Skeleton, Alert } from '@borjie/design-system';
 import {
@@ -10,8 +10,10 @@ import {
   type SandboxWrite,
 } from '@/lib/queries/wave9';
 import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
+import { captureError } from '@/lib/sentry';
 import { dictionaries } from '@/i18n/dictionaries';
 import { makeT } from '@/i18n/resolve';
+import { enumLabel } from '@/components/owner-os/panels/enum-label';
 
 interface AgenticSandboxQueueProps {
   readonly isSw: boolean;
@@ -36,6 +38,7 @@ function createdOf(w: SandboxWrite): string | undefined {
  * this surface is the human-judgement gate over the staged writes.
  */
 export function AgenticSandboxQueue({ isSw }: AgenticSandboxQueueProps): JSX.Element {
+  const locale = isSw ? 'sw' : 'en';
   const t = useMemo(
     () => makeT(dictionaries[isSw ? 'sw' : 'en']),
     [isSw],
@@ -50,8 +53,12 @@ export function AgenticSandboxQueue({ isSw }: AgenticSandboxQueueProps): JSX.Ele
   function onCommit(w: SandboxWrite) {
     commit.mutate(w.id, {
       onSuccess: () => setToast(t('sandboxQueue.committed')),
-      onError: (err) =>
-        setToast(`${t('sandboxQueue.commitFailed')}: ${err.message}`),
+      onError: (err) => {
+        // Map the raw mutation error to the LOCALISED failure copy — never
+        // splice `err.message` into the localised toast. Detail → trace sink.
+        captureError(err, { route: 'sandbox.commit', extra: { writeId: w.id } });
+        setToast(t('sandboxQueue.commitFailed'));
+      },
     });
   }
 
@@ -65,14 +72,24 @@ export function AgenticSandboxQueue({ isSw }: AgenticSandboxQueueProps): JSX.Ele
       { id: w.id, reason },
       {
         onSuccess: () => setToast(t('sandboxQueue.rejected')),
-        onError: (err) =>
-          setToast(`${t('sandboxQueue.rejectFailed')}: ${err.message}`),
+        onError: (err) => {
+          captureError(err, { route: 'sandbox.reject', extra: { writeId: w.id } });
+          setToast(t('sandboxQueue.rejectFailed'));
+        },
       },
     );
   }
 
   const writes = query.data?.sandboxWrites ?? [];
   const busy = commit.isPending || reject.isPending;
+
+  // Emit the raw list-load failure to the trace sink once — the alert chrome
+  // shows only the localised message (raw-detail egress guard).
+  useEffect(() => {
+    if (query.isError && query.error) {
+      captureError(query.error, { route: 'sandbox.list' });
+    }
+  }, [query.isError, query.error]);
 
   return (
     <div className="space-y-6">
@@ -88,7 +105,9 @@ export function AgenticSandboxQueue({ isSw }: AgenticSandboxQueueProps): JSX.Ele
                 : 'border-border text-muted-foreground hover:bg-surface'
             }`}
           >
-            {opt}
+            {opt === 'all'
+              ? t('sandboxQueue.filterAll')
+              : enumLabel('sandboxWriteStatus', opt, locale)}
           </button>
         ))}
       </div>
@@ -104,7 +123,7 @@ export function AgenticSandboxQueue({ isSw }: AgenticSandboxQueueProps): JSX.Ele
           ))}
         </div>
       ) : query.isError ? (
-        <Alert variant="error">{query.error.message}</Alert>
+        <Alert variant="error">{t('sandboxQueue.loadError')}</Alert>
       ) : writes.length === 0 ? (
         <ScreenEmptyState
           icon={<Inbox className="h-6 w-6" />}
@@ -121,12 +140,12 @@ export function AgenticSandboxQueue({ isSw }: AgenticSandboxQueueProps): JSX.Ele
                     <span className="font-mono text-xs text-muted-foreground">{tableOf(w)}</span>
                     {w.operation ? (
                       <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
-                        {w.operation}
+                        {enumLabel('sandboxOperation', w.operation, locale)}
                       </span>
                     ) : null}
                     {w.status ? (
                       <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
-                        {w.status}
+                        {enumLabel('sandboxWriteStatus', w.status, locale)}
                       </span>
                     ) : null}
                   </div>

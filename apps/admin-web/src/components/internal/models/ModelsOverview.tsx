@@ -25,6 +25,7 @@ import {
 import { StubBadge } from '@/components/internal/StubBadge';
 import { useModelsOverviewQuery } from '@/lib/internal/queries/models';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
 
 const fmtUsd = (n: number): string =>
   `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -67,7 +68,7 @@ export function ModelsOverview({
     );
   }
   if (query.isError) {
-    return <Alert variant="error">{query.error.message}</Alert>;
+    return <Alert variant="error">{localizeApiError(query.error, locale)}</Alert>;
   }
 
   const rows = query.data?.rows ?? [];

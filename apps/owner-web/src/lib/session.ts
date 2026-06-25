@@ -30,12 +30,14 @@
  * `GET /api/v1/tenants/current`, but it requires the forwarded bearer
  * and a sites endpoint that does not exist yet) — see TODO below.
  *
- * FAIL SAFE: when there is no user, an invalid token, or no tenant
- * claim, we DO NOT crash and DO NOT hardcode a role — we follow the
- * existing unauthenticated path and `redirect('/sign-in')`. (The route
- * middleware already redirects unauthenticated navigations; this guards
- * the render-time race where the token expired between the middleware
- * check and the RSC render.)
+ * FAIL SAFE / FAIL CLOSED: when there is no user, an invalid token, no
+ * tenant claim, OR a `mining_role` that is not owner-class, we DO NOT crash
+ * and DO NOT hardcode a role — we `redirect('/sign-in')`. The route
+ * middleware only proves a session EXISTS (authentication); the OWNER-role
+ * authorization gate is HERE, re-invoked on every render against the
+ * `auth.getUser()`-verified claim — never a doc-comment or a
+ * middleware-only check. (This also guards the render-time race where the
+ * token expired between the middleware check and the RSC render.)
  */
 
 import { cache } from 'react';
@@ -44,6 +46,27 @@ import { z } from 'zod';
 import { createSupabaseServerClient } from './supabase/server';
 import { readLocaleFromServerCookies } from './locale.server';
 import { requirePublicBaseUrl } from './env-guard';
+import { gatewayFetch } from './gateway-result';
+
+/**
+ * Roles permitted to render the owner strategic cockpit. The owner-web app
+ * is owner-scoped chrome — a workforce actor (driver / supervisor / …), a
+ * buyer, or a Borjie-team operator each has their OWN surface and must NOT
+ * be served the owner cockpit. Comparison is on the lowercased `mining_role`
+ * claim (the WIRE is locale-neutral UPPER/lower-snake codes; the gateway
+ * also lowercases before mapping — see supabase-auth-middleware).
+ *
+ * `owner` is the mining owner; `admin` is the tenant-level administrator who
+ * co-pilots the same cockpit. Every other `borjie_user_role` enum value is
+ * deliberately excluded so a new workforce role can never silently inherit
+ * owner chrome — this is an allowlist, not a denylist.
+ */
+const COCKPIT_OWNER_ROLES: ReadonlySet<string> = new Set(['owner', 'admin']);
+
+function isOwnerCockpitRole(miningRole: string | undefined): boolean {
+  if (!miningRole) return false;
+  return COCKPIT_OWNER_ROLES.has(miningRole.trim().toLowerCase());
+}
 
 export interface SiteSummary {
   readonly id: string;
@@ -75,6 +98,14 @@ export interface OwnerSession {
   };
   readonly sites: ReadonlyArray<SiteSummary>;
   readonly activeSiteId: string;
+  /**
+   * TRUE when the estate hydration (sites / tenant profile) could not be
+   * read from the gateway — a FAILURE, not an emptiness. Lets the cockpit
+   * render a localised "could not load" affordance instead of an HONEST-but-
+   * WRONG "0 sites". Absent/false means the read succeeded (an empty `sites`
+   * array is then a genuine empty estate). Defaults to `false`.
+   */
+  readonly estateLoadError: boolean;
 }
 
 /**
@@ -122,38 +153,24 @@ function gatewayBaseUrl(): string {
 
 /**
  * Server-side authed GET against the gateway, forwarding the verified
- * Supabase access token as a bearer. Unwraps the `{ success, data }`
- * envelope. Returns `null` on ANY failure (network, non-2xx, parse) so
- * hydration degrades to identity-neutral defaults rather than crashing
- * the cockpit render — never fabricates data.
+ * Supabase access token as a bearer. Delegates to the shared typed-result
+ * substrate so a FAILURE (network / non-2xx / parse) is distinguishable from
+ * an empty-but-valid payload — the caller inspects `result.ok` rather than a
+ * collapsed `null`. Never throws; never fabricates data.
  */
-async function gatewayGet<T>(
+function gatewayGet<T>(
   path: string,
   accessToken: string,
-): Promise<T | null> {
-  try {
-    const res = await fetch(`${gatewayBaseUrl()}${path}`, {
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${accessToken}`,
-      },
-      // RSC fetch — never cache a per-tenant authed read.
-      cache: 'no-store',
-    });
-    if (!res.ok) return null;
-    const parsed = (await res.json()) as { success?: boolean; data?: T } | T;
-    if (
-      parsed &&
-      typeof parsed === 'object' &&
-      'success' in parsed &&
-      'data' in parsed
-    ) {
-      return (parsed as { data: T }).data;
-    }
-    return parsed as T;
-  } catch {
-    return null;
-  }
+): ReturnType<typeof gatewayFetch<T>> {
+  return gatewayFetch<T>({
+    url: `${gatewayBaseUrl()}${path}`,
+    path,
+    headers: { Authorization: `Bearer ${accessToken}` },
+    // RSC fetch — never cache a per-tenant authed read.
+    cache: 'no-store',
+    // Server reads stay silent (no console in services); the typed failure is
+    // surfaced to the cockpit via `estateLoadError` instead.
+  });
 }
 
 /** Raw gateway sites row — only the fields the cockpit summary needs. */
@@ -189,9 +206,11 @@ function mapPlan(
 
 /**
  * Hydrate the owner's REAL sites + tenant display fields from the gateway.
- * Returns identity-neutral empties (never fabricated) when the token is
- * absent or any read fails, so the cockpit still renders an HONEST
- * "0 sites" rather than a fake estate.
+ * Returns identity-neutral empties (never fabricated) plus a `loadError`
+ * flag: when the token is absent or EITHER read fails, `loadError` is true so
+ * the cockpit can render a localised "could not load" — distinguishing a
+ * transient FAILURE from an honestly-EMPTY estate (an empty `sites` with
+ * `loadError:false`). Never fabricates a site list or a plan.
  */
 async function hydrateOwnerEstate(
   accessToken: string | undefined,
@@ -202,20 +221,38 @@ async function hydrateOwnerEstate(
   readonly region: string;
   readonly plan?: 'kampuni' | 'mtu_mmoja' | 'group';
   readonly legalName?: string;
+  /** TRUE when EITHER gateway read failed — a degrade, not an empty estate. */
+  readonly loadError: boolean;
 }> {
   if (!accessToken) {
-    return { sites: [], activeSiteId: '', region: tenantRegionFallback };
+    // No bearer is a genuine unauthenticated edge, not a transient failure;
+    // the caller already redirected on a missing user. Treat as a load
+    // failure so the cockpit never paints a fake-empty estate from no read.
+    return {
+      sites: [],
+      activeSiteId: '',
+      region: tenantRegionFallback,
+      loadError: true,
+    };
   }
-  const [tenantRaw, sitesRaw] = await Promise.all([
+  const [tenantResult, sitesResult] = await Promise.all([
     gatewayGet<unknown>('/api/v1/tenants/current', accessToken),
     gatewayGet<unknown>('/api/v1/mining/sites', accessToken),
   ]);
 
-  const tenant = TenantCurrentSchema.safeParse(tenantRaw).data;
+  // A FAILURE on EITHER read is a degrade — the sites array below would
+  // otherwise read as an honest "0 sites" when the gateway was simply
+  // unreachable. Distinguish failure from emptiness.
+  const loadError = !tenantResult.ok || !sitesResult.ok;
+
+  const tenant = tenantResult.ok
+    ? TenantCurrentSchema.safeParse(tenantResult.data).data
+    : undefined;
   const region = tenant?.region?.trim() || tenantRegionFallback;
   const plan = mapPlan(tenant?.subscription?.plan);
 
-  const rows = Array.isArray(sitesRaw) ? sitesRaw : [];
+  const rows =
+    sitesResult.ok && Array.isArray(sitesResult.data) ? sitesResult.data : [];
   const sites: SiteSummary[] = [];
   for (const r of rows) {
     const parsed = GatewaySiteRowSchema.safeParse(r);
@@ -236,6 +273,7 @@ async function hydrateOwnerEstate(
     sites,
     activeSiteId,
     region,
+    loadError,
     ...(plan ? { plan } : {}),
     ...(tenant?.name ? { legalName: tenant.name } : {}),
   };
@@ -267,11 +305,23 @@ async function getOwnerSessionUncached(): Promise<OwnerSession> {
 
   const appMeta = AppMetadataSchema.safeParse(user?.app_metadata ?? {});
   const tenantId = appMeta.success ? appMeta.data.tenant_id : undefined;
+  const miningRole = appMeta.success ? appMeta.data.mining_role : undefined;
 
   // Fail closed: no verified user OR no tenant claim → unauthenticated
   // path. Never hardcode a role to paper over a missing session.
   if (!user || !tenantId) {
     redirect('/sign-in');
+  }
+
+  // AUTHZ (re-invoked at render, not a doc-comment): the cockpit is owner-
+  // scoped chrome. A verified session whose `mining_role` is NOT an owner-
+  // class role (workforce / buyer / borjie_team) must be turned away here —
+  // the middleware only proves a session EXISTS, never that the actor owns
+  // this surface. Fail CLOSED: an absent or unrecognised role is non-owner
+  // and is redirected, never silently elevated. This is the guard the file
+  // header promised, now actually written.
+  if (!isOwnerCockpitRole(miningRole)) {
+    redirect('/sign-in?reason=not-owner');
   }
 
   const userMeta = UserMetadataSchema.safeParse(user.user_metadata ?? {}).data ?? {};
@@ -305,5 +355,6 @@ async function getOwnerSessionUncached(): Promise<OwnerSession> {
     },
     sites: estate.sites,
     activeSiteId: estate.activeSiteId,
+    estateLoadError: estate.loadError,
   };
 }

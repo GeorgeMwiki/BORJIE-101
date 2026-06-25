@@ -7,7 +7,7 @@ import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 /**
  * DashboardMetricStrip — four-up KPI row at the top of the admin cockpit.
  *
- * Mirrors LitFin's StatCard composition: small icon tile, label,
+ * Mirrors the reference StatCard composition: small icon tile, label,
  * tabular numeric value, footer descriptor. Numbers derive from the
  * live tenant query for now (active count + total); session / latency /
  * error-budget slots stay stubbed until their respective brain

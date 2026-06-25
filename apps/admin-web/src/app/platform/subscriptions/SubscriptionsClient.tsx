@@ -6,8 +6,11 @@
  *
  *   GET /api/v1/admin/subscriptions
  *
- * Tenant-detail navigation links out to owner-portal. Currency / dates are
- * formatted by the shared lib (no hardcoded symbol).
+ * Tenant-detail navigation links to this admin app's internal tenant-detail
+ * route (/internal/tenants/:id). Each row's MRR renders in the subscription's
+ * own ISO currency, and the Total MRR tile groups per currency (never a
+ * blind cross-currency sum) — all via the shared `formatCurrency` (no
+ * hardcoded symbol).
  *
  * Rendered on design-system primitives + semantic tokens. SINGLE LANGUAGE
  * PER LOCALE (canon): every user-facing string resolves to the active
@@ -15,7 +18,8 @@
  * the project default and the post-mount effect corrects it.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Building2, ChevronRight } from 'lucide-react';
 import {
   Empty,
@@ -35,8 +39,9 @@ import {
   type BadgeProps,
 } from '@borjie/design-system';
 import { api, formatCurrency, formatDate } from '@/lib/api';
-import { requirePublicBaseUrl } from '@/lib/env-guard';
-import { useLocale, pickByLocale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
+import { toCatalogError } from '@/lib/api-client';
 
 interface Subscription {
   id: string;
@@ -45,6 +50,12 @@ interface Subscription {
   plan: string;
   status: 'active' | 'trialing' | 'past_due' | 'canceled';
   mrr: number;
+  /**
+   * ISO-4217 code for `mrr`, carried from the backend `SubscriptionDto`
+   * (multi-currency hard rule — never assume USD at render). Each row and
+   * the per-currency totals format through this code.
+   */
+  currency: string;
   billingCycle: 'monthly' | 'annual';
   currentPeriodEnd: string;
   createdAt: string;
@@ -83,20 +94,47 @@ const STATUS_VARIANT: Record<Subscription['status'], BadgeProps['variant']> = {
   canceled: 'error-soft',
 };
 
-/**
- * Owner-portal base URL. Tenant-detail pages (/tenants/:id) live in the
- * owner-portal app, not in HQ; admin-web links there externally so HQ staff
- * can deep-link into a tenant's own surface. Resolved through
- * `requirePublicBaseUrl` so production builds without
- * NEXT_PUBLIC_OWNER_PORTAL_URL fail at module load.
- */
-const OWNER_PORTAL_BASE = requirePublicBaseUrl(
-  'NEXT_PUBLIC_OWNER_PORTAL_URL',
-  'http://localhost:3001',
-);
+// Raw billing-status enum tokens must NEVER reach the badge as English (e.g.
+// "past due") — they map through this localized label table so the active
+// locale governs every status string (zero-mix canon).
+const STATUS_LABEL: Record<
+  Subscription['status'],
+  { readonly en: string; readonly sw: string }
+> = {
+  active: S.active,
+  trialing: S.trialing,
+  past_due: S.pastDue,
+  canceled: S.canceled,
+};
 
-export function SubscriptionsClient() {
-  const locale = useLocale();
+// The billing-cycle enum is likewise localized, not rendered as the raw
+// English token via `capitalize`.
+const BILLING_CYCLE_LABEL: Record<
+  Subscription['billingCycle'],
+  { readonly en: string; readonly sw: string }
+> = {
+  monthly: { en: 'Monthly', sw: 'Kila mwezi' },
+  annual: { en: 'Annual', sw: 'Kila mwaka' },
+};
+
+// Launch-jurisdiction currency for the EMPTY Total MRR tile only (zero
+// subscriptions loaded → no currency context to derive from the data).
+// Tanzania is the launch market; matches the `?? 'TZS'` default the tenant
+// adapter already uses. Never a USD-by-omission render. As soon as any
+// subscription is loaded, its own ISO currency drives the tile instead.
+const PLATFORM_LAUNCH_CURRENCY = 'TZS';
+
+// Resolve the Intl BCP-47 tag from the active locale (locale-follows-the-user).
+// The shared `formatCurrency` defaults its locale to 'en'; passing the active
+// locale's tag keeps the money render in the operator's chosen language —
+// never an English-by-omission digit grouping under the sw locale.
+function bcp47For(locale: Locale): string {
+  return locale === 'sw' ? 'sw-TZ' : 'en-GB';
+}
+
+export function SubscriptionsClient({ initialLocale }: { readonly initialLocale?: Locale } = {}) {
+  const locale = useLocale(initialLocale);
+  const bcp47 = bcp47For(locale);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [subscriptions, setSubscriptions] = useState<
@@ -104,11 +142,6 @@ export function SubscriptionsClient() {
   >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const ownerPortalBase = useMemo(
-    () => OWNER_PORTAL_BASE.replace(/\/$/, ''),
-    [],
-  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -123,7 +156,7 @@ export function SubscriptionsClient() {
       }
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : pickByLocale(locale, S.loadFailed),
+        localizeApiError(toCatalogError(err), locale),
       );
     } finally {
       setLoading(false);
@@ -148,10 +181,43 @@ export function SubscriptionsClient() {
     active: subscriptions.filter((s) => s.status === 'active').length,
     trialing: subscriptions.filter((s) => s.status === 'trialing').length,
     pastDue: subscriptions.filter((s) => s.status === 'past_due').length,
-    totalMrr: subscriptions
-      .filter((s) => s.status === 'active' || s.status === 'past_due')
-      .reduce((sum, s) => sum + s.mrr, 0),
   };
+
+  // Total MRR must NEVER blind-sum across distinct ISO currency codes into one
+  // figure (money hard rule). Group the contributing rows per currency; the tile
+  // renders one formatted total per currency (a single total when all share one
+  // code). Currencies are ordered by descending magnitude for a stable display.
+  const mrrByCurrency = subscriptions
+    .filter((s) => s.status === 'active' || s.status === 'past_due')
+    .reduce<ReadonlyArray<readonly [string, number]>>((acc, s) => {
+      // Guard the contributing figure: a malformed / non-numeric `mrr` from the
+      // backend must NEVER poison the per-currency total with NaN (which would
+      // render as "NaN" through the currency formatter).
+      const mrr = Number.isFinite(s.mrr) ? s.mrr : 0;
+      const existing = acc.find(([code]) => code === s.currency);
+      return existing
+        ? acc.map((entry) =>
+            entry[0] === s.currency ? [entry[0], entry[1] + mrr] : entry,
+          )
+        : [...acc, [s.currency, mrr]];
+    }, [])
+    .slice()
+    .sort((a, b) => b[1] - a[1]);
+
+  // When no active/past-due rows contribute MRR, still render an explicit
+  // currency — never `formatCurrency(0)` (which silently defaults to USD).
+  // Prefer ANY loaded subscription's own ISO currency so the zero reads in the
+  // tenant base currency; fall back to the platform launch currency only when
+  // there are no subscriptions at all.
+  const emptyMrrCurrency =
+    subscriptions[0]?.currency ?? PLATFORM_LAUNCH_CURRENCY;
+
+  const totalMrrLabel =
+    mrrByCurrency.length === 0
+      ? formatCurrency(0, emptyMrrCurrency, bcp47)
+      : mrrByCurrency
+          .map(([code, amount]) => formatCurrency(amount, code, bcp47))
+          .join(' · ');
 
   return (
     <div className="space-y-6">
@@ -196,7 +262,7 @@ export function SubscriptionsClient() {
           tone="text-warning"
         />
         <StatTile
-          value={formatCurrency(stats.totalMrr)}
+          value={totalMrrLabel}
           label={pickByLocale(locale, S.totalMrr)}
         />
       </section>
@@ -264,32 +330,32 @@ export function SubscriptionsClient() {
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
                     <Badge variant={STATUS_VARIANT[sub.status]} size="sm">
-                      {sub.status.replace('_', ' ')}
+                      {pickByLocale(locale, STATUS_LABEL[sub.status])}
                     </Badge>
                   </TableCell>
-                  <TableCell className="whitespace-nowrap text-sm capitalize text-muted-foreground">
-                    {sub.billingCycle}
+                  <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                    {pickByLocale(locale, BILLING_CYCLE_LABEL[sub.billingCycle])}
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-sm font-medium text-foreground">
-                    {formatCurrency(sub.mrr)}
+                    {formatCurrency(sub.mrr, sub.currency, bcp47)}
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                     {formatDate(sub.currentPeriodEnd)}
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-right">
                     {/*
-                     * Tenant-detail (/tenants/:id) lives in owner-portal,
-                     * not HQ. Link out via NEXT_PUBLIC_OWNER_PORTAL_URL.
+                     * Tenant-detail lives in THIS admin app at
+                     * /internal/tenants/:id (the wired internal console
+                     * route). The earlier owner-portal /tenants/:id deep-link
+                     * 404'd — HQ staff have no owner-portal session.
                      */}
-                    <a
-                      href={`${ownerPortalBase}/tenants/${sub.tenantId}`}
-                      target="_blank"
-                      rel="noreferrer noopener"
+                    <Link
+                      href={`/internal/tenants/${sub.tenantId}`}
                       className="inline-flex items-center gap-1 text-sm text-signal-500 hover:text-signal-400"
                     >
                       {pickByLocale(locale, S.manage)}
                       <ChevronRight className="h-4 w-4" />
-                    </a>
+                    </Link>
                   </TableCell>
                 </TableRow>
               ))}

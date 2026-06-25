@@ -2,7 +2,7 @@
 
 import { useMemo, type ReactElement } from 'react';
 import { Network } from 'lucide-react';
-import { Skeleton, Alert } from '@borjie/design-system';
+import { Skeleton, Alert, useColorScheme } from '@borjie/design-system';
 import {
   GraphVizBlock,
   RoyaltyFlowSankey,
@@ -58,6 +58,11 @@ function flattenTree(
 
 export function EstateGraphPanel({ locale }: EstateGraphPanelProps): ReactElement {
   const isSw = locale === 'sw';
+  // The viz palette FOLLOWS the active app theme — the app default flipped
+  // to LIGHT, so a hardwired 'brand-dark' Sankey would render a dark-on-light
+  // island. Derive the graph-viz theme name from the resolved color scheme.
+  const colorScheme = useColorScheme();
+  const vizThemeName = colorScheme === 'dark' ? 'brand-dark' : 'brand-light';
   const entitiesQ = useEstateEntities({ tree: true });
   const movementsQ = useEstateCapitalMovements({ limit: 200 });
 
@@ -153,7 +158,7 @@ export function EstateGraphPanel({ locale }: EstateGraphPanelProps): ReactElemen
           ) : (
             <RoyaltyFlowSankey
               flows={royaltyFlows}
-              themeName="brand-dark"
+              themeName={vizThemeName}
               ariaLabel={
                 isSw
                   ? `${COPY.flowSankeyAria.prefix.sw}${royaltyFlows.length}${COPY.flowSankeyAria.suffix.sw}`

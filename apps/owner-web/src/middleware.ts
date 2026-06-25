@@ -14,6 +14,15 @@ import { requirePublicBaseUrl } from './lib/env-guard';
  *      to `/sign-in?next=<original>` so the user authenticates and
  *      bounces back.
  *
+ * SCOPE OF THIS GATE — AUTHENTICATION ONLY, NOT AUTHORIZATION.
+ * The middleware proves a session EXISTS; it does NOT prove the actor owns
+ * the owner cockpit. Role authorization (owner-class `mining_role` only) is
+ * enforced in `lib/session.ts` `getOwnerSession`, which re-verifies the JWT
+ * via `auth.getUser()` and fails CLOSED on a non-owner role. That is the
+ * authoritative, re-invoked guard — the role check is deliberately NOT done
+ * here because middleware would have to re-decode an unverified token. Do not
+ * treat "passed middleware" as "is an owner".
+ *
  * Public paths (no session required):
  *   - `/sign-in` — the sign-in form itself
  *   - static Next assets — excluded via `config.matcher` below

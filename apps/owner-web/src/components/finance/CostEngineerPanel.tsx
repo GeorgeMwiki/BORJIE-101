@@ -71,9 +71,9 @@ export function CostEngineerPanel({ locale, siteId }: CostEngineerPanelProps) {
   const [treatment, setTreatment] = useState('5000');
   const [capex, setCapex] = useState('20000');
   const [currency, setCurrency] = useState<CurrencyCode>('TZS');
-  const [opex, setOpex] = useState<ReadonlyArray<OpexRow>>([
-    newOpexRow('Diesel', '40000000'),
-    newOpexRow('Wages', '30000000'),
+  const [opex, setOpex] = useState<ReadonlyArray<OpexRow>>(() => [
+    newOpexRow(T.opexSeedDiesel[locale], '40000000'),
+    newOpexRow(T.opexSeedWages[locale], '30000000'),
   ]);
 
   const analyzeMut = useCostAnalyze();
@@ -247,8 +247,13 @@ export function CostEngineerPanel({ locale, siteId }: CostEngineerPanelProps) {
             <ul className="space-y-2">
               {recommendations.map((rec) => (
                 <li key={rec.id} className={`rounded-md border px-3 py-2 ${SEVERITY_TONE[rec.severity]}`}>
-                  <div className="text-xs font-semibold">{rec.title}</div>
-                  <p className="mt-1 text-xs leading-relaxed opacity-90">{rec.rationale}</p>
+                  {/* The advisor engine emits these recommendation strings in
+                      English; until the engine pins output to the active locale
+                      (see residual), mark the run as `en` so assistive tech and
+                      the layout attribute the foreign-language text honestly
+                      rather than mis-reading it as the active locale. */}
+                  <div lang="en" className="text-xs font-semibold">{rec.title}</div>
+                  <p lang="en" className="mt-1 text-xs leading-relaxed opacity-90">{rec.rationale}</p>
                   <div className="mt-1.5 text-tiny uppercase tracking-wide opacity-70">
                     {tr('evidence')}: {rec.evidence.map((e) => e.pointer).join(' · ')}
                   </div>

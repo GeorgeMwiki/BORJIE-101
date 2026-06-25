@@ -37,7 +37,7 @@ export const ownerOsBffStrings = {
     colAmount: { sw: 'Kiasi', en: 'Amount' },
     emptyTitle: { sw: 'Hakuna kumbukumbu za uhasibu bado', en: 'No accounting records yet' },
     emptyBody: {
-      sw: 'Jarida la uhasibu litaonekana hapa mara tu kumbukumbu zitakapowekwa. Mwambie Mr. Mwikila akupe muhtasari wa hesabu.',
+      sw: 'Jarida la uhasibu litaonekana hapa mara tu kumbukumbu zitakapowekwa. Mwambie Bw. Mwikila akupe muhtasari wa hesabu.',
       en: 'Journal rows will surface here once records are posted. Ask Mr. Mwikila for the accounting summary in the meantime.',
     },
   },
@@ -56,7 +56,7 @@ export const ownerOsBffStrings = {
     colAttendees: { sw: 'Waliohudhuria', en: 'Attendees' },
     emptyTitle: { sw: 'Hakuna mikutano ya jamii bado', en: 'No community meetings yet' },
     emptyBody: {
-      sw: 'Mikutano ya jamii vijijini itaonekana hapa mara tu itakaporekodiwa. Mwambie Mr. Mwikila aandae mkutano wa jamii.',
+      sw: 'Mikutano ya jamii vijijini itaonekana hapa mara tu itakaporekodiwa. Mwambie Bw. Mwikila aandae mkutano wa jamii.',
       en: 'Community meetings will surface here once they are logged. Ask Mr. Mwikila to schedule a community meeting.',
     },
   },
@@ -83,7 +83,7 @@ export const ownerOsBffStrings = {
     noSite: { sw: 'Maeneo yote', en: 'All sites' },
     emptyTitle: { sw: 'Hakuna mapendekezo ya manunuzi bado', en: 'No procurement recommendations yet' },
     emptyBody: {
-      sw: 'Mapendekezo ya manunuzi yataonekana hapa msaidizi atakapoyatengeneza. Mwambie Mr. Mwikila kuhusu wauzaji na maagizo ya ununuzi.',
+      sw: 'Mapendekezo ya manunuzi yataonekana hapa msaidizi atakapoyatengeneza. Mwambie Bw. Mwikila kuhusu wauzaji na maagizo ya ununuzi.',
       en: 'Procurement recommendations will surface here once the junior produces them. Ask Mr. Mwikila about suppliers and purchase orders.',
     },
   },
@@ -107,7 +107,7 @@ export const ownerOsBffStrings = {
     colStatus: { sw: 'Hali', en: 'Status' },
     emptyTitle: { sw: 'Hakuna mikataba bado', en: 'No contracts yet' },
     emptyBody: {
-      sw: 'Maktaba ya mikataba itaonekana hapa mara tu mikataba itakapowekwa. Mwambie Mr. Mwikila akuonyeshe maktaba ya mikataba na rasimu.',
+      sw: 'Maktaba ya mikataba itaonekana hapa mara tu mikataba itakapowekwa. Mwambie Bw. Mwikila akuonyeshe maktaba ya mikataba na rasimu.',
       en: 'The contracts library will surface here once contracts are filed. Ask Mr. Mwikila to show the contracts library and drafts.',
     },
   },
@@ -125,7 +125,7 @@ export const ownerOsBffStrings = {
     colStatus: { sw: 'Hali', en: 'Status' },
     emptyTitle: { sw: 'Hakuna biashara za pembeni bado', en: 'No ancillary businesses yet' },
     emptyBody: {
-      sw: 'Biashara zako za pembeni zitaonekana hapa mara tu zitakapoongezwa. Mwambie Mr. Mwikila aandikishe biashara mpya ya pembeni.',
+      sw: 'Biashara zako za pembeni zitaonekana hapa mara tu zitakapoongezwa. Mwambie Bw. Mwikila aandikishe biashara mpya ya pembeni.',
       en: 'Your side businesses will surface here once they are added. Ask Mr. Mwikila to register a new side business.',
     },
   },

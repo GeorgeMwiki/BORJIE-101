@@ -114,9 +114,7 @@ export function createMigrationRouter(deps: {
       };
     }).repo.updateStatus(run.id, tenantId, 'extracted', {      bundle,
       extractionSummary: {
-        properties: bundle.properties.length,
-        units: bundle.units.length,
-        tenants: bundle.tenants.length,
+        sites: bundle.sites.length,
         employees: bundle.employees.length,
         departments: bundle.departments.length,
         teams: bundle.teams.length,
@@ -129,19 +127,19 @@ export function createMigrationRouter(deps: {
     let progressivePreview: unknown = null;
     try {
       const rows = [
-        ...bundle.tenants.map((t: Record<string, unknown>, idx: number) => ({
+        ...bundle.employees.map((e: Record<string, unknown>, idx: number) => ({
           rowIndex: idx,
-          data: t,
+          data: e,
         })),
-        ...bundle.units.map((u: Record<string, unknown>, idx: number) => ({
-          rowIndex: bundle.tenants.length + idx,
-          data: u,
+        ...bundle.sites.map((s: Record<string, unknown>, idx: number) => ({
+          rowIndex: bundle.employees.length + idx,
+          data: s,
         })),
       ];
       progressivePreview = await progressiveAutoGen.buildPreview({
         tenantId,
         sessionId: `migration-${run.id}`,
-        sourceSystem: 'lpms-upload',
+        sourceSystem: 'roster-upload',
         sourceFile: file.name,
         rows,
       });

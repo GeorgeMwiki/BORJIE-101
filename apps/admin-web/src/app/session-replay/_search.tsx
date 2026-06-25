@@ -16,13 +16,15 @@
 
 import { useEffect, useState } from 'react';
 import { Input, Button } from '@borjie/design-system';
-import { useLocale, pickByLocale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 
 interface SessionReplaySearchProps {
   readonly value: string;
   readonly onChange: (next: string) => void;
   readonly debounceMs?: number;
   readonly placeholder?: string;
+  /** Active locale seeded by the host list (no first-paint EN/SW split). */
+  readonly locale?: Locale;
 }
 
 const DEFAULT_DEBOUNCE_MS = 250;
@@ -42,8 +44,9 @@ export function SessionReplaySearch({
   onChange,
   debounceMs = DEFAULT_DEBOUNCE_MS,
   placeholder,
+  locale: seededLocale,
 }: SessionReplaySearchProps): JSX.Element {
-  const locale = useLocale();
+  const locale = useLocale(seededLocale);
   const [local, setLocal] = useState(value);
 
   // Sync external resets (e.g. "Clear filters" button) back into the

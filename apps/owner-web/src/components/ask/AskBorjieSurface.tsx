@@ -4,11 +4,11 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useChatScroll, JumpToLatestPill } from '@borjie/chat-ui';
 import { useLocale } from '@/lib/locale';
-import { pickByLocale } from '@/lib/locale-shared';
+import { pickByLocale, type Locale } from '@/lib/locale-shared';
 import { askEmptyStateStrings as S } from '@/i18n/strings/ask-empty-state';
 import { isBrainConfigured } from '@/lib/brain-api';
 import { useAskBorjie } from '@/lib/queries/brain';
-import { ApiError } from '@/lib/api-client';
+import { ApiError, localizeError } from '@/lib/api-client';
 import { AskBubble } from './AskBubble';
 import { AskComposer } from './AskComposer';
 import { AskEmptyState, type AskEmptyKind } from './AskEmptyState';
@@ -27,10 +27,14 @@ import { AskEmptyState, type AskEmptyKind } from './AskEmptyState';
  *   async-iterable so a future SSE variant of the route can drop in
  *   without touching the component.
  */
-export function AskBorjieSurface() {
+export function AskBorjieSurface({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+} = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const locale = useLocale();
+  const locale = useLocale(initialLocale);
   const initialThreadId = searchParams?.get('thread') ?? null;
   const configured = isBrainConfigured();
 
@@ -151,7 +155,9 @@ export function AskBorjieSurface() {
               kind={emptyKind}
               locale={locale}
               detail={
-                emptyKind === 'error' && error ? error.message : null
+                emptyKind === 'error' && error
+                  ? localizeError(error, locale)
+                  : null
               }
             />
           ) : (
@@ -173,7 +179,7 @@ export function AskBorjieSurface() {
               data-testid="ask-error-inline"
               className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
             >
-              {error.message}
+              {localizeError(error, locale)}
             </div>
           ) : null}
         </div>

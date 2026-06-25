@@ -8,8 +8,8 @@ export const reportsLibraryPageStrings = {
   eyebrow: { en: 'Reports · Library', sw: 'Ripoti · Maktaba' },
   title: { en: 'Report library', sw: 'Maktaba ya ripoti' },
   subtitle: {
-    en: 'All generated reports for your estate, newest first. Each report includes a hash anchor for every figure — traceable to the source ledger or document chunk.',
-    sw: 'Ripoti zote zilizotengenezwa kwa miliki yako, mpya kwanza. Kila ripoti ina nanga ya hash kwa kila takwimu — inafuatilika hadi kwenye ledger ya chanzo au kipande cha hati.',
+    en: 'All generated reports for your estate, newest first. Each report includes a hash anchor for every figure, traceable to the source ledger or document chunk.',
+    sw: 'Ripoti zote zilizotengenezwa kwa miliki yako, mpya kwanza. Kila ripoti ina nanga ya hash kwa kila takwimu, inafuatilika hadi kwenye ledger ya chanzo au kipande cha hati.',
   },
   generate: { en: 'Generate new report', sw: 'Tengeneza ripoti mpya' },
   ask: { en: 'Ask about analytics', sw: 'Uliza kuhusu uchambuzi' },

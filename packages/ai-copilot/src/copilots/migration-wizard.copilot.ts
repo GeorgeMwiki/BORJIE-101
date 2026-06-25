@@ -29,9 +29,7 @@ export interface MigrationWizardInput {
   readonly runId: string;
   readonly diffSummaryText: string;
   readonly samples: {
-    readonly properties: ReadonlyArray<Record<string, unknown>>;
-    readonly units: ReadonlyArray<Record<string, unknown>>;
-    readonly tenants: ReadonlyArray<Record<string, unknown>>;
+    readonly sites: ReadonlyArray<Record<string, unknown>>;
     readonly employees: ReadonlyArray<Record<string, unknown>>;
   };
   readonly warnings: readonly string[];

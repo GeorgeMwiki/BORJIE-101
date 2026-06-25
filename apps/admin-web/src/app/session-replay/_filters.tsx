@@ -18,6 +18,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import { Play } from 'lucide-react';
 import {
   Button,
   Empty,
@@ -72,7 +73,7 @@ const S = {
   colFirst: { en: 'First captured', sw: 'Ilinaswa kwanza' },
   colLast: { en: 'Last captured', sw: 'Ilinaswa mwisho' },
   colChunks: { en: 'Chunks', sw: 'Vipande' },
-  play: { en: 'Play →', sw: 'Cheza →' },
+  play: { en: 'Play', sw: 'Cheza' },
 } as const;
 
 interface SessionReplayFiltersProps {
@@ -231,7 +232,7 @@ export function SessionReplayList({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <SessionReplaySearch value={query} onChange={setQuery} />
+        <SessionReplaySearch value={query} onChange={setQuery} locale={locale} />
         <div className="text-xs text-muted-foreground">
           {filtered.length} {pickByLocale(locale, S.of)} {sessions.length}{' '}
           {pickByLocale(locale, S.sessions)}
@@ -284,8 +285,9 @@ export function SessionReplayList({
                   <TableCell>
                     <Link
                       href={`/session-replay/${encodeURIComponent(s.sessionId)}`}
-                      className="text-signal-500 hover:underline"
+                      className="inline-flex items-center gap-1 text-signal-500 hover:underline"
                     >
+                      <Play aria-hidden="true" className="h-3 w-3" />
                       {pickByLocale(locale, S.play)}
                     </Link>
                   </TableCell>

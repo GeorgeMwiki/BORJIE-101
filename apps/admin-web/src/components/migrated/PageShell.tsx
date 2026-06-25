@@ -21,6 +21,12 @@ interface PageShellProps {
  *
  * Kept `async` so the returned element type is identical for every
  * caller (some render it from async server components).
+ *
+ * LOCALE CONTRACT (zero-mix canon): `title` / `subtitle` are rendered
+ * VERBATIM — this shell does no locale resolution of its own. Callers MUST
+ * pass copy already resolved to the server-resolved active locale (e.g.
+ * `pickByLocale(locale, HEADER.title)`), never a hardcoded English literal,
+ * so the header never renders English over a Swahili AdminShell.
  */
 export async function PageShell({
   title,

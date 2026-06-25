@@ -14,7 +14,7 @@ export const salesPageStrings = {
     sw: 'Mauzo ya vifurushi vya madini, ulinganisho wa bei halisi, na ufuatiliaji wa malipo.',
   },
   fxTreasuryCta: { en: 'FX & treasury', sw: 'Sarafu & hazina' },
-  askCta: { en: 'Ask Mr. Mwikila', sw: 'Uliza Mr. Mwikila' },
+  askCta: { en: 'Ask Mr. Mwikila', sw: 'Uliza Bw. Mwikila' },
   loading: { en: 'Loading sales data…', sw: 'Inapakia data ya mauzo…' },
   loadFailed: {
     en: 'Could not load sales data.',
@@ -61,3 +61,41 @@ export const salesPageStrings = {
   colStatus: { en: 'Status', sw: 'Hali' },
   buyerPrefix: { en: 'buyer', sw: 'mnunuzi' },
 } as const;
+
+/**
+ * Payment-status labels — the closed sales `payment_status` vocabulary
+ * (paid | pending | overdue, column default `pending`). Rendered inside the
+ * status badge in the active locale, never the raw token. Any other value
+ * falls back to a localized "Unknown" via `salesUnknownLabel`.
+ */
+export const salesPaymentStatusLabels: Record<
+  'paid' | 'pending' | 'overdue',
+  { readonly en: string; readonly sw: string }
+> = {
+  paid: { en: 'Paid', sw: 'Imelipwa' },
+  pending: { en: 'Pending', sw: 'Inasubiri' },
+  overdue: { en: 'Overdue', sw: 'Imechelewa' },
+};
+
+/**
+ * Sale-route labels — the closed sales `route` vocabulary
+ * (BoT | MTC | export_direct | trader | domestic | other, column default
+ * `trader`). Rendered in the active locale, never the raw token. `BoT`
+ * (Bank of Tanzania) and `MTC` (Mineral Trading Centre) are proper-noun
+ * acronyms and read identically in both locales. Any other value falls back
+ * to a localized "Unknown" via `salesUnknownLabel`.
+ */
+export const saleRouteLabels: Record<
+  'BoT' | 'MTC' | 'export_direct' | 'trader' | 'domestic' | 'other',
+  { readonly en: string; readonly sw: string }
+> = {
+  BoT: { en: 'BoT', sw: 'BoT' },
+  MTC: { en: 'MTC', sw: 'MTC' },
+  export_direct: { en: 'Direct export', sw: 'Usafirishaji wa moja kwa moja' },
+  trader: { en: 'Trader', sw: 'Mfanyabiashara' },
+  domestic: { en: 'Domestic', sw: 'Ndani ya nchi' },
+  other: { en: 'Other', sw: 'Nyingine' },
+};
+
+/** Fallback for an unrecognised status / route value — never a raw token. */
+export const salesUnknownLabel = { en: 'Unknown', sw: 'Haijulikani' };

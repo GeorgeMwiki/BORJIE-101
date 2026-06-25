@@ -10,6 +10,8 @@ import { Toast } from '../Toast';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import { usePromotionsQuery, useRevertPromotion } from '@/lib/internal/queries/rollback';
 import type { PromotionRow } from '@/lib/internal/types';
+import { localizeApiError } from '@borjie/error-catalog';
+import { localizeEnumLabel, PROMOTION_KIND_LABELS } from '@/lib/internal/enum-labels';
 
 const S = {
   loading: { en: 'Loading promotions…', sw: 'Inapakia upandishaji…' },
@@ -23,6 +25,9 @@ const S = {
   windowClosed: { en: 'Window closed', sw: 'Dirisha limefungwa' },
   revertTitle: { en: 'Revert promotion', sw: 'Rudisha upandishaji' },
   revertConfirm: { en: 'Revert', sw: 'Rudisha' },
+  reverted: { en: 'reverted', sw: 'imerudishwa' },
+  failed: { en: 'Failed', sw: 'Imeshindwa' },
+  unknown: { en: 'unknown', sw: 'haijulikani' },
 } as const;
 
 export function RollbackPanel({
@@ -45,7 +50,7 @@ export function RollbackPanel({
     );
   }
   if (query.isError) {
-    return <Alert variant="error">{query.error.message}</Alert>;
+    return <Alert variant="error">{localizeApiError(query.error, locale)}</Alert>;
   }
 
   const rows = query.data?.rows ?? [];
@@ -58,7 +63,7 @@ export function RollbackPanel({
           title={pickByLocale(locale, S.emptyTitle)}
           description={pickByLocale(locale, S.emptyBody)}
         />
-        <DataSourceBadge source={query.data?.source ?? 'live'} />
+        <DataSourceBadge source={query.data?.source ?? 'live'} locale={locale} />
       </div>
     );
   }
@@ -70,7 +75,9 @@ export function RollbackPanel({
           <div key={row.id} className="px-4 py-4 flex items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <StubBadge tone="info">{row.kind}</StubBadge>
+                <StubBadge tone="info">
+                  {localizeEnumLabel(PROMOTION_KIND_LABELS, row.kind, locale)}
+                </StubBadge>
                 <span className="text-xs text-muted-foreground tabular-nums">
                   {row.promotedAt.replace('T', ' ').slice(0, 16)}
                 </span>
@@ -95,7 +102,7 @@ export function RollbackPanel({
         ))}
       </div>
 
-      <DataSourceBadge source={query.data?.source ?? 'live'} />
+      <DataSourceBadge source={query.data?.source ?? 'live'} locale={locale} />
 
       <ConfirmModal
         open={Boolean(target)}
@@ -116,10 +123,13 @@ export function RollbackPanel({
           if (!target) return;
           revert.mutate(target.id, {
             onSuccess: () => {
-              setToast(`${target.subject} reverted`);
+              setToast(`${target.subject} ${pickByLocale(locale, S.reverted)}`);
               setTarget(null);
             },
-            onError: (err) => setToast(`Failed: ${err instanceof Error ? err.message : 'unknown'}`),
+            onError: (err) =>
+              setToast(
+                `${pickByLocale(locale, S.failed)}: ${localizeApiError(err, locale)}`,
+              ),
           });
         }}
       />

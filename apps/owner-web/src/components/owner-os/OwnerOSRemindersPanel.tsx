@@ -19,8 +19,11 @@ import {
 import { Bell, Check, Mail, MessageCircle, Trash2 } from 'lucide-react';
 import { Button } from '@borjie/design-system';
 import { apiRequest } from '@/lib/api-client';
+import { captureError } from '@/lib/sentry';
+import { bcp47For } from '@/lib/format';
 import { dictionaries } from '@/i18n/dictionaries';
 import { makeT } from '@/i18n/resolve';
+import { enumLabel } from '@/components/owner-os/panels/enum-label';
 
 type ReminderChannel = 'email' | 'sms' | 'slack' | 'whatsapp';
 
@@ -73,7 +76,8 @@ export function OwnerOSRemindersPanel({
       );
       setItems(res.reminders ?? []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Load failed');
+      captureError(e, { route: '/api/v1/owner/reminders' });
+      setError(t('reminders.loadError'));
       setItems([]);
     }
   }
@@ -102,7 +106,8 @@ export function OwnerOSRemindersPanel({
       setBody('');
       await reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Create failed');
+      captureError(e, { route: '/api/v1/owner/reminders' });
+      setError(t('reminders.createError'));
     } finally {
       setCreating(false);
     }
@@ -116,7 +121,8 @@ export function OwnerOSRemindersPanel({
       });
       await reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Cancel failed');
+      captureError(e, { route: `/api/v1/owner/reminders/${id}` });
+      setError(t('reminders.cancelError'));
     }
   }
 
@@ -127,7 +133,8 @@ export function OwnerOSRemindersPanel({
       });
       await reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Acknowledge failed');
+      captureError(e, { route: `/api/v1/owner/reminders/${id}/acknowledge` });
+      setError(t('reminders.acknowledgeError'));
     }
   }
 
@@ -211,7 +218,7 @@ export function OwnerOSRemindersPanel({
       ) : null}
 
       {items === null ? (
-        <p className="text-tiny text-neutral-500">Loading…</p>
+        <p className="text-tiny text-neutral-500">{t('reminders.loading')}</p>
       ) : items.length === 0 ? (
         <p className="text-tiny text-neutral-500">{t('reminders.empty')}</p>
       ) : (
@@ -231,8 +238,12 @@ export function OwnerOSRemindersPanel({
                 <div className="min-w-0">
                   <p className="truncate font-medium">{r.title}</p>
                   <p className="truncate text-tiny text-neutral-500">
-                    {new Date(r.triggerAt).toLocaleString()} · {r.channel} · {r.status}
-                    {r.dispatchError ? ` · ${r.dispatchError.slice(0, 60)}` : ''}
+                    {new Date(r.triggerAt).toLocaleString(
+                      bcp47For(languagePreference),
+                    )}{' '}
+                    · {enumLabel('reminderChannel', r.channel, languagePreference)}{' '}
+                    · {enumLabel('reminderStatus', r.status, languagePreference)}
+                    {r.dispatchError ? ` · ${t('reminders.dispatchFailed')}` : ''}
                   </p>
                 </div>
               </div>

@@ -3,9 +3,9 @@
 /**
  * QuickReplyChips — chip row rendered under the latest assistant
  * bubble. Independent author against
- * Docs/DESIGN/LITFIN_STEPPER_LEARNING_SPEC.md §7 — matches the pill
- * shape, gap, horizontal wrap, hover overlay and the "Or type your
- * own" affordance used by LitFin, with Borjie gold tokens.
+ * the owner-chat stepper/learning design spec §7 — matches the pill
+ * shape, gap, horizontal wrap, hover overlay and the reference "Or type your
+ * own" affordance, with Borjie gold tokens.
  *
  * The row is `pl-10` so each chip lines up with the message body
  * column (after the 28px avatar + 12px gap gutter the bubble uses).

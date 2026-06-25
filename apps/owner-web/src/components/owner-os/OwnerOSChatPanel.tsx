@@ -16,7 +16,7 @@ import { Upload } from 'lucide-react';
 import type { OwnerOSSpawnIntent } from '@borjie/owner-os-tabs';
 import { HomeChatTeach } from '@/components/home-chat/HomeChatTeach';
 import { Blackboard } from '@/components/blackboard';
-import { apiRequest } from '@/lib/api-client';
+import { apiRequest, localizeError } from '@/lib/api-client';
 import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 
 const ACCEPT_MIMES = [
@@ -102,14 +102,11 @@ export function OwnerOSChatPanel({
             onSpawnDocTab(reg.documentId, file.name);
           }
         } catch (e) {
+          // Localize the gateway error by its stable CODE — never the raw
+          // English `.message` (rendering that under `sw` is language MIXING).
           setStatus({
             kind: 'error',
-            message:
-              e instanceof Error
-                ? e.message
-                : languagePreference === 'sw'
-                  ? S.chatPanel.intakeFailed.sw
-                  : S.chatPanel.intakeFailed.en,
+            message: localizeError(e, languagePreference),
           });
           return;
         }

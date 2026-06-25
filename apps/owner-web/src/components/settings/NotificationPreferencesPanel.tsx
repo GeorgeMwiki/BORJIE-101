@@ -25,7 +25,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Skeleton, Alert, Input, FormField } from '@borjie/design-system';
 
 import { notificationPreferencesPanelStrings as S } from '@/i18n/strings/notification-preferences-panel';
-import { useLocale, pickByLocale } from '@/lib/locale';
+import { localizeError } from '@/lib/api-client';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { captureError } from '@/lib/sentry';
 
 import {
   NOTIFICATION_CHANNELS,
@@ -57,12 +59,20 @@ const CHANNEL_LABEL_SW: Record<NotificationChannel, string> = {
 type LoadState =
   | { kind: 'loading' }
   | { kind: 'ready'; prefs: NotifPrefs }
-  | { kind: 'error'; message: string };
+  // No raw error string in render state — the failure copy is a single,
+  // locale-pure sentence resolved at render. The cause goes to Sentry.
+  | { kind: 'error' };
 
 const EMPTY_MAP: Readonly<Record<string, boolean>> = {};
 
-export function NotificationPreferencesPanel() {
-  const locale = useLocale();
+interface NotificationPreferencesPanelProps {
+  readonly initialLocale?: Locale;
+}
+
+export function NotificationPreferencesPanel({
+  initialLocale,
+}: NotificationPreferencesPanelProps = {}) {
+  const locale = useLocale(initialLocale);
   const [loadState, setLoadState] = useState<LoadState>({ kind: 'loading' });
 
   // Working draft, seeded from the loaded snapshot and edited locally.
@@ -89,10 +99,9 @@ export function NotificationPreferencesPanel() {
       setLoadState({ kind: 'ready', prefs });
       seedFrom(prefs);
     } catch (err) {
-      setLoadState({
-        kind: 'error',
-        message: err instanceof Error ? err.message : 'Network error',
-      });
+      // Raw cause → Sentry; the user sees only the locale-pure sentence.
+      captureError(err, { route: 'notification-preferences.load' });
+      setLoadState({ kind: 'error' });
     }
   }, [seedFrom]);
 
@@ -172,7 +181,10 @@ export function NotificationPreferencesPanel() {
       seedFrom(confirmed);
       setSaved(true);
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Network error');
+      // Localise from the gateway CODE (raw cause → Sentry); never store raw
+      // English in the user-facing saveError slot.
+      captureError(err, { route: 'notification-preferences.save' });
+      setSaveError(localizeError(err, locale));
       // Roll the optimistic draft back to the last confirmed snapshot.
       if (prior) seedFrom(prior);
     } finally {
@@ -188,7 +200,7 @@ export function NotificationPreferencesPanel() {
     return (
       <Alert variant="error">
         <p className="text-sm">
-          {pickByLocale(locale, S.loadError(loadState.message))}
+          {pickByLocale(locale, S.loadError)}
         </p>
         <Button
           type="button"

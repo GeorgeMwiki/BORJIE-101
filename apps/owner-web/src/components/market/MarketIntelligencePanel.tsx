@@ -21,6 +21,7 @@ import { useState } from 'react';
 import { Skeleton } from '@borjie/design-system';
 import { formatCurrency } from '@borjie/api-client';
 import { marketIntelligencePanelStrings as T } from '@/i18n/strings/market-intelligence-panel';
+import { enumLabel } from '@/components/owner-os/panels/enum-label';
 import {
   useCommodityForecast,
   useCommodityPrice,
@@ -142,7 +143,8 @@ export function MarketIntelligencePanel({ locale }: MarketIntelligencePanelProps
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-semibold">{d.headline}</span>
                   <span className="text-tiny uppercase tracking-wide opacity-70">
-                    {d.kind} · {d.severity}
+                    {enumLabel('disruptionKind', d.kind, locale)} ·{' '}
+                    {enumLabel('alertSeverity', d.severity, locale)}
                   </span>
                 </div>
                 <p className="mt-1 text-xs leading-relaxed opacity-90">{d.rationale}</p>

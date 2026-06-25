@@ -83,7 +83,7 @@ export function RegulatoryFilingsPanel({
         subtitleSw={S.regulatoryFilings.heroSubtitle.sw}
         locale={locale}
       />
-      <RegulatoryCalendarShell />
+      <RegulatoryCalendarShell locale={locale} />
     </section>
   );
 }

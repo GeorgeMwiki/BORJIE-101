@@ -18,11 +18,25 @@
 
 import { useState } from 'react';
 import { getCsrfHeaders } from '@/lib/csrf';
+import { captureError } from '@/lib/sentry';
+import {
+  pickByLocale,
+  readLocaleFromDocument,
+  type Locale,
+} from '@/lib/locale-shared';
+import { webAuthnClockInStrings as S } from '@/i18n/strings/webauthn-clock-in';
 
 export interface WebAuthnClockInProps {
   readonly employeeId: string;
   readonly siteId: string;
   readonly onClockedIn?: (eventId: string) => void;
+  /**
+   * Active locale. Optional — when omitted the widget reads the document
+   * locale so the kiosk chrome is NEVER blind to the user's language (it
+   * used to hardcode every English label). A host that already resolved
+   * the locale should thread it for SSR/first-paint agreement.
+   */
+  readonly locale?: Locale;
   /** Override for tests — production calls navigator.credentials.get. */
   readonly authenticate?: () => Promise<{ success: boolean }>;
   /** Override for tests — production calls fetch(). */
@@ -76,19 +90,32 @@ export function WebAuthnClockIn({
   employeeId,
   siteId,
   onClockedIn,
+  locale,
   authenticate,
   httpPost,
 }: WebAuthnClockInProps): JSX.Element {
+  const activeLocale: Locale = locale ?? readLocaleFromDocument();
   const [status, setStatus] = useState<
     'idle' | 'authenticating' | 'posting' | 'success' | 'error'
   >('idle');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Which localised error to render — the biometric check FAILED (no longer
+  // swallowed) vs the clock-in POST failed.
+  const [errorKind, setErrorKind] = useState<'biometric' | 'record' | null>(
+    null,
+  );
 
   async function handleClick(): Promise<void> {
-    setErrorMessage(null);
+    setErrorKind(null);
     setStatus('authenticating');
     const authFn = authenticate ?? defaultAuthenticate;
     const auth = await authFn();
+    // Surface the previously-swallowed biometric failure as a distinct,
+    // localised state — never silently POST a failed check.
+    if (!auth.success) {
+      setStatus('error');
+      setErrorKind('biometric');
+      return;
+    }
     setStatus('posting');
     try {
       const post = httpPost ?? defaultHttpPost;
@@ -102,21 +129,34 @@ export function WebAuthnClockIn({
       setStatus('success');
       onClockedIn?.(eventId);
     } catch (err) {
+      // Map the raw fetch / SDK error to a LOCALISED message — the detail
+      // goes to the trace sink, never into the kiosk chrome.
+      captureError(err, {
+        route: '/api/v1/workforce/clock-in',
+        extra: { siteId },
+      });
       setStatus('error');
-      setErrorMessage(err instanceof Error ? err.message : String(err));
+      setErrorKind('record');
     }
   }
 
   const buttonLabel =
     status === 'authenticating'
-      ? 'Authenticating...'
+      ? pickByLocale(activeLocale, S.authenticating)
       : status === 'posting'
-        ? 'Recording...'
+        ? pickByLocale(activeLocale, S.recording)
         : status === 'success'
-          ? 'Clocked in'
+          ? pickByLocale(activeLocale, S.clockedIn)
           : status === 'error'
-            ? 'Retry clock-in'
-            : 'Clock in (WebAuthn)';
+            ? pickByLocale(activeLocale, S.retry)
+            : pickByLocale(activeLocale, S.clockIn);
+
+  const errorMessage =
+    errorKind === 'biometric'
+      ? pickByLocale(activeLocale, S.biometricFailed)
+      : errorKind === 'record'
+        ? pickByLocale(activeLocale, S.recordError)
+        : null;
 
   return (
     <div className="webauthn-clock-in">

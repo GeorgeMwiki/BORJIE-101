@@ -20,8 +20,11 @@
  * Rendered on design-system primitives + semantic tokens. The hand-rolled
  * `role="alertdialog"` commit confirm is now a focus-trapped DS Modal.
  * SINGLE LANGUAGE PER LOCALE (canon): every user-facing string resolves to
- * the active locale via `pickByLocale`. Purely client surface — the hook
- * falls back to the project default and the post-mount effect corrects it.
+ * the active locale via `pickByLocale`. The page resolves the locale
+ * server-side and seeds it via `initialLocale`, so SSR and the client's
+ * first paint render the SAME language (no EN-under-SW first-paint split).
+ * Extracted/committed collections render MINING-ESTATE entity labels — the
+ * upstream extractor's legacy collection keys never surface to the operator.
  */
 
 import { useCallback, useState } from 'react';
@@ -29,7 +32,7 @@ import { UploadCloud, FileCheck2 } from 'lucide-react';
 import { Button, Card, Alert, FormField } from '@borjie/design-system';
 import { ConfirmModal } from '@/components/internal/ConfirmModal';
 import { api } from '@/lib/api';
-import { useLocale, pickByLocale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 
 interface ExtractedBundle {
   readonly properties: ReadonlyArray<unknown>;
@@ -81,6 +84,27 @@ const S = {
   bytes: { en: 'bytes', sw: 'baiti' },
 } as const;
 
+/**
+ * Mining-estate entity labels for the extracted/committed collections. The
+ * upstream extractor still keys its bundle on legacy collection names; this
+ * surface is a mining-estate operating system, so the OPERATOR sees
+ * mining-estate entities — never property/real-estate residue.
+ */
+const ENTITY_LABELS: ReadonlyMap<string, { en: string; sw: string }> = new Map([
+  ['properties', { en: 'Sites', sw: 'Maeneo' }],
+  ['units', { en: 'Shafts', sw: 'Mashimo' }],
+  ['tenants', { en: 'Clients', sw: 'Wateja' }],
+  ['employees', { en: 'Workforce', sw: 'Wafanyakazi' }],
+  ['departments', { en: 'Departments', sw: 'Idara' }],
+  ['teams', { en: 'Teams', sw: 'Timu' }],
+]);
+
+/** Resolve a collection key to its localized mining-estate label. */
+function entityLabel(key: string, locale: Locale): string {
+  const entry = ENTITY_LABELS.get(key);
+  return entry ? pickByLocale(locale, entry) : key;
+}
+
 /** Count the rows in each bundle collection for the preview grid. */
 function bundleCounts(bundle: ExtractedBundle): Record<string, number> {
   return {
@@ -93,8 +117,8 @@ function bundleCounts(bundle: ExtractedBundle): Record<string, number> {
   };
 }
 
-export function LegacyMigrationClient() {
-  const locale = useLocale();
+export function LegacyMigrationClient({ initialLocale }: { readonly initialLocale?: Locale } = {}) {
+  const locale = useLocale(initialLocale);
   const [file, setFile] = useState<File | null>(null);
   const [runId, setRunId] = useState<string | null>(null);
   const [counts, setCounts] = useState<Record<string, number> | null>(null);
@@ -169,7 +193,7 @@ export function LegacyMigrationClient() {
           {committedCounts ? (
             <span className="ml-2">
               {Object.entries(committedCounts)
-                .map(([k, v]) => `${v} ${k}`)
+                .map(([k, v]) => `${v} ${entityLabel(k, locale)}`)
                 .join(' · ')}
             </span>
           ) : null}
@@ -248,7 +272,8 @@ export function LegacyMigrationClient() {
                 key={k}
                 className="rounded bg-success-subtle p-2 text-success"
               >
-                <span className="font-semibold">{v}</span> {k}
+                <span className="font-semibold">{v}</span>{' '}
+                {entityLabel(k, locale)}
               </li>
             ))}
           </ul>

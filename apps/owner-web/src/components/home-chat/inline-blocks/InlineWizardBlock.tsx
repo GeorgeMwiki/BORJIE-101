@@ -5,7 +5,7 @@
  *
  * Schema source: `packages/owner-os-tabs/src/rich-inline-blocks.ts` →
  * `inlineWizardSchema`. Steps render one at a time with a top progress
- * bar (LitFin step dots). State persists in localStorage keyed by
+ * bar (the reference step-dot pattern). State persists in localStorage keyed by
  * `borjie:wizard:<purpose>:<sessionId>` so a scroll doesn't lose work.
  *
  * On final-submit fires `onAction` with `{action: submitAction,
@@ -20,6 +20,7 @@ import {
   type ReactElement,
 } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { LAUNCH_CURRENCY } from '@/lib/format';
 
 interface WizardField {
   readonly key?: string;
@@ -217,7 +218,7 @@ export function InlineWizardBlock({
             <label key={key} className="block text-sm">
               <span className="block text-tiny font-medium text-foreground/80">
                 {lab}
-                {kind === 'amount-tzs' ? ' (TZS)' : null}
+                {kind === 'amount-tzs' ? ` (${LAUNCH_CURRENCY})` : null}
               </span>
               <input
                 type={fieldType(kind)}

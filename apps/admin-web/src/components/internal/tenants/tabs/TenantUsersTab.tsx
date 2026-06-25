@@ -15,6 +15,32 @@ const S = {
   },
 } as const;
 
+/**
+ * Closed {en,sw} map for the `borjie_user_role` enum the operators endpoint
+ * emits (plus the gateway's `'operator'` fallback). One canonical sw term per
+ * role — never dump the raw snake_case enum under either locale.
+ */
+const ROLE_LABELS = {
+  owner: { en: 'Owner', sw: 'Mmiliki' },
+  admin: { en: 'Admin', sw: 'Msimamizi' },
+  site_manager: { en: 'Site manager', sw: 'Msimamizi wa tovuti' },
+  supervisor: { en: 'Supervisor', sw: 'Mratibu' },
+  driver: { en: 'Driver', sw: 'Dereva' },
+  geologist: { en: 'Geologist', sw: 'Mwanajiolojia' },
+  stores: { en: 'Stores', sw: 'Stoo' },
+  qc_officer: { en: 'QC officer', sw: 'Afisa wa udhibiti wa ubora' },
+  buyer: { en: 'Buyer', sw: 'Mnunuzi' },
+  borjie_team: { en: 'Borjie team', sw: 'Timu ya Borjie' },
+  operator: { en: 'Operator', sw: 'Opereta' },
+} as const;
+
+function roleLabel(role: string, locale: Locale): string {
+  const entry =
+    (ROLE_LABELS as Record<string, { en: string; sw: string }>)[role] ??
+    ROLE_LABELS.operator;
+  return pickByLocale(locale, entry);
+}
+
 /** Absolute timestamp (YYYY-MM-DD HH:mm) — honest + no clock dependency. */
 function formatLastActive(iso: string | null, locale: Locale): string {
   if (!iso) return pickByLocale(locale, S.never);
@@ -69,7 +95,9 @@ export function TenantUsersTab({
           >
             <div>
               <p className="text-sm text-foreground">{op.name}</p>
-              <p className="text-xs text-muted-foreground">{op.role}</p>
+              <p className="text-xs text-muted-foreground">
+                {roleLabel(op.role, locale)}
+              </p>
             </div>
             <span className="text-xs text-muted-foreground">
               {pickByLocale(locale, S.lastActive)}{' '}

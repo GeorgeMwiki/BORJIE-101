@@ -38,7 +38,7 @@ describe('parseUpload', () => {
 
   it('returns plainText for text/plain', async () => {
     const res = await parseUpload(
-      Buffer.from('Amina Unit A3 KES 45,000', 'utf8'),
+      Buffer.from('Amina Hassan — Site Geologist', 'utf8'),
       'text/plain'
     );
     expect(res.plainText).toContain('Amina');

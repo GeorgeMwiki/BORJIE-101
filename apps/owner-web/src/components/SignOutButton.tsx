@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@borjie/design-system';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { captureError } from '@/lib/sentry';
 import { dictionaries } from '@/i18n/dictionaries';
 import { makeT } from '@/i18n/resolve';
 
@@ -34,13 +35,17 @@ export function SignOutButton(props: {
         const supabase = createSupabaseBrowserClient();
         const { error: signOutError } = await supabase.auth.signOut();
         if (signOutError) {
-          setError(signOutError.message);
+          // The raw Supabase SDK error never reaches the chrome — it goes to
+          // the trace sink; the control shows the localised failure copy.
+          captureError(signOutError, { route: 'auth.signOut' });
+          setError(t('signOut.error'));
           return;
         }
         router.replace('/sign-in');
         router.refresh();
       } catch (err) {
-        setError(err instanceof Error ? err.message : t('signOut.error'));
+        captureError(err, { route: 'auth.signOut' });
+        setError(t('signOut.error'));
       }
     });
   }

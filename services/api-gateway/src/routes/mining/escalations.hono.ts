@@ -38,13 +38,34 @@ const ESCALATION_SEVERITIES = ['info', 'warning', 'critical'] as const;
 
 const ESCALATION_STATUSES = ['open', 'acknowledged', 'resolved'] as const;
 
+// ---------------------------------------------------------------------------
+// Locale-neutral escalation body (zero-mix on the wire).
+//
+// The body is NOT single-language prose. Every escalation carries BOTH an
+// English and a Swahili narrative; the row is emitted as a locale-neutral
+// `context: { en, sw }` pair so the cockpit renders the ACTIVE locale via
+// `pickByLocale` (the WIRE is locale-neutral, only the RENDER is localized).
+//
+// Storage seam: the `context_sw` column (NOT NULL, migration 0081) holds the
+// Swahili narrative; the English narrative is persisted into the additive
+// `context` jsonb side-channel (migration 0356) under `contextEn` — no schema
+// change. Legacy rows that predate this (English never captured) are read back
+// with `contextEn === null`; the cockpit renders a visible localized
+// placeholder for the active locale rather than the other language's prose.
+// ---------------------------------------------------------------------------
+
+const CONTEXT_EN_KEY = 'contextEn' as const;
+
 const createEscalationSchema = z
   .object({
     toUserId: z.string().uuid().optional(),
     toRole: z.string().min(1).max(64).optional(),
     sourceKind: z.enum(ESCALATION_SOURCE_KINDS),
     sourceId: z.string().uuid().optional(),
-    contextSw: z.string().min(1).max(2000),
+    // Locale-neutral body: both narratives are required so no escalation is
+    // born single-language. Trimmed; each side is a non-empty string.
+    contextEn: z.string().trim().min(1).max(2000),
+    contextSw: z.string().trim().min(1).max(2000),
     severity: z.enum(ESCALATION_SEVERITIES).default('warning'),
   })
   .refine(
@@ -55,6 +76,36 @@ const createEscalationSchema = z
       path: ['toUserId'],
     },
   );
+
+/**
+ * Read the English narrative from the additive `context` jsonb side-channel.
+ * Returns null when the row predates the locale-neutral writer (English was
+ * never captured) so the cockpit can render a localized placeholder instead
+ * of falling back to the Swahili column (which would be language-mixing).
+ */
+function readContextEn(context: unknown): string | null {
+  if (context === null || typeof context !== 'object') return null;
+  // Literal key access (not a variable) — the English narrative side-channel.
+  const { contextEn } = context as { contextEn?: unknown };
+  return typeof contextEn === 'string' && contextEn.trim().length > 0
+    ? contextEn
+    : null;
+}
+
+/**
+ * Project a stored escalation row onto the wire shape: a locale-neutral
+ * `context: { en, sw }` pair (English from the jsonb side-channel, Swahili
+ * from the column) replaces the raw single-language `contextSw`. The legacy
+ * `context_sw` column and the `context` bag never reach the client directly.
+ */
+function projectEscalation(row: Record<string, unknown>): Record<string, unknown> {
+  const { contextSw, context, ...rest } = row;
+  const sw = typeof contextSw === 'string' ? contextSw : '';
+  return {
+    ...rest,
+    context: { en: readContextEn(context), sw },
+  };
+}
 
 const listQuerySchema = z.object({
   status: z.enum(ESCALATION_STATUSES).optional(),
@@ -101,7 +152,10 @@ app.get('/', async (c) => {
     .orderBy(desc(miningEscalations.createdAt))
     .limit(Math.min(limit ?? 100, 500));
 
-  return c.json({ success: true, data: rows }, 200);
+  return c.json(
+    { success: true, data: rows.map((r) => projectEscalation(r)) },
+    200,
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -128,7 +182,11 @@ app.post('/', async (c) => {
       toRole: input.toRole ?? null,
       sourceKind: input.sourceKind,
       sourceId: input.sourceId ?? null,
+      // Swahili narrative on the NOT-NULL column; English narrative on the
+      // additive `context` jsonb so the row is born locale-complete and the
+      // wire stays locale-neutral. Merge into any existing bag shape.
       contextSw: input.contextSw,
+      context: { [CONTEXT_EN_KEY]: input.contextEn },
       severity: input.severity,
       status: 'open',
     })
@@ -151,7 +209,10 @@ app.post('/', async (c) => {
       }
     });
   }
-  return c.json({ success: true, data: row }, 201);
+  return c.json(
+    { success: true, data: row ? projectEscalation(row) : null },
+    201,
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -192,7 +253,7 @@ app.post('/:id/acknowledge', async (c) => {
 
   // Idempotent: already acknowledged returns current row.
   if (existing.status !== 'open') {
-    return c.json({ success: true, data: existing }, 200);
+    return c.json({ success: true, data: projectEscalation(existing) }, 200);
   }
 
   const [updated] = await db
@@ -201,7 +262,10 @@ app.post('/:id/acknowledge', async (c) => {
     .where(and(eq(miningEscalations.tenantId, tenantId), eq(miningEscalations.id, id)))
     .returning();
 
-  return c.json({ success: true, data: updated }, 200);
+  return c.json(
+    { success: true, data: updated ? projectEscalation(updated) : null },
+    200,
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -244,7 +308,7 @@ app.post('/:id/resolve', async (c) => {
 
   // Idempotent.
   if (existing.status === 'resolved') {
-    return c.json({ success: true, data: existing }, 200);
+    return c.json({ success: true, data: projectEscalation(existing) }, 200);
   }
 
   const [updated] = await db
@@ -253,7 +317,10 @@ app.post('/:id/resolve', async (c) => {
     .where(and(eq(miningEscalations.tenantId, tenantId), eq(miningEscalations.id, id)))
     .returning();
 
-  return c.json({ success: true, data: updated }, 200);
+  return c.json(
+    { success: true, data: updated ? projectEscalation(updated) : null },
+    200,
+  );
 });
 
 // ---------------------------------------------------------------------------

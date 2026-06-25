@@ -168,7 +168,15 @@ export function createInspectionsPort(
           `service not yet wired: cannot schedule inspection — invalid scheduledFor '${scheduledFor}'`,
         );
       }
-      const title = `Site inspection${isUuid(unitId) ? ` (site ${unitId})` : ''}`;
+      // The title is a SYNTHESIZED template, so it is born locale-complete:
+      // a real Swahili string into `title_sw` and the English parallel into
+      // `title_en` (the same born-bilingual pattern createArrearsPort uses).
+      // The owner's active locale picks the column at render time — never a
+      // hardcoded single-language string persisted into a bilingual row.
+      const siteSuffixSw = isUuid(unitId) ? ` (tovuti ${unitId})` : '';
+      const siteSuffixEn = isUuid(unitId) ? ` (site ${unitId})` : '';
+      const titleSw = `Ukaguzi wa tovuti${siteSuffixSw}`;
+      const titleEn = `Site inspection${siteSuffixEn}`;
       const id = randomUUID();
       const [row] = await db
         .insert(miningTasks)
@@ -178,8 +186,8 @@ export function createInspectionsPort(
           ...(isUuid(unitId) ? { siteId: unitId } : {}),
           ...(isUuid(inspectorId) ? { assignedToUserId: inspectorId } : {}),
           ...(isUuid(scheduledByUserId) ? { assignedByUserId: scheduledByUserId } : {}),
-          titleSw: title,
-          titleEn: title,
+          titleSw,
+          titleEn,
           priority: 'normal',
           status: 'pending',
           kind: 'inspection',
@@ -213,6 +221,12 @@ export function createArrearsPort(db: DatabaseClient): ArrearsPortLike {
           sourceKind: 'production',
           sourceId: leaseId,
           contextSw: `Ongezo la deni la mrabaha — hatua ya ngazi ${ladderStep} kwa makubaliano ${leaseId}.`,
+          // Born locale-complete: the body is a fixed template, so the
+          // English parallel is written directly (no translation needed) into
+          // the additive `context` bag the escalations GET reads as `contextEn`.
+          context: {
+            contextEn: `Royalty arrears escalation: ladder step ${ladderStep} for agreement ${leaseId}.`,
+          },
           severity,
           status: 'open',
         })
@@ -238,7 +252,20 @@ export function createMarketplacePort(
   return {
     async publishListing({ tenantId, unitId, headlineRent, currency, publishedByUserId }) {
       const isTzs = currency.toUpperCase() === 'TZS';
-      const title = `Mineral parcel ${unitId}${isTzs ? '' : ` (${currency} ${headlineRent})`}`;
+      // `marketplace_listings.title` / `.description` are SINGLE columns that
+      // the read path (drizzle-data-port `projectSummary`/`projectDetail`)
+      // renders VERBATIM, and this port carries NO active locale. Persisting
+      // English prose ("Mineral parcel …", "Listing published by …") would
+      // freeze one language into a row the other-locale owner/buyer also reads
+      // — the exact zero-mix violation. So the title is LOCALE-NEUTRAL: the
+      // parcel reference itself (a language-free identifier), with the off-TZS
+      // currency/amount appended as bare locale-neutral tokens. The
+      // `category` token ('mineral') already drives the localized type label
+      // on the read side, and `description` is OMITTED (null) rather than
+      // baked-in English prose — an honest, language-free row. A localized,
+      // owner-authored title/description can be edited in later from the
+      // active-locale UI; the kernel never persists single-language prose.
+      const titleNeutral = `${unitId}${isTzs ? '' : ` · ${currency} ${headlineRent}`}`;
       const id = `mlst_${randomUUID()}`;
       const [row] = await db
         .insert(marketplaceListings)
@@ -246,8 +273,7 @@ export function createMarketplacePort(
           id,
           tenantId,
           category: 'mineral',
-          title: title.slice(0, 200),
-          description: `Listing published by Mr. Mwikila for ${unitId}.`,
+          title: titleNeutral.slice(0, 200),
           ...(isTzs ? { priceTzs: String(headlineRent) } : {}),
           priceUnit: 'parcel',
           ...(isUuid(publishedByUserId) ? { contactUserId: publishedByUserId } : {}),

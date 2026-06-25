@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from 'react';
 import type { Locale } from '@/lib/locale-shared';
 import { DEFAULT_LOCALE } from '@/lib/locale-shared';
-import { streamSse } from '@/lib/sse-stream';
+import { streamSse, STREAM_ERROR_EVENT } from '@/lib/sse-stream';
 import type {
   ChatBreadcrumb,
   ChatEvidence,
@@ -106,6 +106,12 @@ export function useChatSession(language: Locale = DEFAULT_LOCALE): {
           body: { message: trimmed, language },
           signal: controller.signal,
         })) {
+          // A stalled / failed stream emits a terminal error frame. This is
+          // a FAILURE, not an empty completion — surface it as an error and
+          // bail BEFORE the success path appends a phantom brain bubble.
+          if (ev.event === STREAM_ERROR_EVENT) {
+            throw new Error(streamErrorMessage(ev.data));
+          }
           sawAny = true;
           const event = normaliseLiveEvent(ev.event);
           const data = remapLiveData(ev.event, ev.data);
@@ -281,6 +287,18 @@ export function remapLiveData(name: string, data: unknown): unknown {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+/**
+ * Project a `stream_error` frame's payload onto a human-readable message
+ * for `state.error`. Falls back to a generic string so a malformed frame
+ * still degrades to a visible error rather than a silent phantom success.
+ */
+function streamErrorMessage(data: unknown): string {
+  if (isRecord(data) && typeof data.message === 'string' && data.message.trim()) {
+    return data.message;
+  }
+  return 'chat stream interrupted';
 }
 
 /**

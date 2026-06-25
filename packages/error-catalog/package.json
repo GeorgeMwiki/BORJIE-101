@@ -1,0 +1,35 @@
+{
+  "name": "@borjie/error-catalog",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Shared CODE -> { en, sw } gateway-error catalog + localizeApiError helper. One source of truth so all four client apps render localized, user-safe error copy in the active locale (never a raw English wire message under sw).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "package.json",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
