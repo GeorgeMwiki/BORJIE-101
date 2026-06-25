@@ -7,8 +7,10 @@ import { RoleGuard } from '../../src/components/RoleGuard'
 import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { miningApi } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
+import { localizeApiError } from '@borjie/error-catalog'
 import { useOnlineStatus } from '../../src/offline/useOnlineStatus'
 import { useAuth } from '../../src/auth/useAuth'
+import { useI18n } from '../../src/i18n/useI18n'
 import { enqueueWrite } from '../../src/sync/queue'
 import { buildDriverLetterPdf } from '../../src/documents/driverLetterPdf'
 import { colors } from '../../src/theme/colors'
@@ -18,7 +20,6 @@ const SCREEN_ID = 'W-M-20'
 
 const COPY = {
   loading: 'Inatengeneza barua... · Creating letter...',
-  errorPrefix: 'Hitilafu: ',
   hint: 'Weka taarifa za safari, kisha tuma. Barua itahifadhiwa kama PDF kwenye seva.',
   letterOk: 'Barua (PDF) imepakiwa kwenye seva.',
   letterQueued: 'Barua imehifadhiwa offline kwa sync.',
@@ -65,6 +66,7 @@ export default function Screen(): JSX.Element {
 
 function DriverLetterView(): JSX.Element {
   const { user } = useAuth()
+  const { lang } = useI18n()
   const { online } = useOnlineStatus()
   const [draft, setDraft] = useState<LetterDraft>({
     truckReg: '',
@@ -83,7 +85,8 @@ function DriverLetterView(): JSX.Element {
     mutationFn: async (input) => {
       const pdfBytes = buildDriverLetterPdf({
         // Single active locale — the letter renders in one language only.
-        lang: user?.preferredLang ?? 'sw',
+        // Default user language is EN (CLAUDE.md "English default").
+        lang: user?.preferredLang ?? 'en',
         truckReg: input.truckReg.trim(),
         driverName: input.driverName.trim(),
         mineral: input.mineral.trim(),
@@ -203,7 +206,9 @@ function DriverLetterView(): JSX.Element {
         )}
         {!online ? <PreviewBanner kind="offline" /> : null}
         {submitError && !networkError ? (
-          <Text style={styles.errorText}>{COPY.errorPrefix}{submitError.message}</Text>
+          <Text style={styles.errorText}>
+            {localizeApiError(submitError.code, lang)}
+          </Text>
         ) : null}
       </Section>
       {issued ? (

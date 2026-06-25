@@ -105,9 +105,15 @@ describe('adaptWorkerTask — wire row → render contract', () => {
     expect(adaptWorkerTask({ ...WIRE_TASK_ROW, status: 'blocked' }, 0).status).toBe('blocked')
   })
 
-  it('falls back titleEn → titleSw and derives positional sequence', () => {
+  it('keeps a missing titleEn null (NO cross-language fallback) and derives sequence', () => {
+    // Canon (CLAUDE.md language-engineering rule 3): a missing active-locale
+    // value must NEVER fall back to the other language — the render layer shows
+    // a localized placeholder instead. The adapter keeps each locale field
+    // independent, so a null titleEn stays null (the Swahili title is NOT copied
+    // into it).
     const adapted = adaptWorkerTask({ ...WIRE_TASK_ROW, titleEn: null }, 2)
-    expect(adapted.titleEn).toBe(WIRE_TASK_ROW.titleSw)
+    expect(adapted.titleEn).toBeNull()
+    expect(adapted.titleSw).toBe(WIRE_TASK_ROW.titleSw)
     expect(adapted.sequence).toBe(3)
     expect(adapted.dueAtIso).toBe('2026-06-11T09:00:00.000Z')
   })
@@ -195,8 +201,9 @@ describe('adaptIncidentAlert / adaptToolboxTalk — severity + fallbacks', () =>
     expect(alert.titleEn).toBe('near_miss')
   })
 
-  it('toolbox talk falls back topicEn → topicSw', () => {
+  it('toolbox talk keeps a missing topicEn null (NO cross-language fallback)', () => {
     const talk = adaptToolboxTalk([{ id: 't', topicSw: 'Vifaa vya kujikinga' }])
-    expect(talk?.titleEn).toBe('Vifaa vya kujikinga')
+    expect(talk?.titleSw).toBe('Vifaa vya kujikinga')
+    expect(talk?.titleEn).toBeNull()
   })
 })

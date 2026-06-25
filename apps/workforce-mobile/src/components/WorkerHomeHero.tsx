@@ -28,7 +28,7 @@ export { buildHeroData } from './worker-hero-card.helpers'
 
 export function WorkerHomeHero(): JSX.Element | null {
   const { user } = useAuth()
-  const { lang } = useI18n()
+  const { lang, t } = useI18n()
   const [me, setMe] = useState<MeResponseShape | null>(null)
   const [task, setTask] = useState<NextTaskResponseShape | null>(null)
 
@@ -59,8 +59,7 @@ export function WorkerHomeHero(): JSX.Element | null {
     }
   }, [])
 
-  const fallbackName =
-    user?.fullName ?? (lang === 'sw' ? 'Mfanyakazi' : 'Worker')
+  const fallbackName = user?.fullName ?? t.workerHero.defaultName
 
   const onMarkComplete = useCallback(
     async (taskId: string): Promise<void> => {

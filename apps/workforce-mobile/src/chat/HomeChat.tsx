@@ -42,6 +42,7 @@ import {
 } from 'react-native'
 import { useAuth } from '../auth/useAuth'
 import { useI18n } from '../i18n/useI18n'
+import { pickStrings } from '../i18n'
 import { ApiError } from '../api/errors'
 import { enqueueWrite } from '../sync/queue'
 import { resolveWorkforcePersona, workforcePersonaSpec } from '../roles/persona'
@@ -704,9 +705,7 @@ function LiveTurnView({
               {showPulse ? <ThreeDotPulse /> : null}
               {showSlow ? (
                 <Text style={styles.slowIndicator}>
-                  {lang === 'sw'
-                    ? 'Borjie ana shughuli, jaribu tena…'
-                    : 'Borjie is busy, hold on…'}
+                  {pickStrings(lang).composer.busy}
                 </Text>
               ) : null}
             </View>
@@ -982,16 +981,14 @@ function Composer({
       {recording ? (
         <View style={styles.voiceCue} testID="home-chat-voice-cue">
           <Text style={styles.voiceCueText}>
-            {lang === 'sw'
-              ? 'Shikilia kuongea • Achia kutuma'
-              : 'Hold to speak • Release to send'}
+            {pickStrings(lang).composer.voiceCue}
           </Text>
         </View>
       ) : null}
       {pendingAttachment !== null ? (
         <View style={styles.attachmentPill} testID="home-chat-attachment-pending">
           <Text style={styles.attachmentPillText}>
-            {lang === 'sw' ? 'Picha — itapakiwa inapotumwa' : 'Photo — will upload on send'}
+            {pickStrings(lang).composer.attachmentPending}
           </Text>
         </View>
       ) : null}

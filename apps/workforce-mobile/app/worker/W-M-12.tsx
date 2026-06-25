@@ -7,8 +7,10 @@ import { RoleGuard } from '../../src/components/RoleGuard'
 import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { miningApi } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
+import { localizeApiError } from '@borjie/error-catalog'
 import { useOnlineStatus } from '../../src/offline/useOnlineStatus'
 import { useAuth } from '../../src/auth/useAuth'
+import { useI18n } from '../../src/i18n/useI18n'
 import { useLocation } from '../../src/location/useLocation'
 import { nearestFence } from '../../src/location/fence'
 import { enqueueWrite } from '../../src/sync/queue'
@@ -22,7 +24,6 @@ const COPY = {
   historyLoading: 'Inapakia historia... · Loading history...',
   historyError: 'Imeshindwa kupakia historia ya zamu.',
   emptyHistory: 'Hakuna kumbukumbu ya zamu bado.',
-  errorPrefix: 'Hitilafu: ',
   noFence:
     'GPS au mipaka ya tovuti haijapatikana. Huwezi kuingia kazini bila kuthibitisha eneo.',
   outsideFence: 'Uko nje ya mipaka ya tovuti. Sogea ndani ya eneo la kazi.',
@@ -90,6 +91,7 @@ export default function Screen(): JSX.Element {
 
 function HoursLog(): JSX.Element {
   const { user } = useAuth()
+  const { lang } = useI18n()
   const { online } = useOnlineStatus()
   const { capture } = useLocation()
   const [segments, setSegments] = useState<ReadonlyArray<LocalSegment>>([])
@@ -293,7 +295,9 @@ function HoursLog(): JSX.Element {
         {notice === 'out-ok' ? <Text style={styles.successText}>{COPY.outOk}</Text> : null}
         {notice === 'queued' ? <Text style={styles.warnText}>{COPY.queued}</Text> : null}
         {submitError && !networkError ? (
-          <Text style={styles.errorText}>{COPY.errorPrefix}{submitError.message}</Text>
+          <Text style={styles.errorText}>
+            {localizeApiError(submitError.code, lang)}
+          </Text>
         ) : null}
       </Section>
       <Section title="Muhtasari">

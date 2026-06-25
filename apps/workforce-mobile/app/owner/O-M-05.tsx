@@ -10,22 +10,19 @@ import { spacing } from '../../src/theme/spacing'
 const SCREEN_ID = 'O-M-05'
 
 export default function Screen(): JSX.Element {
-  const { lang } = useI18n()
-  const isSw = lang === 'sw'
+  const { t } = useI18n()
+  const copy = t.ownerScreens
   return (
     <RoleGuard screenId={SCREEN_ID}>
       <ScreenShell screenId={SCREEN_ID}>
-        <Section title={isSw ? 'Shifti ya hivi karibuni' : 'Recent shift'}>
-          <PlaceholderList
-            items={[]}
-            emptyLabel={isSw ? 'Hakuna shifti za hivi karibuni' : 'No recent shifts'}
-          />
+        <Section title={copy.recentShift}>
+          <PlaceholderList items={[]} emptyLabel={copy.noRecentShifts} />
         </Section>
-        <Section title={isSw ? 'Picha za leo' : "Today's photos"}>
+        <Section title={copy.todaysPhotos}>
           <View style={styles.row}>
-            <PhotoSlot label={isSw ? 'Picha 1' : 'Photo 1'} />
-            <PhotoSlot label={isSw ? 'Picha 2' : 'Photo 2'} />
-            <PhotoSlot label={isSw ? 'Picha 3' : 'Photo 3'} />
+            <PhotoSlot label={copy.photo1} />
+            <PhotoSlot label={copy.photo2} />
+            <PhotoSlot label={copy.photo3} />
           </View>
         </Section>
       </ScreenShell>

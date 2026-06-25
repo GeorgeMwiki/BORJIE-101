@@ -13,8 +13,10 @@ import { fontSize, radius, spacing } from '../../src/theme/spacing'
  * so step components stay focused on their own UI.
  */
 export default function OnboardingLayout(): JSX.Element {
+  // English is the default user language (CLAUDE.md "English default"); the user
+  // opts into Swahili in settings, never sw-by-default at onboarding.
   return (
-    <OnboardingDraftProvider initialLang="sw">
+    <OnboardingDraftProvider initialLang="en">
       <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
         <WizardHeader />
         <View style={styles.body}>

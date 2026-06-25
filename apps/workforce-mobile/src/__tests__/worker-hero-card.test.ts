@@ -166,4 +166,31 @@ describe('buildHeroData', () => {
     )
     expect(data.shiftDetail).toBe('Morning 06:00–14:00')
   })
+
+  it('never cross-falls roleLabel to the other locale (sw missing → placeholder, not EN)', () => {
+    const data = buildHeroData(
+      { roleLabel: 'Pit operator' }, // only EN present
+      null,
+      'Asha',
+      'sw',
+    )
+    // Canon: a missing SW value renders the visible placeholder, NEVER 'Pit operator'.
+    expect(data.roleLabel).toBe('—')
+  })
+
+  it('falls to the active-locale generic role noun when neither field is present', () => {
+    expect(buildHeroData(null, null, 'Asha', 'sw').roleLabel).toBe('Mfanyakazi')
+    expect(buildHeroData(null, null, 'Asha', 'en').roleLabel).toBe('Worker')
+  })
+
+  it('never cross-falls shiftDetail to the other locale (sw missing → undefined, not EN)', () => {
+    const data = buildHeroData(
+      { shiftDetail: 'Morning 06:00–14:00', shiftStatus: 'active' }, // only EN present
+      null,
+      'Asha',
+      'sw',
+    )
+    // Under `sw` the EN-only detail must NOT surface — the row simply hides.
+    expect(data.shiftDetail).toBeUndefined()
+  })
 })

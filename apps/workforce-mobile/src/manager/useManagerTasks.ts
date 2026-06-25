@@ -82,6 +82,53 @@ function adaptTaskRow(r: Record<string, unknown>): MiningTaskRow {
 export const managerTasksKeys = {
   open: (siteId?: string) => ['manager', 'tasks', 'open', siteId ?? 'all'] as const,
   detail: (id: string) => ['manager', 'tasks', 'detail', id] as const,
+  roster: () => ['manager', 'tasks', 'assignable-workers'] as const,
+}
+
+/** One selectable worker in the manager assign picker (M-M-02). */
+export interface AssignableWorker {
+  readonly id: string
+  /** Locale-neutral display label (a person's name). */
+  readonly name: string
+  readonly role: string
+}
+
+interface RosterResponse {
+  readonly success?: boolean
+  readonly data?: ReadonlyArray<Record<string, unknown>>
+}
+
+function adaptWorker(r: Record<string, unknown>): AssignableWorker {
+  const id = String(r.id ?? '')
+  const name =
+    typeof r.name === 'string' && r.name.length > 0 ? r.name : id
+  return {
+    id,
+    name,
+    role: typeof r.role === 'string' ? r.role : 'operator',
+  }
+}
+
+/**
+ * Manager's worker roster for the assign picker. Pulls
+ * GET /api/v1/mining/tasks/assignable-workers (the active tenant's active
+ * users). Drives the worker PICKER on M-M-02 so the manager selects a worker
+ * instead of pasting a raw UUID. The manual UUID input stays as a fallback.
+ */
+export function useAssignableWorkers(): UseQueryResult<
+  ReadonlyArray<AssignableWorker>,
+  Error
+> {
+  return useQuery<ReadonlyArray<AssignableWorker>, Error>({
+    queryKey: managerTasksKeys.roster(),
+    queryFn: async ({ signal }) => {
+      const res = await miningApi.get<RosterResponse>('/tasks/assignable-workers', {
+        signal,
+      })
+      return (res.data ?? []).map(adaptWorker)
+    },
+    staleTime: 60_000,
+  })
 }
 
 /**

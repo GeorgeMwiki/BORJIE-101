@@ -25,7 +25,7 @@ import { ScreenShell } from '../../../src/components/ScreenShell'
 import { Section } from '../../../src/components/Section'
 import { useAuth } from '../../../src/auth/useAuth'
 import { useI18n } from '../../../src/i18n/useI18n'
-import type { StringDict } from '../../../src/i18n'
+import { pickStrings, type StringDict } from '../../../src/i18n'
 import {
   severityLabel,
   opportunityKindLabel,
@@ -52,14 +52,13 @@ const SCREEN_ID = 'O-M-01'
 
 export default function CockpitHubScreen(): JSX.Element {
   const { user, ready } = useAuth()
-  const isSw = (user?.preferredLang ?? 'en') === 'sw'
   if (!ready) return <View style={{ flex: 1 }} />
   if (!user) return <Redirect href="/onboarding/role" />
   if (user.role !== 'owner') {
     return (
       <View style={styles.loading}>
         <Text style={styles.error}>
-          {isSw ? 'Cockpit ni kwa mmiliki tu' : 'Cockpit hub is owner-only'}
+          {pickStrings(user.preferredLang).cockpit.ownerOnly}
         </Text>
       </View>
     )
@@ -73,7 +72,7 @@ export default function CockpitHubScreen(): JSX.Element {
 
 function CockpitHubView(): JSX.Element {
   const { lang, t } = useI18n()
-  const isSw = lang === 'sw'
+  const copy = t.cockpit
   const query = useCockpitHub()
   const [refreshing, setRefreshing] = useState<boolean>(false)
 
@@ -90,16 +89,14 @@ function CockpitHubView(): JSX.Element {
     return (
       <View style={styles.loading}>
         <ActivityIndicator color={colors.gold} />
-        <Text style={styles.muted}>{isSw ? 'Inapakia…' : 'Loading cockpit…'}</Text>
+        <Text style={styles.muted}>{copy.loading}</Text>
       </View>
     )
   }
   if (query.isError) {
     return (
       <View style={styles.loading}>
-        <Text style={styles.error}>
-          {isSw ? 'Cockpit imeshindwa kupakia' : 'Cockpit failed to load'}
-        </Text>
+        <Text style={styles.error}>{copy.loadFailed}</Text>
       </View>
     )
   }
@@ -118,43 +115,41 @@ function CockpitHubView(): JSX.Element {
     >
       {empty ? (
         <View style={styles.bannerEmpty}>
-          <Text style={styles.bannerText}>
-            {isSw
-              ? 'Hakuna data mpya bado — vuta chini kuburudisha.'
-              : 'No fresh cockpit data yet — pull down to refresh.'}
-          </Text>
+          <Text style={styles.bannerText}>{copy.emptyBanner}</Text>
         </View>
       ) : null}
 
-      <Section title={isSw ? 'Muhtasari' : 'Brief'}>
+      <Section title={copy.brief}>
         <View style={styles.briefCard}>
           <Text style={styles.briefHeadline}>
-            {isSw ? data.brief.headlineSw : data.brief.headlineEn}
+            {lang === 'sw' ? data.brief.headlineSw : data.brief.headlineEn}
           </Text>
         </View>
       </Section>
 
       <Section
-        title={`${isSw ? 'Maamuzi ya hivi karibuni' : 'Recent decisions'} (${data.decisions.length})`}
+        title={copy.decisionsTitle.replace(
+          '{{count}}',
+          String(data.decisions.length),
+        )}
       >
         {data.decisions.length === 0 ? (
-          <Text style={styles.muted}>
-            {isSw ? 'Hakuna maamuzi yaliyosubiri' : 'No pending decisions'}
-          </Text>
+          <Text style={styles.muted}>{copy.noDecisions}</Text>
         ) : (
           data.decisions.slice(0, 5).map((decision) => (
-            <DecisionRow key={decision.id} decision={decision} isSw={isSw} t={t} />
+            <DecisionRow key={decision.id} decision={decision} lang={lang} t={t} />
           ))
         )}
       </Section>
 
       <Section
-        title={`${isSw ? 'Fursa' : 'Opportunities'} (${data.opportunities.length})`}
+        title={copy.opportunitiesTitle.replace(
+          '{{count}}',
+          String(data.opportunities.length),
+        )}
       >
         {data.opportunities.length === 0 ? (
-          <Text style={styles.muted}>
-            {isSw ? 'Hakuna fursa mpya' : 'No fresh opportunities'}
-          </Text>
+          <Text style={styles.muted}>{copy.noOpportunities}</Text>
         ) : (
           data.opportunities.slice(0, 5).map((opportunity) => (
             <OpportunityRow
@@ -166,11 +161,11 @@ function CockpitHubView(): JSX.Element {
         )}
       </Section>
 
-      <Section title={`${isSw ? 'Hatari' : 'Risks'} (${data.risks.length})`}>
+      <Section
+        title={copy.risksTitle.replace('{{count}}', String(data.risks.length))}
+      >
         {data.risks.length === 0 ? (
-          <Text style={styles.muted}>
-            {isSw ? 'Hakuna hatari za sasa' : 'No active risks'}
-          </Text>
+          <Text style={styles.muted}>{copy.noRisks}</Text>
         ) : (
           data.risks.slice(0, 5).map((risk) => (
             <RiskRow key={risk.id} risk={risk} t={t} />
@@ -179,15 +174,16 @@ function CockpitHubView(): JSX.Element {
       </Section>
 
       <Section
-        title={`${isSw ? 'Vikumbusho' : 'Reminders'} (${data.reminders.length})`}
+        title={copy.remindersTitle.replace(
+          '{{count}}',
+          String(data.reminders.length),
+        )}
       >
         {data.reminders.length === 0 ? (
-          <Text style={styles.muted}>
-            {isSw ? 'Hakuna ukumbusho' : 'No reminders'}
-          </Text>
+          <Text style={styles.muted}>{copy.noReminders}</Text>
         ) : (
           data.reminders.slice(0, 5).map((reminder) => (
-            <ReminderRow key={reminder.id} reminder={reminder} isSw={isSw} />
+            <ReminderRow key={reminder.id} reminder={reminder} lang={lang} />
           ))
         )}
       </Section>
@@ -197,11 +193,11 @@ function CockpitHubView(): JSX.Element {
 
 function DecisionRow({
   decision,
-  isSw,
+  lang,
   t,
 }: {
   readonly decision: CockpitDecisionSummary
-  readonly isSw: boolean
+  readonly lang: 'sw' | 'en'
   readonly t: StringDict
 }): JSX.Element {
   return (
@@ -211,7 +207,8 @@ function DecisionRow({
         <Text style={styles.severity}>{severityLabel(decision.severity, t)}</Text>
       </View>
       <Text style={styles.muted}>
-        {isSw ? 'Imeibuliwa' : 'Raised'} {new Date(decision.raisedAt).toLocaleString()}
+        {pickStrings(lang).cockpit.raised}{' '}
+        {new Date(decision.raisedAt).toLocaleString()}
       </Text>
     </Pressable>
   )
@@ -255,16 +252,17 @@ function RiskRow({
 
 function ReminderRow({
   reminder,
-  isSw,
+  lang,
 }: {
   readonly reminder: CockpitReminder
-  readonly isSw: boolean
+  readonly lang: 'sw' | 'en'
 }): JSX.Element {
   return (
     <Pressable style={styles.row}>
       <Text style={styles.rowTitle}>{reminder.text}</Text>
       <Text style={styles.muted}>
-        {isSw ? 'Inahitajika' : 'Due'} {new Date(reminder.dueAt).toLocaleString()}
+        {pickStrings(lang).cockpit.due}{' '}
+        {new Date(reminder.dueAt).toLocaleString()}
       </Text>
     </Pressable>
   )

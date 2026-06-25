@@ -181,6 +181,72 @@ export function toPersistedSlice(
  * prompt. The caller passes the resolved `lang` so a single language
  * renders per surface — no widget-only language state, no mixing.
  */
+/** A single chip's bilingual `{ sw, en }` label + prompt pair. */
+interface ChipCopy {
+  readonly id: string
+  readonly label: { readonly sw: string; readonly en: string }
+  readonly prompt: { readonly sw: string; readonly en: string }
+}
+
+/**
+ * Per-tool quick-reply chip copy, authored as `{ sw, en }` pairs so the active
+ * locale selects ONE language (a data-field pick — no inline bilingual ternary).
+ */
+const SMART_REPLY_CHIPS: Readonly<Record<string, ReadonlyArray<ChipCopy>>> = {
+  'cockpit.daily-brief': [
+    {
+      id: 'brief-cash',
+      label: { sw: 'Hela na muda', en: 'Cash and runway' },
+      prompt: { sw: 'Onyesha hela na muda', en: 'Show cash and runway' },
+    },
+    {
+      id: 'brief-decisions',
+      label: { sw: 'Maamuzi', en: 'Decisions' },
+      prompt: { sw: 'Maamuzi yanayosubiri', en: 'Pending decisions' },
+    },
+  ],
+  'attendance.crew': [
+    {
+      id: 'crew-late',
+      label: { sw: 'Waliochelewa', en: 'Who is late' },
+      prompt: { sw: 'Nani amechelewa leo?', en: 'Who is late today?' },
+    },
+    {
+      id: 'crew-shift',
+      label: { sw: 'Shifti', en: 'Shift' },
+      prompt: { sw: 'Onyesha shifti ya leo', en: 'Show today’s shift' },
+    },
+  ],
+  'tasks.today': [
+    {
+      id: 'tasks-next',
+      label: { sw: 'Kazi inayofuata', en: 'Next task' },
+      prompt: { sw: 'Kazi yangu inayofuata ni ipi?', en: 'What is my next task?' },
+    },
+  ],
+  'attendance.shift': [
+    {
+      id: 'shift-clock',
+      label: { sw: 'Ingia kazini', en: 'Clock in' },
+      prompt: { sw: 'Nataka kuingia kazini', en: 'I want to clock in' },
+    },
+  ],
+  'incidents.exceptions': [
+    {
+      id: 'inc-report',
+      label: { sw: 'Ripoti tukio', en: 'Report an issue' },
+      prompt: { sw: 'Nataka kuripoti tukio', en: 'I want to report an issue' },
+    },
+  ],
+  'performance.snapshot': [
+    {
+      id: 'perf-improve',
+      label: { sw: 'Niboreshe vipi?', en: 'How to improve?' },
+      prompt: { sw: 'Naweza kuboresha vipi?', en: 'How can I improve?' },
+    },
+  ],
+}
+
 export function smartReplyChips(
   toolName: string | null,
   lang: 'sw' | 'en'
@@ -188,40 +254,15 @@ export function smartReplyChips(
   if (toolName === null) {
     return []
   }
-  const sw = lang === 'sw'
-  if (toolName === 'cockpit.daily-brief') {
-    return [
-      { id: 'brief-cash', label: sw ? 'Hela na muda' : 'Cash and runway', prompt: sw ? 'Onyesha hela na muda' : 'Show cash and runway' },
-      { id: 'brief-decisions', label: sw ? 'Maamuzi' : 'Decisions', prompt: sw ? 'Maamuzi yanayosubiri' : 'Pending decisions' }
-    ]
+  const chips = SMART_REPLY_CHIPS[toolName]
+  if (!chips) {
+    return []
   }
-  if (toolName === 'attendance.crew') {
-    return [
-      { id: 'crew-late', label: sw ? 'Waliochelewa' : 'Who is late', prompt: sw ? 'Nani amechelewa leo?' : 'Who is late today?' },
-      { id: 'crew-shift', label: sw ? 'Shifti' : 'Shift', prompt: sw ? 'Onyesha shifti ya leo' : 'Show today’s shift' }
-    ]
-  }
-  if (toolName === 'tasks.today') {
-    return [
-      { id: 'tasks-next', label: sw ? 'Kazi inayofuata' : 'Next task', prompt: sw ? 'Kazi yangu inayofuata ni ipi?' : 'What is my next task?' }
-    ]
-  }
-  if (toolName === 'attendance.shift') {
-    return [
-      { id: 'shift-clock', label: sw ? 'Ingia kazini' : 'Clock in', prompt: sw ? 'Nataka kuingia kazini' : 'I want to clock in' }
-    ]
-  }
-  if (toolName === 'incidents.exceptions') {
-    return [
-      { id: 'inc-report', label: sw ? 'Ripoti tukio' : 'Report an issue', prompt: sw ? 'Nataka kuripoti tukio' : 'I want to report an issue' }
-    ]
-  }
-  if (toolName === 'performance.snapshot') {
-    return [
-      { id: 'perf-improve', label: sw ? 'Niboreshe vipi?' : 'How to improve?', prompt: sw ? 'Naweza kuboresha vipi?' : 'How can I improve?' }
-    ]
-  }
-  return []
+  return chips.map((chip) => ({
+    id: chip.id,
+    label: chip.label[lang],
+    prompt: chip.prompt[lang],
+  }))
 }
 
 /**
@@ -240,6 +281,17 @@ export function shouldAutoScroll(
 }
 
 /**
+ * Single-language pending/failed labels per locale (a data-field pick — no
+ * inline bilingual copy). One language per active locale; never both.
+ */
+const PENDING_STATE_COPY: Readonly<
+  Record<'failed' | 'pending', { readonly sw: string; readonly en: string }>
+> = {
+  failed: { sw: 'Imeshindwa. Gusa kuanza tena.', en: 'Failed. Tap to retry.' },
+  pending: { sw: 'Borjie anafikiri…', en: 'Borjie is thinking…' },
+}
+
+/**
  * `derivePendingState` summarises the visual state for tests + telemetry.
  * Returns a string the HomeChat doesn't need at render time but tests
  * can assert on to verify timing transitions deterministically.
@@ -254,14 +306,14 @@ export function derivePendingState(
 } {
   if (turn.kind === 'failed') {
     return {
-      label: lang === 'sw' ? 'Imeshindwa. Gusa kuanza tena.' : 'Failed. Tap to retry.',
+      label: PENDING_STATE_COPY.failed[lang],
       showSpinner: false,
       showStream: false
     }
   }
   if (turn.kind === 'pending') {
     return {
-      label: lang === 'sw' ? 'Borjie anafikiri…' : 'Borjie is thinking…',
+      label: PENDING_STATE_COPY.pending[lang],
       showSpinner: true,
       showStream: false
     }

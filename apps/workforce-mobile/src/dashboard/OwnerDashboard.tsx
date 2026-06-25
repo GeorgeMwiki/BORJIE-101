@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native'
 import { useI18n } from '../i18n/useI18n'
+import { pickStrings } from '../i18n'
 import { PreviewBanner } from '../components/PreviewBanner'
 import { AiDailyBrief } from '../home/owner/AiDailyBrief'
 import { AlertQueue } from '../home/owner/AlertQueue'
@@ -58,10 +59,11 @@ interface SlotProps {
 }
 
 function CashRunwaySlot({ brief, lang }: SlotProps): JSX.Element {
+  const copy = pickStrings(lang).ownerDashboard
   const tone = brief.cash.usdCliffActive ? colors.danger : colors.success
-  const heading = lang === 'sw' ? 'Pesa na muda uliobaki' : 'Cash runway'
-  const days = `${brief.cash.daysRemaining} ${lang === 'sw' ? 'siku' : 'days'}`
-  const exposureLabel = lang === 'sw' ? 'USD-cliff' : 'USD exposure'
+  const heading = copy.cashRunway
+  const days = `${brief.cash.daysRemaining} ${copy.days}`
+  const exposureLabel = copy.usdExposure
   return (
     <View testID="owner-dashboard-cash" style={[styles.slot, { borderLeftColor: tone }]}>
       <Text style={styles.slotTitle}>{heading}</Text>
@@ -74,12 +76,14 @@ function CashRunwaySlot({ brief, lang }: SlotProps): JSX.Element {
 }
 
 function ComplianceSafetySlot({ brief, lang }: SlotProps): JSX.Element {
+  const copy = pickStrings(lang).ownerDashboard
   const dangerous = brief.safety.openHighCount > 0 || brief.safety.licencesStatus === 'danger'
   const tone = dangerous ? colors.danger : colors.success
-  const heading = lang === 'sw' ? 'Usalama na leseni' : 'Compliance & safety'
-  const incidentLabel = lang === 'sw'
-    ? `Matukio wazi (HIGH): ${brief.safety.openHighCount}`
-    : `Open HIGH incidents: ${brief.safety.openHighCount}`
+  const heading = copy.complianceSafety
+  const incidentLabel = copy.openHighIncidents.replace(
+    '{{count}}',
+    String(brief.safety.openHighCount),
+  )
   const licenceLabel = lang === 'sw'
     ? brief.safety.licenceLabelSw
     : brief.safety.licenceLabelEn
@@ -93,10 +97,14 @@ function ComplianceSafetySlot({ brief, lang }: SlotProps): JSX.Element {
 }
 
 function QuickActionsSlot({ lang }: { readonly lang: 'sw' | 'en' }): JSX.Element {
-  const heading = lang === 'sw' ? 'Vitendo vya haraka' : 'Quick actions'
-  const labels = lang === 'sw'
-    ? ['Idhinisha', 'Tuma ripoti', 'Anza upya leseni', 'Uliza Borjie']
-    : ['Approve decisions', 'Send report', 'Renew licences', 'Ask Borjie']
+  const copy = pickStrings(lang).ownerDashboard
+  const heading = copy.quickActions
+  const labels = [
+    copy.approveDecisions,
+    copy.sendReport,
+    copy.renewLicences,
+    copy.askBorjie,
+  ]
   return (
     <View testID="owner-dashboard-actions" style={styles.slot}>
       <Text style={styles.slotTitle}>{heading}</Text>

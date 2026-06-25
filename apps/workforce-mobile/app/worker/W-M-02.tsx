@@ -147,7 +147,10 @@ function TodayView(): JSX.Element {
         ) : (
           (shift?.tasks ?? []).map((task: ShiftTaskLite) => {
             const done = doneIds.includes(task.id)
-            const title = task.titleSw.length > 0 ? task.titleSw : task.titleEn
+            // This screen renders Swahili copy; show the Swahili title or a
+            // neutral placeholder when absent — NEVER the English title
+            // (cross-language fallback is mixing).
+            const title = task.titleSw.length > 0 ? task.titleSw : '—'
             const where = task.location ?? '—'
             return (
               <Pressable

@@ -22,6 +22,8 @@ import { miningApi } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
 import { useLocation } from '../../src/location/useLocation'
 import { useI18n } from '../../src/i18n/useI18n'
+import { pickStrings } from '../../src/i18n'
+import type { Lang } from '../../src/auth/types'
 import { colors } from '../../src/theme/colors'
 import { fontSize, spacing } from '../../src/theme/spacing'
 
@@ -50,8 +52,8 @@ export default function IncidentReportScreen(): JSX.Element {
   )
 }
 
-function ReportView({ lang }: { lang: 'sw' | 'en' }): JSX.Element {
-  const isSw = lang === 'sw'
+function ReportView({ lang }: { lang: Lang }): JSX.Element {
+  const copy = pickStrings(lang).incidentReport
   const { capture } = useLocation()
 
   const mutation = useMutation<IncidentRow, ApiError, Severity>({
@@ -66,9 +68,8 @@ function ReportView({ lang }: { lang: 'sw' | 'en' }): JSX.Element {
         kind: 'safety',
         severity,
         occurredAt: new Date().toISOString(),
-        description: isSw
-          ? `Ripoti ya haraka kutoka kwa mfanyakazi (${severity}).`
-          : `Worker one-tap SOS report (${severity}).`,
+        // Single-language description in the worker's active locale.
+        description: copy.sosDescription.replace('{{severity}}', severity),
         ...(location ? { location } : {})
       })
       return resp.data
@@ -85,14 +86,10 @@ function ReportView({ lang }: { lang: 'sw' | 'en' }): JSX.Element {
   if (mutation.isSuccess) {
     return (
       <View style={styles.root}>
-        <Text style={styles.title}>{isSw ? 'Imepokelewa' : 'Received'}</Text>
-        <Text style={styles.subtitle}>
-          {isSw
-            ? 'Meneja wako ataona ripoti yako mara moja.'
-            : 'Your manager will see this report immediately.'}
-        </Text>
+        <Text style={styles.title}>{copy.receivedTitle}</Text>
+        <Text style={styles.subtitle}>{copy.receivedBody}</Text>
         <Text style={styles.reference}>
-          {isSw ? 'Kumbukumbu: ' : 'Reference: '}
+          {copy.referenceLabel}
           {mutation.data.id}
         </Text>
       </View>
@@ -101,49 +98,37 @@ function ReportView({ lang }: { lang: 'sw' | 'en' }): JSX.Element {
 
   return (
     <View style={styles.root}>
-      <Text style={styles.title}>
-        {isSw ? 'Ripoti tukio' : 'Report an incident'}
-      </Text>
-      <Text style={styles.subtitle}>
-        {isSw
-          ? 'Bonyeza kiwango cha hatari. Meneja ataona haraka.'
-          : 'Tap the severity. Your manager sees it instantly.'}
-      </Text>
+      <Text style={styles.title}>{copy.reportTitle}</Text>
+      <Text style={styles.subtitle}>{copy.reportSubtitle}</Text>
 
-      <Section title={isSw ? 'Kiwango cha hatari' : 'Severity'}>
+      <Section title={copy.severityTitle}>
         {mutation.isPending ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.gold} />
-            <Text style={styles.subtitle}>
-              {isSw ? 'Inatuma ripoti...' : 'Sending report...'}
-            </Text>
+            <Text style={styles.subtitle}>{copy.sending}</Text>
           </View>
         ) : (
           <View style={styles.grid}>
             <Button
-              label={isSw ? 'Chini' : 'Low'}
+              label={copy.low}
               onPress={() => onPress('low')}
               variant="ghost"
             />
             <Button
-              label={isSw ? 'Wastani' : 'Medium'}
+              label={copy.medium}
               onPress={() => onPress('medium')}
               variant="ghost"
             />
-            <Button label={isSw ? 'Juu' : 'High'} onPress={() => onPress('high')} />
+            <Button label={copy.high} onPress={() => onPress('high')} />
             <Button
-              label={isSw ? 'HATARI' : 'CRITICAL'}
+              label={copy.critical}
               onPress={() => onPress('critical')}
               variant="danger"
             />
           </View>
         )}
         {mutation.isError ? (
-          <Text style={styles.errorText}>
-            {isSw
-              ? 'Imeshindwa kutuma ripoti. Meneja HAJAPOKEA bado — bonyeza tena.'
-              : 'Failed to send the report. Your manager was NOT notified — tap again to retry.'}
-          </Text>
+          <Text style={styles.errorText}>{copy.sendFailed}</Text>
         ) : null}
       </Section>
     </View>

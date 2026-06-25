@@ -28,6 +28,8 @@ import {
   type WorkforceTabSpec
 } from '@borjie/persona-runtime'
 import { request } from '../../../src/api/client'
+import { ApiError } from '../../../src/api/errors'
+import { localizeApiError } from '@borjie/error-catalog'
 import { useAuth } from '../../../src/auth/useAuth'
 import { useI18n } from '../../../src/i18n/useI18n'
 import type { Role } from '../../../src/roles/types'
@@ -125,7 +127,16 @@ export function useWorkforceTabConfig(): UseWorkforceTabConfigResult {
         '/api/v1/workforce/tab-config'
       )
       if (!resp?.success || !resp.data) {
-        throw new Error(resp?.error?.message ?? 'Failed to load tab config')
+        // A 2xx body with success:false — carry the envelope code so the catch
+        // localizes by code (never the raw English `error.message`, which under
+        // `sw` is language mixing).
+        throw new ApiError(
+          resp?.error?.message ?? 'Failed to load tab config',
+          200,
+          '/api/v1/workforce/tab-config',
+          resp,
+          resp?.error?.code ?? null
+        )
       }
       setConfig(resp.data)
       try {
@@ -161,13 +172,16 @@ export function useWorkforceTabConfig(): UseWorkforceTabConfigResult {
           hydratedFromDefault: true
         })
       }
+      // Localize by the gateway error code in the active locale — never the raw
+      // English `err.message`. An unknown/non-Api failure resolves to the
+      // catalog's generic localized fallback.
       setError(
-        err instanceof Error ? err.message : 'Unknown tab config error'
+        localizeApiError(err instanceof ApiError ? err.code : undefined, lang)
       )
     } finally {
       setLoading(false)
     }
-  }, [role])
+  }, [role, lang])
 
   useEffect(() => {
     let cancelled = false

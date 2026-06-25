@@ -23,11 +23,10 @@ const FIELD_LINKS: ReadonlyArray<string> = [
 ]
 
 export default function FieldTab(): JSX.Element {
-  const { screen, lang } = useI18n()
-  const isSw = lang === 'sw'
+  const { screen, t } = useI18n()
   return (
     <ScreenShell screenId="W-M-02">
-      <Section title={isSw ? 'Vifaa vya shambani' : 'Field tools'}>
+      <Section title={t.tabScreens.fieldTitle}>
         <View style={styles.grid}>
           {FIELD_LINKS.map((id) => (
             <Link key={id} href={`/worker/${id}`} asChild>

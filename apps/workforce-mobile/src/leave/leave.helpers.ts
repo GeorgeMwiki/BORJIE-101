@@ -85,6 +85,34 @@ export function statusTone(status: LeaveStatus): 'warn' | 'success' | 'danger' {
   return 'warn'
 }
 
+/**
+ * Single-language validation messages, keyed by a stable code. This pure helper
+ * has no i18n hook, so it carries its own `{ sw, en }` pairs and selects the
+ * active locale's value (a data-field pick — no inline bilingual copy). One
+ * language per active locale; never both.
+ */
+const VALIDATION_MESSAGES: Readonly<
+  Record<'invalidCategory' | 'badDate' | 'endBeforeStart', { sw: string; en: string }>
+> = {
+  invalidCategory: { sw: 'Aina si sahihi', en: 'Invalid category' },
+  badDate: {
+    sw: 'Tarehe lazima iwe YYYY-MM-DD',
+    en: 'Dates must be YYYY-MM-DD',
+  },
+  endBeforeStart: {
+    sw: 'Tarehe ya mwisho lazima isiwe kabla ya kuanza',
+    en: 'End date must not be before the start date',
+  },
+}
+
+function validationMessage(
+  code: keyof typeof VALIDATION_MESSAGES,
+  lang: Lang,
+): string {
+  const entry = VALIDATION_MESSAGES[code]
+  return lang === 'sw' ? entry.sw : entry.en
+}
+
 export type LeaveValidation =
   | { readonly ok: true; readonly payload: LeaveSubmitPayload }
   | { readonly ok: false; readonly error: string }
@@ -98,23 +126,14 @@ export function buildSubmitPayload(
   input: LeaveSubmitInput,
   lang: Lang = 'en',
 ): LeaveValidation {
-  const isSw = lang === 'sw'
   if (!LEAVE_CATEGORIES.includes(input.category)) {
-    return { ok: false, error: isSw ? 'Aina si sahihi' : 'Invalid category' }
+    return { ok: false, error: validationMessage('invalidCategory', lang) }
   }
   if (!DATE_RE.test(input.startOn) || !DATE_RE.test(input.endOn)) {
-    return {
-      ok: false,
-      error: isSw ? 'Tarehe lazima iwe YYYY-MM-DD' : 'Dates must be YYYY-MM-DD',
-    }
+    return { ok: false, error: validationMessage('badDate', lang) }
   }
   if (input.endOn < input.startOn) {
-    return {
-      ok: false,
-      error: isSw
-        ? 'Tarehe ya mwisho lazima isiwe kabla ya kuanza'
-        : 'End date must not be before the start date',
-    }
+    return { ok: false, error: validationMessage('endBeforeStart', lang) }
   }
   const reason = input.reason?.trim()
   return {

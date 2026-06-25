@@ -4,6 +4,8 @@ import { colors } from '../../theme/colors'
 import { fontSize, radius, spacing } from '../../theme/spacing'
 import { PreviewBanner } from '../../components/PreviewBanner'
 import { enqueueWrite } from '../../sync/queue'
+import { pickStrings } from '../../i18n'
+import { pickByLocale } from '../../i18n/pickByLocale'
 import { MIN_TAP_DP, type WorkerTask } from './types'
 
 export interface TodayTasksProps {
@@ -14,19 +16,22 @@ export interface TodayTasksProps {
   readonly lang: 'sw' | 'en'
 }
 
-function priorityChip(p: WorkerTask['priority']): {
-  readonly bg: string
-  readonly fg: string
-  readonly sw: string
-  readonly en: string
-} {
+/**
+ * Priority → chip colour + the dictionary key for its single-locale label.
+ * The label text itself flows through `t.todayTasks` so the chip is never a
+ * hardcoded inline `isSw ? 'Haraka' : 'Urgent'` ternary (the mixing trap).
+ */
+function priorityChip(
+  p: WorkerTask['priority'],
+  t: ReturnType<typeof pickStrings>['todayTasks']
+): { readonly bg: string; readonly fg: string; readonly label: string } {
   if (p === 'urgent') {
-    return { bg: colors.danger, fg: colors.textInverse, sw: 'Haraka', en: 'Urgent' }
+    return { bg: colors.danger, fg: colors.textInverse, label: t.priorityUrgent }
   }
   if (p === 'due') {
-    return { bg: colors.warn, fg: colors.textInverse, sw: 'Inakaribia', en: 'Due' }
+    return { bg: colors.warn, fg: colors.textInverse, label: t.priorityDue }
   }
-  return { bg: colors.earth500, fg: colors.textInverse, sw: 'Bila haraka', en: 'Flex' }
+  return { bg: colors.earth500, fg: colors.textInverse, label: t.priorityFlex }
 }
 
 export function TodayTasks({
@@ -68,14 +73,12 @@ export function TodayTasks({
     return [...tasks].sort((a, b) => a.sequence - b.sequence)
   }, [tasks])
 
-  const isSw = lang === 'sw'
+  // Single active-locale dictionary — every label below resolves through
+  // `t.todayTasks`, never an inline `isSw ? '…' : '…'` ternary.
+  const t = pickStrings(lang).todayTasks
 
   if (loading) {
-    return (
-      <Text style={styles.lead}>
-        {isSw ? 'Inapakia kazi za leo…' : "Loading today's tasks…"}
-      </Text>
-    )
+    return <Text style={styles.lead}>{t.loading}</Text>
   }
   if (error) {
     return <PreviewBanner kind="env-missing" />
@@ -87,29 +90,35 @@ export function TodayTasks({
   return (
     <View>
       {sorted.map((task) => {
-        const chip = priorityChip(task.priority)
-        const title = lang === 'sw' ? task.titleSw : task.titleEn
+        const chip = priorityChip(task.priority, t)
+        // Active-locale title; a null active-locale value renders the localized
+        // placeholder (`t.missingTitle`) — NEVER the other language's string.
+        const title = pickByLocale(
+          { en: task.titleEn ?? '', sw: task.titleSw ?? '' },
+          lang
+        )
+        const titleLabel = title === '—' ? t.missingTitle : title
         const location =
-          (lang === 'sw' ? task.locationLabelSw : task.locationLabelEn) ?? ''
-        const parallelTag = task.parallelGroupId
-          ? isSw
-            ? ' · Sambamba'
-            : ' · Parallel'
-          : ''
-        const doneLabel = isSw ? 'Imekamilika' : 'Done'
-        const blockedLabel = isSw ? 'Shida' : 'Blocked'
+          pickByLocale(
+            { en: task.locationLabelEn ?? '', sw: task.locationLabelSw ?? '' },
+            lang
+          )
+        const hasLocation = location !== '—'
+        const parallelTag = task.parallelGroupId ? ` · ${t.parallelTag}` : ''
+        const doneLabel = t.done
+        const blockedLabel = t.blocked
         return (
           <View key={task.id} style={styles.card} testID={`employee-home-task-${task.id}`}>
             <View style={styles.cardHeader}>
               <View style={[styles.chip, { backgroundColor: chip.bg }]}>
                 <Text style={[styles.chipText, { color: chip.fg }]}>
-                  {isSw ? chip.sw : chip.en}
+                  {chip.label}
                 </Text>
               </View>
               <Text style={styles.sequence}>#{task.sequence}</Text>
             </View>
-            <Text style={styles.title}>{title}</Text>
-            {location ? (
+            <Text style={styles.title}>{titleLabel}</Text>
+            {hasLocation ? (
               <Text style={styles.meta}>
                 {location}
                 {parallelTag}

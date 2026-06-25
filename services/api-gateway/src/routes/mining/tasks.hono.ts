@@ -28,9 +28,9 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { randomUUID, createHash } from 'node:crypto';
-import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { miningTasks } from '@borjie/database';
+import { miningTasks, users } from '@borjie/database';
 import { authMiddleware, requireRole } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { publishCockpitEvent } from '../../services/cockpit-events';
@@ -271,6 +271,83 @@ export function createMiningTasksRouter(): Hono {
         reason: message,
       });
       const e = jsonError('TASKS_LIST_FAILED', message, 500);
+      return c.json(e.body, e.status);
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // GET /assignable-workers — the manager's worker roster for the assign
+  // picker (M-M-02). The active tenant's active users + their mining role +
+  // display name, so the manager picks a worker instead of pasting a UUID.
+  //
+  // Sourced from `users` (the authoritative, populated per-tenant operator
+  // table) for the same reason the internal operator roster is — the
+  // org_memberships graph is unpopulated in the live deployment. Scoped to
+  // the request-path tenant: RLS auto-filters on app.current_tenant_id and we
+  // add an explicit tenantId predicate (belt-and-braces) so a manager can only
+  // ever see their OWN tenant's roster.
+  // -------------------------------------------------------------------------
+  app.get('/assignable-workers', requireRole(...MANAGER_ROLES), async (c: any) => {
+    const { tenantId } = c.get('auth') ?? {};
+    if (!tenantId) {
+      const err = jsonError('UNAUTHORIZED', 'Authentication required', 401);
+      return c.json(err.body, err.status);
+    }
+    const db = c.get('db');
+    if (!db) {
+      const err = jsonError(
+        'TASKS_UNAVAILABLE',
+        'database is not configured on this gateway',
+        503,
+      );
+      return c.json(err.body, err.status);
+    }
+
+    try {
+      const rows = await db
+        .select({
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          displayName: users.displayName,
+          miningRole: users.miningRole,
+        })
+        .from(users)
+        .where(
+          and(
+            eq(users.tenantId, tenantId),
+            eq(users.status, 'active'),
+            isNull(users.deletedAt),
+          ),
+        )
+        .orderBy(desc(users.lastActivityAt))
+        .limit(500);
+
+      const data = rows.map((r: Record<string, unknown>) => {
+        const fullName = [r.firstName, r.lastName]
+          .filter((p): p is string => typeof p === 'string' && p.length > 0)
+          .join(' ')
+          .trim();
+        return {
+          id: String(r.id ?? ''),
+          // A single locale-neutral display label (a person's name) — not a
+          // translatable string, so no per-locale pair is needed.
+          name:
+            (typeof r.displayName === 'string' && r.displayName.length > 0
+              ? r.displayName
+              : fullName) || String(r.id ?? ''),
+          role: typeof r.miningRole === 'string' ? r.miningRole : 'operator',
+        };
+      });
+      return c.json({ success: true as const, data }, 200);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'roster failed';
+      moduleLogger.error('mining assignable-workers list failed', {
+        evt: 'mining_assignable_workers_failed',
+        tenantId,
+        reason: message,
+      });
+      const e = jsonError('WORKER_ROSTER_FAILED', message, 500);
       return c.json(e.body, e.status);
     }
   });

@@ -88,7 +88,8 @@ export const onboardingDraftSchema = z.object({
 
 export type OnboardingDraft = z.infer<typeof onboardingDraftSchema>
 
-export function emptyOnboardingDraft(initialLang: Lang = 'sw'): OnboardingDraft {
+// Default user language is EN (CLAUDE.md "English default · bilingual sw/en").
+export function emptyOnboardingDraft(initialLang: Lang = 'en'): OnboardingDraft {
   return onboardingDraftSchema.parse({ lang: initialLang })
 }
 
@@ -115,7 +116,7 @@ export interface OnboardingDraftProviderProps {
 
 export function OnboardingDraftProvider({
   children,
-  initialLang = 'sw'
+  initialLang = 'en'
 }: OnboardingDraftProviderProps): JSX.Element {
   const [current, setCurrent] = useState<OnboardingDraft>(() => emptyOnboardingDraft(initialLang))
 

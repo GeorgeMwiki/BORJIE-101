@@ -75,17 +75,28 @@ const ROLE_LABEL: Record<string, { en: string; sw: string }> = {
   T_vendor: { en: 'Vendor', sw: 'Muuzaji' },
 }
 
+/**
+ * Single-language relative-time suffix per locale (a data-field pick, no inline
+ * bilingual copy). `{{n}}` is the magnitude + unit. One language per locale.
+ */
+const RELATIVE_TIME_SUFFIX: Readonly<Record<'en' | 'sw', string>> = {
+  en: '{{n}} ago',
+  sw: '{{n}} zilizopita',
+}
+
 function relativeTime(iso: string, lang: 'en' | 'sw'): string {
   const then = new Date(iso).getTime()
   const now = Date.now()
+  const fmt = (value: string): string =>
+    RELATIVE_TIME_SUFFIX[lang].replace('{{n}}', value)
   const diffSec = Math.max(0, Math.floor((now - then) / 1000))
-  if (diffSec < 60) return lang === 'sw' ? `${diffSec}s zilizopita` : `${diffSec}s ago`
+  if (diffSec < 60) return fmt(`${diffSec}s`)
   const diffMin = Math.floor(diffSec / 60)
-  if (diffMin < 60) return lang === 'sw' ? `${diffMin}m zilizopita` : `${diffMin}m ago`
+  if (diffMin < 60) return fmt(`${diffMin}m`)
   const diffHr = Math.floor(diffMin / 60)
-  if (diffHr < 24) return lang === 'sw' ? `${diffHr}h zilizopita` : `${diffHr}h ago`
+  if (diffHr < 24) return fmt(`${diffHr}h`)
   const diffDay = Math.floor(diffHr / 24)
-  return lang === 'sw' ? `${diffDay}d zilizopita` : `${diffDay}d ago`
+  return fmt(`${diffDay}d`)
 }
 
 export function HandoffCard({

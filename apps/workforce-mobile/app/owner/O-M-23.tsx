@@ -323,7 +323,9 @@ function SettingsAndBilling(): JSX.Element {
   const multiTenant = isTrue(branding?.multiTenant, true)
   const brandLock = isTrue(branding?.brandLock, true)
   const tzsPrimary = (branding?.primaryCurrency ?? 'TZS').toUpperCase() === 'TZS'
-  const swFirst = (branding?.defaultLang ?? 'sw') === 'sw'
+  // English is the default when a tenant has not configured a branding
+  // default language (CLAUDE.md "English default · bilingual sw/en").
+  const swFirst = (branding?.defaultLang ?? 'en') === 'sw'
 
   const flipBranding = (key: keyof BrandingPayload, value: unknown): void => {
     updateBranding.mutate({ [key]: value } as BrandingPayload)

@@ -11,6 +11,7 @@ import { ApiError } from '../../src/api/errors'
 import { useOnlineStatus } from '../../src/offline/useOnlineStatus'
 import { useAuth } from '../../src/auth/useAuth'
 import { useI18n } from '../../src/i18n/useI18n'
+import { localizeApiError } from '@borjie/error-catalog'
 import { documentStatusLabel } from '../../src/i18n/enumLabels'
 import { enqueueWrite } from '../../src/sync/queue'
 import { colors } from '../../src/theme/colors'
@@ -64,7 +65,7 @@ export default function Screen(): JSX.Element {
 
 function DocumentSigning(): JSX.Element {
   const { user } = useAuth()
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const { online } = useOnlineStatus()
   const queryClient = useQueryClient()
   const [docId, setDocId] = useState<string>('')
@@ -178,7 +179,9 @@ function DocumentSigning(): JSX.Element {
         {!online ? <PreviewBanner kind="offline" /> : null}
         {notFound ? <Text style={styles.errorText}>Hati haijapatikana kwenye seva.</Text> : null}
         {submitError && !networkError && !notFound ? (
-          <Text style={styles.errorText}>{COPY.errorPrefix}{submitError.message}</Text>
+          <Text style={styles.errorText}>
+            {localizeApiError(submitError.code, lang)}
+          </Text>
         ) : null}
       </Section>
     </View>

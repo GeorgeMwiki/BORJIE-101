@@ -101,6 +101,15 @@ export function buildPayslipRows(data: PayslipData, lang: Lang): PayslipRow[] {
     }))
 }
 
+/**
+ * Single-language default net-label per locale (a data-field pick), used only
+ * when the response omits the `netTzs` label. One language per active locale.
+ */
+const DEFAULT_NET_LABEL: Readonly<Record<Lang, string>> = {
+  sw: 'Jumla utakayopokea',
+  en: 'You will receive',
+}
+
 /** Build the net (you-will-receive) hero values for the given language. */
 export function buildNet(
   data: PayslipData,
@@ -111,9 +120,7 @@ export function buildNet(
     ? lang === 'sw'
       ? netLabelDef.sw
       : netLabelDef.en
-    : lang === 'sw'
-      ? 'Jumla utakayopokea'
-      : 'You will receive'
+    : DEFAULT_NET_LABEL[lang]
   return {
     label,
     value: formatCurrency(data.lineItem.netTzs, data.currencyCode),
