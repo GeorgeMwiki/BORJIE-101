@@ -423,7 +423,9 @@ export function CapacityExpansionPanel({
                       {fmtPayback(o.paybackYears)}
                     </TableCell>
                     <TableCell className="font-mono text-muted-foreground">
-                      {Math.round(o.totalIncrementalTonnes).toLocaleString()}
+                      {Math.round(o.totalIncrementalTonnes).toLocaleString(
+                        bcp47For(locale),
+                      )}
                     </TableCell>
                     <TableCell className="font-mono text-muted-foreground">
                       {fmtMoney(o.upfrontCapex)}

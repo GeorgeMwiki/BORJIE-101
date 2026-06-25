@@ -21,6 +21,7 @@ import { RoleGuard } from '../../src/components/RoleGuard'
 import { Button } from '../../src/forms/Button'
 import { useI18n } from '../../src/i18n/useI18n'
 import { ApiError } from '../../src/api/errors'
+import { localizeApiError } from '@borjie/error-catalog'
 import {
   listPendingCandidates,
   reviewCandidate,
@@ -44,8 +45,8 @@ export default function OnboardingQueueScreen(): JSX.Element {
 }
 
 function QueueView(): JSX.Element {
-  const { lang } = useI18n()
-  const isSw = lang === 'sw'
+  const { lang, t } = useI18n()
+  const copy = t.managerOnboarding
   const queryClient = useQueryClient()
 
   const queue = useQuery<ReadonlyArray<PendingCandidate>, ApiError>({
@@ -70,28 +71,21 @@ function QueueView(): JSX.Element {
 
   return (
     <View style={styles.root}>
-      <Text style={styles.title}>
-        {isSw ? 'Wagombea wapya' : 'New candidates'}
-      </Text>
-      <Text style={styles.subtitle}>
-        {isSw
-          ? 'Wakubali au wakatae wagombea ili wapate hisa za kazi.'
-          : 'Approve or reject candidates so they can join shifts.'}
-      </Text>
+      <Text style={styles.title}>{copy.title}</Text>
+      <Text style={styles.subtitle}>{copy.subtitle}</Text>
 
       {review.isError ? (
         <View style={styles.errorBox}>
           <Text style={styles.errorText}>
-            {review.error instanceof Error
-              ? review.error.message
-              : isSw
-                ? 'Hatua imeshindwa'
-                : 'Review failed'}
+            {localizeApiError(
+              review.error instanceof ApiError ? review.error.code : undefined,
+              lang,
+            )}
           </Text>
         </View>
       ) : null}
 
-      <Section title={isSw ? 'Foleni ya idhini' : 'Approval queue'}>
+      <Section title={copy.queueTitle}>
         {queue.isLoading ? (
           <View style={styles.loadingBox}>
             <ActivityIndicator color={colors.text} />
@@ -99,24 +93,19 @@ function QueueView(): JSX.Element {
         ) : queue.isError ? (
           <View style={styles.errorBox}>
             <Text style={styles.errorText}>
-              {queue.error instanceof Error
-                ? queue.error.message
-                : isSw
-                  ? 'Imeshindwa kupakia wagombea'
-                  : 'Failed to load candidates'}
+              {localizeApiError(
+                queue.error instanceof ApiError ? queue.error.code : undefined,
+                lang,
+              )}
             </Text>
             <Button
-              label={isSw ? 'Jaribu tena' : 'Retry'}
+              label={copy.retry}
               onPress={() => void queue.refetch()}
               variant="ghost"
             />
           </View>
         ) : candidates.length === 0 ? (
-          <Text style={styles.empty}>
-            {isSw
-              ? 'Hakuna wagombea kwa sasa.'
-              : 'No candidates waiting right now.'}
-          </Text>
+          <Text style={styles.empty}>{copy.empty}</Text>
         ) : (
           candidates.map((candidate) => {
             const busy = reviewing && pendingId === candidate.id
@@ -130,7 +119,7 @@ function QueueView(): JSX.Element {
                 </View>
                 <View style={styles.actions}>
                   <Button
-                    label={isSw ? 'Kataa' : 'Reject'}
+                    label={copy.reject}
                     onPress={() =>
                       review.mutate({
                         openingId: candidate.openingId,
@@ -142,7 +131,7 @@ function QueueView(): JSX.Element {
                     disabled={busy}
                   />
                   <Button
-                    label={isSw ? 'Kubali' : 'Approve'}
+                    label={copy.approve}
                     onPress={() =>
                       review.mutate({
                         openingId: candidate.openingId,

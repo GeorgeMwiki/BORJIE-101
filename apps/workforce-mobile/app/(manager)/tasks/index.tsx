@@ -17,7 +17,9 @@ import { RoleGuard } from '../../../src/components/RoleGuard'
 import { useManagerOpenTasks } from '../../../src/manager/useManagerTasks'
 import { useI18n } from '../../../src/i18n/useI18n'
 import type { StringDict } from '../../../src/i18n'
+import type { Lang } from '../../../src/auth/types'
 import { taskStatusLabel } from '../../../src/i18n/enumLabels'
+import { pickByLocale } from '../../../src/i18n/pickByLocale'
 import { colors } from '../../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../../src/theme/spacing'
 
@@ -34,45 +36,28 @@ export default function ManagerTasksScreen(): JSX.Element {
 function ManagerTasksView(): JSX.Element {
   const tasksQuery = useManagerOpenTasks()
   const { lang, t } = useI18n()
-  const isSw = lang === 'sw'
+  const copy = t.managerTasks
 
   const tasks = tasksQuery.data ?? []
-  const rfbTasks = tasks.filter((t) => t.kind === 'rfb_fulfill')
-  const standardTasks = tasks.filter((t) => t.kind !== 'rfb_fulfill')
+  const rfbTasks = tasks.filter((task) => task.kind === 'rfb_fulfill')
+  const standardTasks = tasks.filter((task) => task.kind !== 'rfb_fulfill')
 
   return (
     <ScreenShell screenId={SCREEN_ID}>
-      <Section
-        title={isSw ? 'RFB za wanunuzi' : 'Buyer RFB tasks'}
-        hint={
-          isSw
-            ? 'Kazi zinazotokana na RFB za wanunuzi — zinapaswa kupewa wafanyakazi.'
-            : 'Tasks dispatched from buyer RFBs — assign these to workers first.'
-        }
-      >
+      <Section title={copy.rfbTitle} hint={copy.rfbHint}>
         {tasksQuery.isPending ? (
-          <Text style={styles.empty}>
-            {isSw ? 'Inapakia kazi…' : 'Loading tasks…'}
-          </Text>
+          <Text style={styles.empty}>{copy.loading}</Text>
         ) : tasksQuery.isError ? (
-          <Text style={styles.error}>
-            {isSw
-              ? 'Imeshindwa kupakia kazi.'
-              : 'Failed to load tasks.'}
-          </Text>
+          <Text style={styles.error}>{copy.loadFailed}</Text>
         ) : rfbTasks.length === 0 ? (
-          <Text style={styles.empty}>
-            {isSw
-              ? 'Hakuna kazi za RFB kwa sasa.'
-              : 'No RFB tasks right now.'}
-          </Text>
+          <Text style={styles.empty}>{copy.rfbEmpty}</Text>
         ) : (
           <View style={styles.list}>
             {rfbTasks.map((task) => (
               <TaskCard
                 key={task.id}
                 task={task}
-                isSw={isSw}
+                lang={lang}
                 t={t}
                 accent={colors.gold}
               />
@@ -81,24 +66,13 @@ function ManagerTasksView(): JSX.Element {
         )}
       </Section>
 
-      <Section
-        title={isSw ? 'Kazi za kawaida' : 'Standard tasks'}
-        hint={
-          isSw
-            ? 'Kazi za kawaida zinazohitaji msimamizi kupanga.'
-            : 'Standard ops tasks needing dispatch.'
-        }
-      >
+      <Section title={copy.standardTitle} hint={copy.standardHint}>
         {standardTasks.length === 0 ? (
-          <Text style={styles.empty}>
-            {isSw
-              ? 'Hakuna kazi za kawaida zinazosubiri.'
-              : 'No standard tasks awaiting assignment.'}
-          </Text>
+          <Text style={styles.empty}>{copy.standardEmpty}</Text>
         ) : (
           <View style={styles.list}>
             {standardTasks.map((task) => (
-              <TaskCard key={task.id} task={task} isSw={isSw} t={t} />
+              <TaskCard key={task.id} task={task} lang={lang} t={t} />
             ))}
           </View>
         )}
@@ -113,13 +87,19 @@ interface TaskCardProps {
     | undefined
     ? T
     : never
-  readonly isSw: boolean
+  readonly lang: Lang
   readonly t: StringDict
   readonly accent?: string
 }
 
-function TaskCard({ task, isSw, t, accent }: TaskCardProps): JSX.Element {
-  const title = isSw ? task.titleSw : task.titleEn ?? task.titleSw
+function TaskCard({ task, lang, t, accent }: TaskCardProps): JSX.Element {
+  const copy = t.managerTasks
+  // Active-locale title; null active-locale value renders the placeholder,
+  // NEVER the other language (no `titleEn ?? titleSw` cross-fallback).
+  const title = pickByLocale(
+    { en: task.titleEn ?? '', sw: task.titleSw ?? '' },
+    lang
+  )
   return (
     <Link href={`/(manager)/tasks/${task.id}/assign`} asChild>
       <Pressable
@@ -129,9 +109,7 @@ function TaskCard({ task, isSw, t, accent }: TaskCardProps): JSX.Element {
           pressed ? styles.cardPressed : null,
         ]}
         accessibilityRole="button"
-        accessibilityLabel={
-          isSw ? `Panga kazi: ${title}` : `Assign task: ${title}`
-        }
+        accessibilityLabel={copy.assignA11y.replace('{{title}}', title)}
       >
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle} numberOfLines={2}>
@@ -145,17 +123,15 @@ function TaskCard({ task, isSw, t, accent }: TaskCardProps): JSX.Element {
         </View>
         <View style={styles.cardMeta}>
           <Text style={styles.cardMetaText}>
-            {isSw ? 'Hali:' : 'Status:'} {taskStatusLabel(task.status, t)}
+            {copy.statusLabel} {taskStatusLabel(task.status, t)}
           </Text>
           {task.assignedToUserId ? (
             <Text style={styles.cardMetaText}>
-              {isSw ? 'Mfanyakazi:' : 'Worker:'}{' '}
+              {copy.workerLabel}{' '}
               {task.assignedToUserId.slice(0, 8)}…
             </Text>
           ) : (
-            <Text style={styles.cardMetaText}>
-              {isSw ? 'Haijapangwa' : 'Unassigned'}
-            </Text>
+            <Text style={styles.cardMetaText}>{copy.unassigned}</Text>
           )}
         </View>
       </Pressable>

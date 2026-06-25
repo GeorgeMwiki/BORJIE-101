@@ -12,6 +12,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Send, Square, Paperclip } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import { VoiceMicButton } from '@/components/voice/VoiceMicButton';
 import { pickByLocale } from '@/lib/locale';
 import { askComposerStrings as S } from '@/i18n/strings/ask-composer';
@@ -177,7 +178,7 @@ export function AskComposer({
             disabled={Boolean(busy || disabled)}
             aria-label={attachLabel ?? 'Attach a file'}
             data-testid="ask-composer-attach"
-            className="inline-flex items-center justify-center rounded-md border border-border bg-surface/40 p-2 text-neutral-400 transition-colors hover:bg-surface/70 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center justify-center rounded-md border border-border bg-surface/40 p-2 text-neutral-400 transition-colors hover:bg-surface/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Paperclip className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -218,21 +219,28 @@ export function AskComposer({
           onClick={onAbort}
           aria-label={pickByLocale(voiceLocale ?? 'en', S.stopAria)}
           data-testid="ask-composer-stop"
-          className="inline-flex items-center gap-1 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive hover:bg-destructive/20"
+          className="inline-flex items-center gap-1 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive hover:bg-destructive/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           <Square className="h-4 w-4" aria-hidden="true" />{' '}
           {pickByLocale(voiceLocale ?? 'en', S.stop)}
         </button>
       ) : (
-        <button
+        // DS Button variant="warning" pairs bg-warning with warning-foreground
+        // (AA-safe ≥4.5:1 in BOTH token sets) and carries the design-system
+        // focus-visible:ring-2 ring-ring ring-offset-2 — replacing the old
+        // bg-warning-subtle/text-warning pairing that failed WCAG 1.4.3 (~2.4:1)
+        // and had no focus ring.
+        <Button
           type="submit"
+          variant="warning"
+          size="sm"
           aria-label={pickByLocale(voiceLocale ?? 'en', S.sendAria)}
           disabled={busy || disabled}
-          className="inline-flex items-center gap-1 rounded-md border border-warning bg-warning-subtle/30 px-3 py-2 text-sm text-warning hover:bg-warning-subtle/50 disabled:cursor-not-allowed disabled:opacity-50"
+          leftIcon={<Send className="h-4 w-4" aria-hidden="true" />}
+          data-testid="ask-composer-send"
         >
-          <Send className="h-4 w-4" aria-hidden="true" />{' '}
           {pickByLocale(voiceLocale ?? 'en', S.send)}
-        </button>
+        </Button>
       )}
     </form>
   );

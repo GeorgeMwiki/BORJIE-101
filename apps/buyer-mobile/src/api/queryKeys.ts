@@ -7,6 +7,10 @@ export const queryKeys = {
   marketplaceSellers: () => ['marketplace-sellers'] as const,
   bids: () => ['bids'] as const,
   bid: (id: string) => ['bid', id] as const,
+  // Offtake completion-law — the buyer's binding offtake contracts (the
+  // complementary leg materialized when a seller accepts a bid).
+  offtakeAgreements: () => ['offtake-agreements', 'mine'] as const,
+  offtakeForBid: (bidId: string) => ['offtake-for-bid', bidId] as const,
   documents: () => ['documents'] as const,
   document: (id: string) => ['document', id] as const,
   kycStatus: (id: string) => ['kyc-status', id] as const,

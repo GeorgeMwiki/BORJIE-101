@@ -1,6 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native'
 import { useAuth } from '../auth/useAuth'
 import { useI18n } from '../i18n/useI18n'
+import { pickStrings } from '../i18n'
+import { pickByLocale } from '../i18n/pickByLocale'
 import { useOnlineStatus } from '../offline/useOnlineStatus'
 import { useQueueSize } from '../sync/useQueueSize'
 import { PerformanceSnapshot } from '../home/employee/PerformanceSnapshot'
@@ -38,7 +40,8 @@ import { fontSize, radius, spacing } from '../theme/spacing'
  */
 export function EmployeeDashboard(): JSX.Element {
   const { user } = useAuth()
-  const { lang } = useI18n()
+  const { lang, t } = useI18n()
+  const copy = t.employeeDashboard
   const { online } = useOnlineStatus()
   const userId = user?.id ?? null
 
@@ -65,7 +68,7 @@ export function EmployeeDashboard(): JSX.Element {
         error={toolboxQuery.error ?? null}
         lang={lang}
       />
-      <Section title={lang === 'sw' ? 'Kazi za leo' : "Today's tasks"}>
+      <Section title={copy.todaysTasks}>
         <TodayTasks
           tasks={tasksQuery.data}
           loading={tasksQuery.isLoading}
@@ -80,7 +83,7 @@ export function EmployeeDashboard(): JSX.Element {
         error={alertsQuery.error ?? null}
         lang={lang}
       />
-      <Section title={lang === 'sw' ? 'Takwimu zako' : 'Your performance'}>
+      <Section title={copy.performance}>
         <PerformanceSnapshot
           data={perfQuery.data}
           loading={perfQuery.isLoading}
@@ -108,11 +111,12 @@ interface SafetyBriefingProps {
 }
 
 function SafetyBriefingSlot({ talk, loading, error, lang }: SafetyBriefingProps): JSX.Element {
-  const title = lang === 'sw' ? 'Mada ya usalama (Toolbox)' : 'Safety briefing (Toolbox)'
+  const copy = pickStrings(lang).employeeDashboard
+  const title = copy.safetyTitle
   if (loading) {
     return (
       <Section title={title}>
-        <Text style={styles.muted}>{lang === 'sw' ? 'Inapakia…' : 'Loading…'}</Text>
+        <Text style={styles.muted}>{copy.loading}</Text>
       </Section>
     )
   }
@@ -132,14 +136,15 @@ function SafetyBriefingSlot({ talk, loading, error, lang }: SafetyBriefingProps)
   }
   const acknowledged = talk.acknowledgedAtIso !== null
   const tone = acknowledged ? colors.success : colors.warn
-  const statusLabel = acknowledged
-    ? lang === 'sw' ? 'Imesainiwa' : 'Acknowledged'
-    : lang === 'sw' ? 'Inahitaji saini' : 'Awaiting acknowledgement'
+  const statusLabel = acknowledged ? copy.acknowledged : copy.awaitingAck
   return (
     <Section title={title}>
       <View style={[styles.toolbox, { borderLeftColor: tone }]}>
         <Text style={styles.toolboxTitle}>
-          {lang === 'sw' ? talk.titleSw : talk.titleEn}
+          {pickByLocale(
+            { en: talk.titleEn ?? '', sw: talk.titleSw ?? '' },
+            lang
+          )}
         </Text>
         <Text style={[styles.toolboxStatus, { color: tone }]}>{statusLabel}</Text>
       </View>
@@ -155,11 +160,12 @@ interface ActiveAlertsProps {
 }
 
 function ActiveAlertsSlot({ alerts, loading, error, lang }: ActiveAlertsProps): JSX.Element {
-  const title = lang === 'sw' ? 'Arifa za sasa' : 'Active alerts'
+  const copy = pickStrings(lang).employeeDashboard
+  const title = copy.alertsTitle
   if (loading) {
     return (
       <Section title={title}>
-        <Text style={styles.muted}>{lang === 'sw' ? 'Inapakia…' : 'Loading…'}</Text>
+        <Text style={styles.muted}>{copy.loading}</Text>
       </Section>
     )
   }
@@ -173,9 +179,7 @@ function ActiveAlertsSlot({ alerts, loading, error, lang }: ActiveAlertsProps): 
   if (alerts.length === 0) {
     return (
       <Section title={title}>
-        <Text style={styles.muted}>
-          {lang === 'sw' ? 'Hakuna arifa. Endelea kazi salama.' : 'No alerts. Stay safe out there.'}
-        </Text>
+        <Text style={styles.muted}>{copy.noAlerts}</Text>
       </Section>
     )
   }
@@ -212,11 +216,12 @@ interface NextStepCoachProps {
 }
 
 function NextStepCoachSlot({ coach, loading, error, lang }: NextStepCoachProps): JSX.Element {
-  const title = lang === 'sw' ? 'Hatua inayofuata · Borjie' : 'Next-step coach · Borjie'
+  const copy = pickStrings(lang).employeeDashboard
+  const title = copy.coachTitle
   if (loading) {
     return (
       <Section title={title}>
-        <Text style={styles.muted}>{lang === 'sw' ? 'Borjie inafikiri…' : 'Borjie is thinking…'}</Text>
+        <Text style={styles.muted}>{copy.coachThinking}</Text>
       </Section>
     )
   }
@@ -235,9 +240,10 @@ function NextStepCoachSlot({ coach, loading, error, lang }: NextStepCoachProps):
     )
   }
   const text = lang === 'sw' ? coach.suggestionSw : coach.suggestionEn
-  const evidence = lang === 'sw'
-    ? `Ushahidi ${coach.evidenceIds.length}`
-    : `Evidence ${coach.evidenceIds.length}`
+  const evidence = copy.evidence.replace(
+    '{{count}}',
+    String(coach.evidenceIds.length),
+  )
   return (
     <Section title={title}>
       <View style={styles.coach}>
@@ -249,10 +255,14 @@ function NextStepCoachSlot({ coach, loading, error, lang }: NextStepCoachProps):
 }
 
 function QuickActionsSlot({ lang }: { readonly lang: 'sw' | 'en' }): JSX.Element {
-  const title = lang === 'sw' ? 'Vitendo vya haraka' : 'Quick actions'
-  const labels = lang === 'sw'
-    ? ['Ripoti tukio', 'Kumbukumbu ya mafuta', 'Uliza msimamizi', 'Toa risiti ya PPE']
-    : ['Log incident', 'Log fuel', 'Ask supervisor', 'PPE receipt']
+  const copy = pickStrings(lang).employeeDashboard
+  const title = copy.quickActionsTitle
+  const labels = [
+    copy.actionLogIncident,
+    copy.actionLogFuel,
+    copy.actionAskSupervisor,
+    copy.actionPpeReceipt,
+  ]
   return (
     <Section title={title}>
       <View style={styles.actionsRow}>
@@ -274,13 +284,10 @@ function SyncStatusSlot({
   readonly lang: 'sw' | 'en'
 }): JSX.Element {
   const queueSize = useQueueSize()
-  const title = lang === 'sw' ? 'Hali ya sync' : 'Sync status'
-  const connectivityLabel = online
-    ? lang === 'sw' ? 'Mtandaoni' : 'Online'
-    : lang === 'sw' ? 'Nje ya mtandao' : 'Offline'
-  const queueLabel = lang === 'sw'
-    ? `Foleni: ${queueSize}`
-    : `Queue: ${queueSize}`
+  const copy = pickStrings(lang).employeeDashboard
+  const title = copy.syncTitle
+  const connectivityLabel = online ? copy.online : copy.offline
+  const queueLabel = copy.queue.replace('{{count}}', String(queueSize))
   const tone = online ? colors.success : colors.warn
   return (
     <Section title={title}>

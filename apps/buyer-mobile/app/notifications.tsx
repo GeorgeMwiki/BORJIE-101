@@ -41,6 +41,12 @@ import {
 } from '@/api/notifications'
 import { queryKeys } from '@/api/queryKeys'
 
+/** Safely read a `bidId` string from a notification payload bag. */
+function readPayloadBidId(payload: Record<string, unknown>): string | null {
+  const value = payload.bidId
+  return typeof value === 'string' && value.length > 0 ? value : null
+}
+
 export default function NotificationsScreen(): JSX.Element {
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -83,6 +89,16 @@ export default function NotificationsScreen(): JSX.Element {
           ? `?responseId=${encodeURIComponent(row.response_id)}`
           : ''
         router.push(`/rfb/${row.rfb_id}/sign-delivery${query}`)
+        return
+      }
+      // COMPLETION-LAW: a `bid_accepted` notification carries the bid id in its
+      // payload. Deep-link to the bid detail, where the buyer's mirror of the
+      // now-binding offtake contract is surfaced.
+      if (row.kind === 'bid_accepted') {
+        const bidId = readPayloadBidId(row.payload)
+        if (bidId) {
+          router.push(`/bids/${bidId}`)
+        }
       }
     },
     [markRead, router],

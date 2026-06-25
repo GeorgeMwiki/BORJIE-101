@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native'
 import { colors } from '../../theme/colors'
 import { fontSize, radius, spacing } from '../../theme/spacing'
+import { pickStrings } from '../../i18n'
 import { classifyDelta, formatDelta, formatTonnes } from './format'
 import type { ProductionPillar } from './types'
 
@@ -16,16 +17,13 @@ export interface ProductionVsTargetProps {
  * remain accessible read-only summaries with explicit status text.
  */
 export function ProductionVsTarget({ production, lang }: ProductionVsTargetProps): JSX.Element {
+  const copy = pickStrings(lang).ownerDashboard
   const sites = production.perSite
   return (
     <View testID="owner-home-production" style={styles.wrap}>
-      <Text style={styles.header}>
-        {lang === 'sw' ? 'Uzalishaji kwa mgodi' : 'Production by site'}
-      </Text>
+      <Text style={styles.header}>{copy.productionBySite}</Text>
       {sites.length === 0 ? (
-        <Text style={styles.empty}>
-          {lang === 'sw' ? 'Hakuna shifti zilizoripotiwa.' : 'No shifts reported yet.'}
-        </Text>
+        <Text style={styles.empty}>{copy.noShiftsReported}</Text>
       ) : (
         sites.map((site) => {
           const delta = site.target > 0 ? ((site.tonnes - site.target) / site.target) * 100 : 0
@@ -44,7 +42,7 @@ export function ProductionVsTarget({ production, lang }: ProductionVsTargetProps
               <View style={styles.rowMeta}>
                 <Text style={[styles.delta, deltaTone(status)]}>{formatDelta(delta)}</Text>
                 <Text style={styles.target}>
-                  {lang === 'sw' ? 'Lengo' : 'Target'}: {formatTonnes(site.target)}
+                  {copy.target}: {formatTonnes(site.target)}
                 </Text>
               </View>
             </View>

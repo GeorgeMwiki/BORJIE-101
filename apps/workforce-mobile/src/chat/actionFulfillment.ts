@@ -77,10 +77,20 @@ export function interpretResult(
 }
 
 /**
+ * Single-language fulfillment-turn template per locale (a data-field pick, no
+ * inline bilingual copy). `{{phrase}}` is the verb+target. One language per
+ * active locale; never both.
+ */
+const FULFILLMENT_TURN_TEMPLATE: Readonly<Record<'sw' | 'en', string>> = {
+  sw: 'Tafadhali kamilisha kitendo: {{phrase}}',
+  en: 'Please carry out this action: {{phrase}}',
+}
+
+/**
  * Build the structured fulfillment turn sent to the brain when an action
  * defers (`deferToBrain`). Phrasing the action + its params as a plain
  * turn lets the brain that emitted the dynamic verb fulfill it
- * agentically. Bilingual per the CLAUDE.md single-language rule.
+ * agentically. Single language per the active locale (CLAUDE.md).
  */
 export function buildFulfillmentTurn(
   verb: string,
@@ -92,7 +102,5 @@ export function buildFulfillmentTurn(
       ? String(params['object'])
       : ''
   const verbPhrase = target.length > 0 ? `${verb} ${target}` : verb
-  return lang === 'sw'
-    ? `Tafadhali kamilisha kitendo: ${verbPhrase}`
-    : `Please carry out this action: ${verbPhrase}`
+  return FULFILLMENT_TURN_TEMPLATE[lang].replace('{{phrase}}', verbPhrase)
 }

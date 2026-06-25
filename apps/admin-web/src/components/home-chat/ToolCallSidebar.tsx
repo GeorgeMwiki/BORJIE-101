@@ -18,6 +18,11 @@ import { pickByLocale, type Locale } from '@/lib/locale-shared';
  *      junior it normally triggers — so first-time HQ users learn the
  *      surface without reading docs.
  *
+ * Every rendered string is routed through `pickByLocale` so the panel never
+ * leaves English prose under the `sw` chrome. The raw diagnostic HANDLES it
+ * surfaces — evidence ids, latency numbers, orchestrator/junior class names —
+ * are locale-neutral machine tokens rendered verbatim, never translated.
+ *
  * Pure presentational. State is owned by the parent HomeChat component.
  */
 
@@ -34,15 +39,43 @@ interface ToolCallSidebarProps {
   readonly locale?: Locale;
 }
 
+const S = {
+  ariaLabel: {
+    en: 'Admin tool calls and evidence',
+    sw: 'Miito ya zana na ushahidi wa msimamizi',
+  },
+  latestJuniors: { en: 'Latest juniors', sw: 'Wasaidizi wa hivi karibuni' },
+  latestJuniorsHint: {
+    en: 'Which orchestrator tools answered the last turn.',
+    sw: 'Ni zana zipi za mratibu zilizojibu zamu ya mwisho.',
+  },
+  dispatching: { en: 'Brain is dispatching…', sw: 'Ubongo unatuma…' },
+  noToolCalls: {
+    en: 'No tool calls yet. Send a prompt to spin up juniors.',
+    sw: 'Bado hakuna miito ya zana. Tuma agizo kuanzisha wasaidizi.',
+  },
+  evidenceTitle: { en: 'Evidence / citations', sw: 'Ushahidi / manukuu' },
+  evidenceHint: {
+    en: 'Chunk ids returned by the corpus. Admin sees raw handles.',
+    sw: 'Vitambulisho vya vipande vilivyorejeshwa na kanzidata. Msimamizi huona vitambulisho ghafi.',
+  },
+  noCitations: { en: 'None on this turn.', sw: 'Hakuna katika zamu hii.' },
+  routingTitle: { en: 'Routing legend', sw: 'Ufafanuzi wa uelekezaji' },
+  legendTenants: { en: 'Tenants / signups', sw: 'Wateja / usajili' },
+  legendKillSwitch: { en: 'Kill-switch / policy', sw: 'Swichi-ya-kuzima / sera' },
+  legendSentry: { en: 'Sentry / health', sw: 'Sentry / afya' },
+  legendAudit: { en: 'Audit chain', sw: 'Mnyororo wa ukaguzi' },
+} as const;
+
 const ROUTING_LEGEND: ReadonlyArray<{
   readonly icon: typeof Database;
-  readonly label: string;
+  readonly label: keyof typeof S;
   readonly junior: string;
 }> = [
-  { icon: Database, label: 'Tenants / signups', junior: 'TenantDirectory' },
-  { icon: Shield, label: 'Kill-switch / policy', junior: 'PolicyGate' },
-  { icon: Activity, label: 'Sentry / health', junior: 'Observability' },
-  { icon: Wrench, label: 'Audit chain', junior: 'AuditLedger' },
+  { icon: Database, label: 'legendTenants', junior: 'TenantDirectory' },
+  { icon: Shield, label: 'legendKillSwitch', junior: 'PolicyGate' },
+  { icon: Activity, label: 'legendSentry', junior: 'Observability' },
+  { icon: Wrench, label: 'legendAudit', junior: 'AuditLedger' },
 ];
 
 export function ToolCallSidebar({
@@ -55,17 +88,14 @@ export function ToolCallSidebar({
     <aside
       data-testid="home-chat-sidebar"
       className="hidden w-thread-medium shrink-0 flex-col gap-6 overflow-y-auto border-l border-border bg-surface/30 px-5 py-6 lg:flex"
-      aria-label={pickByLocale(locale, {
-        en: 'Admin tool calls and evidence',
-        sw: 'Miito ya zana na ushahidi wa msimamizi',
-      })}
+      aria-label={pickByLocale(locale, S.ariaLabel)}
     >
       <section>
         <h2 className="text-caption uppercase tracking-widest text-neutral-500">
-          Latest juniors
+          {pickByLocale(locale, S.latestJuniors)}
         </h2>
         <p className="mt-1 text-tiny text-neutral-500">
-          Which orchestrator tools answered the last turn.
+          {pickByLocale(locale, S.latestJuniorsHint)}
         </p>
         <ul
           className="mt-3 space-y-2"
@@ -74,8 +104,8 @@ export function ToolCallSidebar({
           {toolCalls.length === 0 ? (
             <li className="rounded border border-dashed border-border bg-surface/40 px-3 py-2 text-xs text-neutral-500">
               {isStreaming
-                ? 'Brain is dispatching…'
-                : 'No tool calls yet. Send a prompt to spin up juniors.'}
+                ? pickByLocale(locale, S.dispatching)
+                : pickByLocale(locale, S.noToolCalls)}
             </li>
           ) : (
             toolCalls.map((call, i) => (
@@ -120,10 +150,10 @@ export function ToolCallSidebar({
 
       <section>
         <h2 className="text-caption uppercase tracking-widest text-neutral-500">
-          Evidence / citations
+          {pickByLocale(locale, S.evidenceTitle)}
         </h2>
         <p className="mt-1 text-tiny text-neutral-500">
-          Chunk ids returned by the corpus. Admin sees raw handles.
+          {pickByLocale(locale, S.evidenceHint)}
         </p>
         <ul
           className="mt-3 space-y-1"
@@ -131,7 +161,7 @@ export function ToolCallSidebar({
         >
           {citations.length === 0 ? (
             <li className="rounded border border-dashed border-border bg-surface/40 px-3 py-2 text-xs text-neutral-500">
-              None on this turn.
+              {pickByLocale(locale, S.noCitations)}
             </li>
           ) : (
             citations.slice(0, 8).map((citation) => (
@@ -155,7 +185,7 @@ export function ToolCallSidebar({
 
       <section>
         <h2 className="text-caption uppercase tracking-widest text-neutral-500">
-          Routing legend
+          {pickByLocale(locale, S.routingTitle)}
         </h2>
         <ul className="mt-3 space-y-2">
           {ROUTING_LEGEND.map((item) => {
@@ -169,7 +199,7 @@ export function ToolCallSidebar({
                   className="h-3.5 w-3.5 text-signal-500"
                   aria-hidden="true"
                 />
-                <span className="flex-1">{item.label}</span>
+                <span className="flex-1">{pickByLocale(locale, S[item.label])}</span>
                 <code className="font-mono text-tiny text-neutral-500">
                   {item.junior}
                 </code>

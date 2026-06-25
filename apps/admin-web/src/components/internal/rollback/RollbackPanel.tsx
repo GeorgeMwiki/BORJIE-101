@@ -24,6 +24,11 @@ const S = {
   revertNow: { en: 'Revert now', sw: 'Rudisha sasa' },
   windowClosed: { en: 'Window closed', sw: 'Dirisha limefungwa' },
   revertTitle: { en: 'Revert promotion', sw: 'Rudisha upandishaji' },
+  revertBodyBefore: { en: 'Roll back ', sw: 'Rudisha ' },
+  revertBodyAfter: {
+    en: '? This will emit an audit event and notify the platform channel.',
+    sw: '? Hii itatoa tukio la ukaguzi na kuarifu chaneli ya jukwaa.',
+  },
   revertConfirm: { en: 'Revert', sw: 'Rudisha' },
   reverted: { en: 'reverted', sw: 'imerudishwa' },
   failed: { en: 'Failed', sw: 'Imeshindwa' },
@@ -111,8 +116,9 @@ export function RollbackPanel({
         body={
           target ? (
             <>
-              Roll back <strong className="text-foreground">{target.subject}</strong>? This will emit an audit event and
-              notify the platform channel.
+              {pickByLocale(locale, S.revertBodyBefore)}
+              <strong className="text-foreground">{target.subject}</strong>
+              {pickByLocale(locale, S.revertBodyAfter)}
             </>
           ) : null
         }

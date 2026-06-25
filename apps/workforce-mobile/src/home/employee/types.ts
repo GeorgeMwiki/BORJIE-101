@@ -24,8 +24,12 @@ export interface AttendanceShift {
 
 export interface WorkerTask {
   readonly id: string
-  readonly titleSw: string
-  readonly titleEn: string
+  // A locale title is null when the wire row carries no value for that
+  // language. Consumers MUST render the active-locale field (or a localized
+  // placeholder when null) — NEVER cross-fall-back to the other language
+  // (that is the mixing the canon forbids).
+  readonly titleSw: string | null
+  readonly titleEn: string | null
   readonly priority: TaskPriority
   readonly status: TaskStatus
   readonly dueAtIso: string | null
@@ -47,8 +51,10 @@ export interface PerformanceSnapshotData {
 
 export interface ToolboxTalk {
   readonly id: string
-  readonly titleSw: string
-  readonly titleEn: string
+  // Null when the wire row carries no value for that language — render the
+  // active-locale field or a localized placeholder, never the other language.
+  readonly titleSw: string | null
+  readonly titleEn: string | null
   readonly required: boolean
   readonly acknowledgedAtIso: string | null
 }

@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native'
 import { colors } from '../../theme/colors'
 import { fontSize, radius, spacing } from '../../theme/spacing'
+import { pickStrings } from '../../i18n'
 import { formatRecomputeMinutes } from './format'
 import type { OwnerBrief } from './types'
 
@@ -17,15 +18,15 @@ export interface AiDailyBriefProps {
  * via the existing chat-corpus-evidence flow (handled in later screens).
  */
 export function AiDailyBrief({ brief, lang }: AiDailyBriefProps): JSX.Element {
+  const copy = pickStrings(lang).ownerDashboard
   const text = lang === 'sw' ? brief.swText : brief.enText
   const minutesAgo = formatRecomputeMinutes(brief.generatedAtIso)
-  const recomputeLabel = lang === 'sw'
-    ? `Imeandaliwa dakika ${Number.isFinite(minutesAgo) ? minutesAgo : '—'} zilizopita`
-    : `Computed ${Number.isFinite(minutesAgo) ? minutesAgo : '—'} min ago`
+  const recomputeLabel = copy.computedMinAgo.replace(
+    '{{n}}',
+    Number.isFinite(minutesAgo) ? String(minutesAgo) : '—',
+  )
   const evidenceCount = brief.evidenceIds.length
-  const evidenceLabel = lang === 'sw'
-    ? `Ushahidi ${evidenceCount}`
-    : `Evidence ${evidenceCount}`
+  const evidenceLabel = copy.evidence.replace('{{count}}', String(evidenceCount))
 
   return (
     <View
@@ -34,7 +35,7 @@ export function AiDailyBrief({ brief, lang }: AiDailyBriefProps): JSX.Element {
       testID="owner-home-ai-brief"
       style={styles.wrap}
     >
-      <Text style={styles.header}>{lang === 'sw' ? 'Brief ya leo' : 'Daily brief'}</Text>
+      <Text style={styles.header}>{copy.dailyBrief}</Text>
       <Text style={styles.body}>{text}</Text>
       <View style={styles.footer}>
         <Text style={styles.meta}>{recomputeLabel}</Text>

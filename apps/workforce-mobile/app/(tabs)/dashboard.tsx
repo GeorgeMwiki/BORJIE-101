@@ -27,23 +27,19 @@ const SCREEN_ID = 'dashboard'
 export default function DashboardTab(): JSX.Element {
   const router = useRouter()
   const { user } = useAuth()
-  const { lang } = useI18n()
+  const { lang, t } = useI18n()
   const role = user?.role ?? 'employee'
   const firstName = (user?.fullName ?? '').split(' ')[0] ?? null
-  const eyebrow = lang === 'sw' ? 'Dashibodi · Borjie' : 'Operator dashboard'
-  const subtitle = role === 'owner'
-    ? lang === 'sw'
-      ? 'Hali ya mgodi wako kwa mtazamo mmoja: pesa, uzalishaji, leseni, na maamuzi.'
-      : 'Your mine at a glance — cash, production, licences, and decisions.'
-    : role === 'manager'
-      ? lang === 'sw'
-        ? 'Hali ya tovuti: timu, matukio na vifaa kwa wakati halisi.'
-        : 'Live site pulse: crew, incidents, equipment — in real time.'
-      : lang === 'sw'
-        ? 'Zamu yako leo: kazi, usalama na hatua inayofuata.'
-        : 'Your shift today: tasks, safety, and the next step.'
-  const primaryCtaLabel = lang === 'sw' ? 'Uliza Borjie' : 'Ask Borjie'
-  const secondaryCtaLabel = lang === 'sw' ? 'Ona ratiba' : 'View schedule'
+  const hero = t.dashboardHero
+  const eyebrow = hero.eyebrow
+  const subtitle =
+    role === 'owner'
+      ? hero.subtitleOwner
+      : role === 'manager'
+        ? hero.subtitleManager
+        : hero.subtitleEmployee
+  const primaryCtaLabel = hero.askCta
+  const secondaryCtaLabel = hero.scheduleCta
 
   return (
     <RoleGuard screenId={SCREEN_ID}>

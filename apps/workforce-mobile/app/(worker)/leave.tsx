@@ -18,6 +18,7 @@ import { Field } from '../../src/forms/Field'
 import { Dropdown } from '../../src/forms/Dropdown'
 import { miningApi } from '../../src/api/client'
 import { useI18n } from '../../src/i18n/useI18n'
+import { pickStrings } from '../../src/i18n'
 import {
   buildSubmitPayload,
   categoryLabel,
@@ -54,8 +55,8 @@ export default function LeaveScreen(): JSX.Element {
 }
 
 function LeaveView(): JSX.Element {
-  const { lang } = useI18n()
-  const isSw = lang === 'sw'
+  const { lang, t } = useI18n()
+  const copy = t.leaveScreen
 
   const [category, setCategory] = useState<LeaveCategory>('annual')
   const [startOn, setStartOn] = useState('')
@@ -85,14 +86,14 @@ function LeaveView(): JSX.Element {
         // Server responded but flagged failure — surface the error rather
         // than silently rendering the empty-state copy as if there are no
         // requests (which could prompt a duplicate submission).
-        setListError(isSw ? 'Imeshindwa kupakua maombi.' : 'Could not load requests.')
+        setListError(copy.loadFailed)
       }
     } catch {
       // Network / 5xx — surface an error state rather than showing
       // "no requests yet" which is indistinguishable from a real empty list.
-      setListError(isSw ? 'Imeshindwa kupakua maombi.' : 'Could not load requests.')
+      setListError(copy.loadFailed)
     }
-  }, [isSw])
+  }, [copy.loadFailed])
 
   useEffect(() => {
     void refresh()
@@ -115,47 +116,43 @@ function LeaveView(): JSX.Element {
         setCategory('annual')
         await refresh()
       } else {
-        setFormError(isSw ? 'Imeshindwa kutuma ombi.' : 'Could not submit the request.')
+        setFormError(copy.submitFailed)
       }
     } catch {
-      setFormError(isSw ? 'Imeshindwa kutuma ombi.' : 'Could not submit the request.')
+      setFormError(copy.submitFailed)
     } finally {
       setSubmitting(false)
     }
-  }, [category, startOn, endOn, reason, lang, isSw, refresh])
+  }, [category, startOn, endOn, reason, lang, copy.submitFailed, refresh])
 
   return (
     <View style={styles.root}>
-      <Text style={styles.title}>{isSw ? 'Omba likizo' : 'Request leave'}</Text>
-      <Text style={styles.subtitle}>
-        {isSw
-          ? 'Jaza ombi lako. Meneja wako atathibitisha au kukataa.'
-          : 'Fill in your request. Your manager will approve or reject it.'}
-      </Text>
+      <Text style={styles.title}>{copy.title}</Text>
+      <Text style={styles.subtitle}>{copy.subtitle}</Text>
 
-      <Section title={isSw ? 'Ombi jipya' : 'New request'}>
+      <Section title={copy.newRequest}>
         <Dropdown<LeaveCategory>
-          label={isSw ? 'Aina ya likizo' : 'Leave type'}
+          label={copy.leaveType}
           value={category}
           onChange={setCategory}
           options={categoryOptions}
         />
         <Field
-          label={isSw ? 'Tarehe ya kuanza' : 'Start date'}
+          label={copy.startDate}
           value={startOn}
           onChangeText={setStartOn}
           placeholder="2026-06-10"
           autoCapitalize="none"
         />
         <Field
-          label={isSw ? 'Tarehe ya mwisho' : 'End date'}
+          label={copy.endDate}
           value={endOn}
           onChangeText={setEndOn}
           placeholder="2026-06-12"
           autoCapitalize="none"
         />
         <Field
-          label={isSw ? 'Sababu (hiari)' : 'Reason (optional)'}
+          label={copy.reasonOptional}
           value={reason}
           onChangeText={setReason}
           multiline
@@ -163,13 +160,13 @@ function LeaveView(): JSX.Element {
         />
         {formError ? <Text style={styles.error}>{formError}</Text> : null}
         <Button
-          label={submitting ? (isSw ? 'Inatuma…' : 'Submitting…') : isSw ? 'Tuma ombi' : 'Submit request'}
+          label={submitting ? copy.submitting : copy.submit}
           onPress={() => void onSubmit()}
           disabled={submitting}
         />
       </Section>
 
-      <Section title={isSw ? 'Maombi yangu' : 'My requests'}>
+      <Section title={copy.myRequests}>
         <LeaveList rows={rows} listError={listError} lang={lang} />
       </Section>
     </View>
@@ -185,7 +182,7 @@ function LeaveList({
   listError: string | null
   lang: Lang
 }): JSX.Element {
-  const isSw = lang === 'sw'
+  const copy = pickStrings(lang).leaveScreen
 
   if (listError) {
     return <Text style={styles.muted}>{listError}</Text>
@@ -198,11 +195,7 @@ function LeaveList({
     )
   }
   if (rows.length === 0) {
-    return (
-      <Text style={styles.muted}>
-        {isSw ? 'Hujatuma ombi lolote bado.' : 'You have not submitted any requests yet.'}
-      </Text>
-    )
+    return <Text style={styles.muted}>{copy.noneYet}</Text>
   }
 
   return (
@@ -219,7 +212,7 @@ function LeaveList({
           {row.reason ? <Text style={styles.cardReason}>{row.reason}</Text> : null}
           {row.decisionNote ? (
             <Text style={styles.cardNote}>
-              {(isSw ? 'Meneja: ' : 'Manager: ') + row.decisionNote}
+              {copy.managerLabel + row.decisionNote}
             </Text>
           ) : null}
         </View>

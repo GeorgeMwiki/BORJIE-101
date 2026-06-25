@@ -7,6 +7,9 @@
  * re-exports these helpers so consumers have one canonical entry point.
  */
 
+import type { Lang } from '../auth/types'
+import { pickByLocale } from '../i18n/pickByLocale'
+
 export type ShiftStatus = 'active' | 'on_break' | 'off_shift' | 'no_shift'
 
 export interface WorkerHeroTask {
@@ -47,6 +50,16 @@ export const SHIFT_STATUS_VISUALS: Readonly<
     labelSw: 'Hakuna zamu',
     tone: 'muted',
   },
+}
+
+/**
+ * Generic role noun per locale, used ONLY when neither role field is present.
+ * Each entry is a single-language string; the active locale selects one — there
+ * is no cross-language fallback.
+ */
+const DEFAULT_ROLE_LABEL: Readonly<Record<Lang, string>> = {
+  en: 'Worker',
+  sw: 'Mfanyakazi',
 }
 
 export function formatTimerHms(elapsedMs: number): string {
@@ -107,17 +120,26 @@ export function buildHeroData(
     typeof me?.workerName === 'string' && me.workerName.length > 0
       ? me.workerName
       : fallbackName
+  // Active-locale-or-localized-default — NEVER the other tongue. `me.roleLabel`
+  // is the EN field, `me.roleLabelSw` the SW field; pickByLocale yields the
+  // active-locale value (or the visible `—` placeholder when that single field
+  // is missing), so a missing SW value never silently renders the EN string.
+  // A wholly-absent pair falls to the active-locale generic role noun.
+  const rolePair = {
+    en: typeof me?.roleLabel === 'string' ? me.roleLabel : '',
+    sw: typeof me?.roleLabelSw === 'string' ? me.roleLabelSw : '',
+  }
   const roleLabel =
-    locale === 'sw'
-      ? (me?.roleLabelSw ?? me?.roleLabel ?? 'Mfanyakazi')
-      : (me?.roleLabel ?? me?.roleLabelSw ?? 'Worker')
+    rolePair.en === '' && rolePair.sw === ''
+      ? DEFAULT_ROLE_LABEL[locale]
+      : pickByLocale(rolePair, locale)
   const shiftStatus: ShiftStatus = isShiftStatus(me?.shiftStatus)
     ? me!.shiftStatus
     : 'no_shift'
-  const shiftDetailRaw =
-    locale === 'sw'
-      ? (me?.shiftDetailSw ?? me?.shiftDetail)
-      : (me?.shiftDetail ?? me?.shiftDetailSw)
+  // Same active-locale-only discipline for the shift detail line: no
+  // cross-language fallback. An absent active-locale value yields undefined
+  // (the row is then simply not rendered) rather than the other locale's text.
+  const shiftDetailRaw = locale === 'sw' ? me?.shiftDetailSw : me?.shiftDetail
   const shiftDetail =
     typeof shiftDetailRaw === 'string' && shiftDetailRaw.length > 0
       ? shiftDetailRaw

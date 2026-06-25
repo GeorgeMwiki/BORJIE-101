@@ -27,6 +27,7 @@ import { dictionaries } from '@/i18n/dictionaries';
 import { makeT, type TFn } from '@/i18n/resolve';
 import { useLocale, pickByLocale } from '@/lib/locale';
 import { type Locale } from '@/lib/locale-shared';
+import { fmtDateForLocale } from '@/lib/format';
 import { useEscalations, type EscalationAction } from '@/lib/useEscalations';
 import {
   type EscalationContext,
@@ -82,7 +83,7 @@ function escalationBody(
 }
 
 /** Locale-aware relative age; falls back to a localized date string. */
-function formatAge(iso: string, t: TFn): string {
+function formatAge(iso: string, t: TFn, locale: Locale): string {
   const parsed = new Date(iso).getTime();
   if (Number.isNaN(parsed)) return iso;
   const ms = Date.now() - parsed;
@@ -93,7 +94,9 @@ function formatAge(iso: string, t: TFn): string {
   if (ms < 24 * 60 * 60_000) {
     return t('escalations.hoursAgo', { count: Math.round(ms / 3_600_000) });
   }
-  return new Date(parsed).toLocaleDateString();
+  // Older than a day → a date string in the ACTIVE locale's BCP-47 tag
+  // (`sw`→sw-TZ, `en`→en-GB) — never a bare, system-locale toLocaleDateString.
+  return fmtDateForLocale(iso, locale);
 }
 
 export function EscalationsPanel({
@@ -209,7 +212,7 @@ function EscalationRow(props: {
         </div>
       </div>
       <p className="mt-1 text-xs text-neutral-500">
-        {t('escalations.openedPrefix')} {formatAge(row.createdAt, t)}
+        {t('escalations.openedPrefix')} {formatAge(row.createdAt, t, locale)}
       </p>
       <div className="mt-2 flex items-center justify-end gap-2">
         {row.status === 'open' ? (

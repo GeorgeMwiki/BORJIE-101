@@ -509,7 +509,7 @@ export function OnboardingPanel({
             <button
               type="button"
               onClick={retryStart}
-              className="mt-3 inline-flex items-center gap-2 rounded-md border border-destructive/50 bg-background px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/10"
+              className="mt-3 inline-flex items-center gap-2 rounded-md border border-destructive/50 bg-background px-3 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               {pickByLocale(locale, S.onboarding.retryButton)}
             </button>
@@ -636,15 +636,23 @@ export function OnboardingPanel({
                   {pickByLocale(locale, OS.skipButton)}
                 </Button>
               ) : null}
-              <button
+              {/* DS Button variant="warning" pairs bg-warning with
+                  warning-foreground (AA-safe ≥4.5:1 in light + dark) and ships
+                  the focus-visible ring — replacing the old
+                  bg-warning-subtle/text-warning pairing (~2.4:1, WCAG 1.4.3
+                  fail) with no focus ring. `loading` renders the spinner and
+                  keeps the localized label (no English "Loading…" leak). */}
+              <Button
                 type="button"
+                variant="warning"
+                size="sm"
                 onClick={() => void goNext()}
-                disabled={submitting || !sessionId}
-                className="inline-flex items-center gap-2 rounded-md border border-warning bg-warning-subtle/30 px-3 py-1.5 text-xs text-warning hover:bg-warning-subtle/50 disabled:opacity-60"
+                disabled={!sessionId}
+                loading={submitting}
+                data-testid="onboarding-next"
               >
-                {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
                 {pickByLocale(locale, isFinal ? OS.finishButton : OS.nextButton)}
-              </button>
+              </Button>
             </div>
           </div>
         </SectionCard>

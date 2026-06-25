@@ -36,15 +36,12 @@ function TaskQueueSlot(): JSX.Element {
   const title = pickCopy(lang, 'bandTasks')
   const empty = pickCopy(lang, 'emptyTasks')
   const lineUp = pickCopy(lang, 'lineUpHint')
+  const taskHint = pickCopy(lang, 'taskQueueHint')
   return (
     <Section title={title} hint={lineUp}>
       <View style={styles.taskRow} accessibilityRole="summary" accessibilityLabel={empty}>
         <Text style={styles.taskLabel}>{empty}</Text>
-        <Text style={styles.taskHint}>
-          {lang === 'sw'
-            ? 'Foleni itajaa pale B-Manager atakapowezesha /tasks/unassigned.'
-            : 'Queue will populate once /tasks/unassigned is wired.'}
-        </Text>
+        <Text style={styles.taskHint}>{taskHint}</Text>
       </View>
     </Section>
   )

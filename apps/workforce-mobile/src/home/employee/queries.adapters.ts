@@ -69,8 +69,11 @@ export function adaptWorkerTask(
   row: Record<string, unknown>,
   index: number
 ): WorkerTask {
-  const titleSw = String(row.titleSw ?? row.title_sw ?? '')
-  const titleEn = asNullableString(row.titleEn ?? row.title_en) ?? titleSw
+  // Keep each locale field independent: a missing EN value stays null so the
+  // render layer shows a localized placeholder — NEVER the Swahili string
+  // (cross-language fallback IS mixing; CLAUDE.md language-engineering rule 3).
+  const titleSw = asNullableString(row.titleSw ?? row.title_sw)
+  const titleEn = asNullableString(row.titleEn ?? row.title_en)
   const dueAtRaw = row.dueAt ?? row.due_at ?? null
   return {
     id: String(row.id ?? ''),
@@ -103,11 +106,12 @@ export function adaptToolboxTalk(
 ): ToolboxTalk | null {
   const row = rows[0]
   if (!row) return null
-  const titleSw = String(row.topicSw ?? row.topic_sw ?? '')
+  // Independent locale fields — a missing EN topic stays null (placeholder at
+  // render), never the Swahili topic. No cross-language fallback.
   return {
     id: String(row.id ?? ''),
-    titleSw,
-    titleEn: asNullableString(row.topicEn ?? row.topic_en) ?? titleSw,
+    titleSw: asNullableString(row.topicSw ?? row.topic_sw),
+    titleEn: asNullableString(row.topicEn ?? row.topic_en),
     required: true,
     acknowledgedAtIso: null
   }

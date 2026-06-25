@@ -14,7 +14,7 @@ import { z } from 'zod';
 import { Skeleton, Alert, Badge, type BadgeProps } from '@borjie/design-system';
 import { localizeApiError } from '@borjie/error-catalog';
 import { apiRequest, ApiError } from '@/lib/api-client';
-import { formatMoney, LAUNCH_CURRENCY } from '@/lib/format';
+import { bcp47For, formatMoney, LAUNCH_CURRENCY } from '@/lib/format';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
 import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
 import { pickByLocale } from '@/lib/locale-shared';
@@ -281,7 +281,7 @@ export function RoyaltyDraftPanel({
                     </div>
                     <div className="col-span-2 text-xs text-muted-foreground">
                       {row.quantity !== null && row.unit
-                        ? `${row.quantity.toLocaleString()} ${row.unit}`
+                        ? `${row.quantity.toLocaleString(bcp47For(locale))} ${row.unit}`
                         : '—'}
                     </div>
                     <div className="col-span-3 text-right font-mono text-sm font-medium text-foreground">

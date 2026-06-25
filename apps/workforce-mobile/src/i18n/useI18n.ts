@@ -11,7 +11,11 @@ export interface I18nHook {
 
 export function useI18n(): I18nHook {
   const { user } = useAuth()
-  const lang: Lang = user?.preferredLang ?? 'sw'
+  // Default user language is EN (CLAUDE.md "English default · bilingual sw/en");
+  // a Tanzanian user opts into `sw` via settings. Defaulting to `sw` here
+  // rendered Swahili to a user who never chose it — the sw-by-default mixing
+  // trap. Resolve the active locale from the user, falling to `en` when unset.
+  const lang: Lang = user?.preferredLang ?? 'en'
   return useMemo<I18nHook>(() => ({
     lang,
     t: pickStrings(lang),

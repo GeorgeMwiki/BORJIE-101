@@ -11,6 +11,8 @@ import {
 import { colors } from '../theme/colors'
 import { fontSize, radius, spacing } from '../theme/spacing'
 import { miningApi } from '../api/client'
+import { ApiError } from '../api/errors'
+import { localizeApiError } from '@borjie/error-catalog'
 import { useI18n } from '../i18n/useI18n'
 
 /**
@@ -131,7 +133,15 @@ export function FeedbackButton({
       await submitter(submission)
       reset()
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : pick(LABELS.error, lang))
+      // Localize by the gateway error code in the active locale — never the raw
+      // English `cause.message` (under `sw` that is language mixing). A non-Api
+      // failure (e.g. a test/Storybook submitter) falls to the localized
+      // catch-all in this surface's own copy.
+      setError(
+        cause instanceof ApiError
+          ? localizeApiError(cause.code, lang)
+          : pick(LABELS.error, lang),
+      )
       setOpen(true)
     } finally {
       setSubmitting(false)

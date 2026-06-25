@@ -8,6 +8,7 @@ import { cn, ThemeToggle } from '@borjie/design-system';
 import { AppTopBar } from '@borjie/app-shell';
 import { LanguageToggle } from '../LanguageToggle';
 import { SignOutButton } from '../SignOutButton';
+import { MobileNavDrawer } from './MobileNavDrawer';
 import { useT } from '@/i18n/t.client';
 import type { TFn } from '@/i18n/resolve';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
@@ -130,9 +131,15 @@ export function TopBar({ fullName, tenantName, languagePreference }: TopBarProps
     [t],
   );
 
-  // Left slot — the route breadcrumb spine.
+  // Left slot — the below-`lg` nav hamburger + the route breadcrumb spine.
+  // The hamburger self-hides from `lg` up (where the desktop rail returns).
   const breadcrumbs = (
-    <nav aria-label={t('common.breadcrumb')} className="flex min-w-0 items-center gap-2 text-sm">
+    <div className="flex min-w-0 items-center gap-2">
+      <MobileNavDrawer
+        tenantName={tenantName}
+        languagePreference={languagePreference}
+      />
+      <nav aria-label={t('common.breadcrumb')} className="flex min-w-0 items-center gap-2 text-sm">
       <ol className="flex min-w-0 items-center gap-1.5">
         {crumbs.map((crumb, idx) => {
           const last = idx === crumbs.length - 1;
@@ -160,7 +167,8 @@ export function TopBar({ fullName, tenantName, languagePreference }: TopBarProps
           );
         })}
       </ol>
-    </nav>
+      </nav>
+    </div>
   );
 
   // Right slot — the cockpit action cluster, now living inside the

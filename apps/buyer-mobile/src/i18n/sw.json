@@ -139,7 +139,27 @@
     "message_placeholder": "Jibu muuzaji",
     "loading": "Inapakia zabuni",
     "load_failed": "Imeshindwa kupakia zabuni",
-    "seller_label": "Muuzaji"
+    "seller_label": "Muuzaji",
+    "offtake": {
+      "title": "Mkataba wa ununuzi",
+      "subtitle": "Mkataba wa ugavi unaofunga uliofikiwa muuzaji alipokubali zabuni yako",
+      "loading": "Inapakia mkataba",
+      "load_failed": "Imeshindwa kupakia mkataba",
+      "error_network": "Hakuna muunganisho. Angalia mtandao wako kisha ujaribu tena.",
+      "empty": "Mkataba unaandaliwa. Tafadhali angalia tena baada ya muda mfupi.",
+      "agreed_price": "Bei iliyokubaliwa",
+      "quantity": "Kiasi kilichokubaliwa",
+      "payment_terms": "Masharti ya malipo",
+      "created": "Ulikubaliwa tarehe",
+      "signed_at": "Ulisainiwa tarehe",
+      "awaiting_signature": "Inasubiri saini za pande zote mbili.",
+      "status": {
+        "pending_signature": "Inasubiri saini",
+        "signed": "Umesainiwa",
+        "completed": "Umekamilika",
+        "cancelled": "Umeghairiwa"
+      }
+    }
   },
   "inquiry": {
     "title": "Uliza muuzaji",

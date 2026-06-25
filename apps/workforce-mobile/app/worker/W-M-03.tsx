@@ -8,6 +8,7 @@ import { RoleGuard } from '../../src/components/RoleGuard'
 import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { miningApi } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
+import { localizeApiError } from '@borjie/error-catalog'
 import { useOnlineStatus } from '../../src/offline/useOnlineStatus'
 import { useAuth } from '../../src/auth/useAuth'
 import { enqueueWrite } from '../../src/sync/queue'
@@ -21,7 +22,6 @@ const COPY = {
   loading: 'Inapakia mada za toolbox... · Loading briefing topics...',
   empty: 'Hakuna mada za toolbox bado. · No toolbox topics yet.',
   loadError: 'Imeshindwa kupakia mada. · Failed to load topics.',
-  errorPrefix: 'Hitilafu: ',
   ackOk: 'Briefing imethibitishwa kwenye seva.',
   ackQueued: 'Briefing imehifadhiwa kwa sync ya baadaye.'
 } as const
@@ -136,7 +136,11 @@ function BriefingView(): JSX.Element {
           <Text style={styles.empty}>{COPY.empty}</Text>
         ) : (
           topics.map((topic) => {
-            const heading = isSw ? topic.topicSw : (topic.topicEn ?? topic.topicSw)
+            // Active-locale heading; null active-locale value shows a neutral
+            // placeholder, NEVER the other language (no topicEn ?? topicSw).
+            const heading = isSw
+              ? topic.topicSw || '—'
+              : topic.topicEn || '—'
             return (
               <View key={topic.id} style={styles.topicRow}>
                 <Text style={styles.topicTitle}>{heading}</Text>
@@ -169,7 +173,9 @@ function BriefingView(): JSX.Element {
           </Pressable>
         )}
         {submitError && !submitNetwork && !submitMissing ? (
-          <Text style={styles.errorText}>{COPY.errorPrefix}{submitError.message}</Text>
+          <Text style={styles.errorText}>
+            {localizeApiError(submitError.code, lang)}
+          </Text>
         ) : null}
         {submitNetwork ? <PreviewBanner kind="offline" /> : null}
         {submitMissing ? <PreviewBanner kind="env-missing" /> : null}

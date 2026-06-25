@@ -33,6 +33,37 @@ interface EstateMetricStripProps {
   readonly locale: Locale;
 }
 
+/**
+ * Canonical succession-plan lifecycle statuses (mirrors
+ * `SUCCESSION_PLAN_STATUSES` in
+ * packages/database/src/schemas/succession-plans.schema.ts — the server
+ * schema package is intentionally NOT pulled into this client bundle, so the
+ * literals are pinned here as the single source of THIS render). Any drift
+ * fails the typed `ATTENTION_STATUSES satisfies` check below.
+ */
+const SUCCESSION_PLAN_STATUSES = [
+  'drafted',
+  'witnessed',
+  'registered',
+  'contested',
+  'executed',
+] as const;
+type SuccessionPlanStatus = (typeof SUCCESSION_PLAN_STATUSES)[number];
+
+/**
+ * The statuses that count toward the "needs attention" tile — sourced from
+ * the CANONICAL enum literals (never a phantom value like `pending_review` /
+ * `draft`, which never match and silently read 0 — a fabricated all-clear).
+ * `drafted` = unfinished plan awaiting completion; `contested` = a plan under
+ * dispute. `satisfies` proves both are real members of the enum at compile
+ * time, so a renamed status breaks the build instead of dark-zeroing the tile.
+ */
+const ATTENTION_STATUSES = [
+  'drafted',
+  'contested',
+] as const satisfies ReadonlyArray<SuccessionPlanStatus>;
+const ATTENTION_STATUS_SET = new Set<string>(ATTENTION_STATUSES);
+
 /** ISO date 30 days ago for the capital-movements since filter. */
 function since30d(): string {
   const d = new Date();
@@ -118,10 +149,13 @@ export function EstateMetricStrip({ locale }: EstateMetricStripProps) {
       | undefined;
     const plans = raw?.data?.plans;
     if (!plans) return '—';
-    const pending = plans.filter(
-      (p) => p.status === 'pending_review' || p.status === 'draft',
+    // Count plans whose status is a CANONICAL attention status (drafted /
+    // contested) — sourced from the enum literals, never the phantom
+    // `pending_review` / `draft` tokens that never match and read a false 0.
+    const attention = plans.filter((p) =>
+      ATTENTION_STATUS_SET.has(p.status),
     ).length;
-    return String(pending);
+    return String(attention);
   })();
 
   const tiles: readonly MetricTile[] = [

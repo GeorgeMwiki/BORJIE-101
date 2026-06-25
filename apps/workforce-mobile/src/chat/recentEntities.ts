@@ -49,8 +49,12 @@ export async function fetchRecentEntities(
         if (!row || typeof row.id !== 'string' || row.id.length === 0) {
           return null
         }
+        // Each locale label falls back to the locale-NEUTRAL id, NEVER the
+        // other language (no `?.sw ?? labelEn` cross-fallback — that is mixing;
+        // CLAUDE.md language-engineering rule 3). The render layer picks the
+        // active-locale field via the {en, sw} pair.
         const labelEn = row.label?.en ?? row.id
-        const labelSw = row.label?.sw ?? labelEn
+        const labelSw = row.label?.sw ?? row.id
         const k = typeof row.kind === 'string' ? KIND_MAP[row.kind] : undefined
         return {
           id: row.id,

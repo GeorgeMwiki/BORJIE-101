@@ -17,6 +17,7 @@ import { RoleGuard } from '../../src/components/RoleGuard'
 import { miningApi } from '../../src/api/client'
 import { ApiError, isNetworkError } from '../../src/api/errors'
 import { useI18n } from '../../src/i18n/useI18n'
+import { pickStrings } from '../../src/i18n'
 import {
   buildNet,
   buildPayslipRows,
@@ -47,8 +48,8 @@ export default function PayslipScreen(): JSX.Element {
 }
 
 function PayslipView(): JSX.Element {
-  const { lang } = useI18n()
-  const isSw = lang === 'sw'
+  const { lang, t } = useI18n()
+  const copy = t.payslipScreen
   const [state, setState] = useState<LoadState>({ kind: 'loading' })
 
   useEffect(() => {
@@ -73,28 +74,23 @@ function PayslipView(): JSX.Element {
     }
   }, [])
 
-  const title = isSw ? 'Payslip yako' : 'Your payslip'
-  const subtitle = isSw
-    ? 'Kipindi cha hivi karibuni. Pesa hutumwa kwa M-Pesa.'
-    : 'Latest committed period. Funds disburse via M-Pesa once the owner commits.'
-
   return (
     <View style={styles.root}>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.subtitle}>{subtitle}</Text>
+      <Text style={styles.title}>{copy.title}</Text>
+      <Text style={styles.subtitle}>{copy.subtitle}</Text>
       <PayslipBody state={state} lang={lang} />
     </View>
   )
 }
 
 function PayslipBody({ state, lang }: { state: LoadState; lang: Lang }): JSX.Element {
-  const isSw = lang === 'sw'
+  const copy = pickStrings(lang).payslipScreen
 
   if (state.kind === 'loading') {
     return (
       <View style={styles.centre}>
         <ActivityIndicator color={colors.gold} />
-        <Text style={styles.muted}>{isSw ? 'Inapakua…' : 'Loading…'}</Text>
+        <Text style={styles.muted}>{copy.loading}</Text>
       </View>
     )
   }
@@ -102,23 +98,15 @@ function PayslipBody({ state, lang }: { state: LoadState; lang: Lang }): JSX.Ele
   if (state.kind === 'error') {
     return (
       <View style={styles.centre}>
-        <Text style={styles.muted}>
-          {isSw
-            ? 'Imeshindwa kupakua payslip. Jaribu tena.'
-            : 'Could not load your payslip. Please try again.'}
-        </Text>
+        <Text style={styles.muted}>{copy.loadError}</Text>
       </View>
     )
   }
 
   if (state.kind === 'empty') {
     return (
-      <Section title={isSw ? 'Maelezo' : 'Breakdown'}>
-        <Text style={styles.muted}>
-          {isSw
-            ? 'Hakuna malipo yaliyothibitishwa bado. Utaona maelezo mara baada ya mmiliki kuthibitisha mshahara.'
-            : 'No committed pay yet. Your breakdown appears once the owner commits a payroll run.'}
-        </Text>
+      <Section title={copy.breakdown}>
+        <Text style={styles.muted}>{copy.emptyBody}</Text>
       </Section>
     )
   }
@@ -127,17 +115,15 @@ function PayslipBody({ state, lang }: { state: LoadState; lang: Lang }): JSX.Ele
 }
 
 function PayslipReady({ data, lang }: { data: PayslipData; lang: Lang }): JSX.Element {
-  const isSw = lang === 'sw'
+  const copy = pickStrings(lang).payslipScreen
   const rows = useMemo(() => buildPayslipRows(data, lang), [data, lang])
   const net = useMemo(() => buildNet(data, lang), [data, lang])
 
   return (
     <>
-      <Text style={styles.period}>
-        {(isSw ? 'Kipindi: ' : 'Period: ') + formatPeriod(data)}
-      </Text>
+      <Text style={styles.period}>{copy.periodLabel + formatPeriod(data)}</Text>
 
-      <Section title={isSw ? 'Maelezo' : 'Breakdown'}>
+      <Section title={copy.breakdown}>
         <View style={styles.table}>
           {rows.map((row) => (
             <View key={row.key} style={styles.row}>

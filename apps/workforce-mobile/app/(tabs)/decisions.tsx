@@ -17,17 +17,16 @@ import { StyleSheet, Text, View } from 'react-native'
 import { ScreenShell } from '../../src/components/ScreenShell'
 import { Section } from '../../src/components/Section'
 import { useI18n } from '../../src/i18n/useI18n'
+import { pickStrings } from '../../src/i18n'
+import type { Lang } from '../../src/auth/types'
 import { colors } from '../../src/theme/colors'
 import { fontSize, spacing } from '../../src/theme/spacing'
 
 export default function DecisionsTab(): JSX.Element {
-  const { lang } = useI18n()
-  const isSw = lang === 'sw'
+  const { lang, t } = useI18n()
   return (
     <ScreenShell screenId="W-DECISIONS">
-      <Section
-        title={isSw ? 'Mambo yanayohitaji uamuzi wako' : 'Pending decisions'}
-      >
+      <Section title={t.tabScreens.decisionsTitle}>
         <PendingDecisionsBody lang={lang} />
       </Section>
     </ScreenShell>
@@ -37,25 +36,19 @@ export default function DecisionsTab(): JSX.Element {
 function PendingDecisionsBody({
   lang,
 }: {
-  readonly lang: 'sw' | 'en'
+  readonly lang: Lang
 }): JSX.Element {
-  const isSw = lang === 'sw'
-  // Placeholder: pending decisions will be surfaced via the brain turn
-  // stream (proposed_action frames) once the worker chat has a live
-  // session. The tab slot is kept intentionally — the brain can push
-  // pending-decision cards here via the dynamic-tab + portal-genui
-  // pipeline. For now render an honest empty state rather than fake
-  // owner-screen deep links.
+  // Single-language-per-active-locale copy via the i18n bundle. Placeholder:
+  // pending decisions will be surfaced via the brain turn stream
+  // (proposed_action frames) once the worker chat has a live session. The tab
+  // slot is kept intentionally — the brain can push pending-decision cards here
+  // via the dynamic-tab + portal-genui pipeline. For now render an honest empty
+  // state rather than fake owner-screen deep links.
+  const copy = pickStrings(lang).tabScreens
   return (
     <View style={styles.emptyWrap} testID="decisions-empty">
-      <Text style={styles.emptyTitle}>
-        {isSw ? 'Hakuna mambo yanayosubiri' : 'No pending decisions'}
-      </Text>
-      <Text style={styles.emptyBody}>
-        {isSw
-          ? 'Mr. Mwikila atakuletea mambo yanayohitaji uamuzi wako hapa yakijitokeza.'
-          : 'Mr. Mwikila will surface items that need your decision here as they arise.'}
-      </Text>
+      <Text style={styles.emptyTitle}>{copy.decisionsEmptyTitle}</Text>
+      <Text style={styles.emptyBody}>{copy.decisionsEmptyBody}</Text>
     </View>
   )
 }

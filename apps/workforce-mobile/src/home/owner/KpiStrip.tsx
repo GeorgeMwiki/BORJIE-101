@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native'
 import { colors } from '../../theme/colors'
 import { fontSize, radius, spacing } from '../../theme/spacing'
+import { pickStrings } from '../../i18n'
 import { formatCurrency, formatDelta, formatTonnes } from './format'
 import type { OwnerBrief, PillarStatus } from './types'
 
@@ -49,21 +50,14 @@ function buildItems(
   lang: 'sw' | 'en',
   currencyCode: string
 ): ReadonlyArray<KpiItem> {
-  const swLabels = {
-    production: 'Uzalishaji',
-    cash: 'Pesa',
-    safety: 'Usalama',
-    licence: 'Leseni',
-    fx: 'USD-cliff'
+  const copy = pickStrings(lang).ownerDashboard
+  const labels = {
+    production: copy.kpiProduction,
+    cash: copy.kpiCash,
+    safety: copy.kpiSafety,
+    licence: copy.kpiLicences,
+    fx: copy.kpiUsdCliff
   }
-  const enLabels = {
-    production: 'Production',
-    cash: 'Cash',
-    safety: 'Safety',
-    licence: 'Licences',
-    fx: 'USD-cliff'
-  }
-  const labels = lang === 'sw' ? swLabels : enLabels
   return [
     {
       key: 'production',
@@ -75,7 +69,7 @@ function buildItems(
     {
       key: 'cash',
       label: labels.cash,
-      value: `${brief.cash.daysRemaining} ${lang === 'sw' ? 'siku' : 'days'}`,
+      value: `${brief.cash.daysRemaining} ${copy.days}`,
       status: brief.cash.status,
       statusLabel: formatCurrency(brief.cash.currentTzs, currencyCode)
     },
@@ -84,7 +78,7 @@ function buildItems(
       label: labels.safety,
       value: `${brief.safety.openHighCount}`,
       status: brief.safety.openHighCount > 0 ? 'danger' : 'ok',
-      statusLabel: lang === 'sw' ? 'Wazi (HIGH)' : 'Open (HIGH)'
+      statusLabel: copy.openHigh
     },
     {
       key: 'licence',
@@ -96,9 +90,7 @@ function buildItems(
     {
       key: 'fx',
       label: labels.fx,
-      value: brief.cash.usdCliffActive
-        ? (lang === 'sw' ? 'Hai' : 'Active')
-        : (lang === 'sw' ? 'Salama' : 'Cleared'),
+      value: brief.cash.usdCliffActive ? copy.cliffActive : copy.cliffCleared,
       status: brief.cash.usdCliffActive ? 'danger' : 'ok',
       statusLabel: formatCurrency(brief.cash.usdExposureTzs, currencyCode)
     }
@@ -106,13 +98,14 @@ function buildItems(
 }
 
 function statusLabel(status: PillarStatus, lang: 'sw' | 'en'): string {
+  const copy = pickStrings(lang).ownerDashboard
   if (status === 'ok') {
-    return lang === 'sw' ? 'Salama' : 'On target'
+    return copy.statusOnTarget
   }
   if (status === 'warn') {
-    return lang === 'sw' ? 'Tahadhari' : 'Watch'
+    return copy.statusWatch
   }
-  return lang === 'sw' ? 'Hatari' : 'At risk'
+  return copy.statusAtRisk
 }
 
 function statusAccent(status: PillarStatus): { borderColor: string } {

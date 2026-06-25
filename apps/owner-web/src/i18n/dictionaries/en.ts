@@ -229,6 +229,8 @@ export const en = {
   nav: {
     tenant: 'Tenant',
     ownerCockpit: 'Owner Cockpit',
+    openNavigation: 'Open navigation',
+    closeNavigation: 'Close navigation',
     sectionOverview: 'Overview',
     sectionField: 'Field',
     sectionOperations: 'Operations',

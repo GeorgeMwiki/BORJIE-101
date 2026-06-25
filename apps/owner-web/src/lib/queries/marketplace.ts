@@ -275,14 +275,24 @@ export interface IncomingBid {
 }
 
 /** Raw seller-bid row as the gateway returns it (snake_case DB columns). */
-interface RawIncomingBidRow {
+// camelCase = canonical: GET /mining/bids/incoming returns raw Drizzle rows
+// (db.select().from(marketplaceBids)) which serialize to JS field names —
+// reading snake_case ALONE silently zeroed bidPriceTzs / emptied the seller
+// BidsInbox (the producer/consumer casing seam, same class as adaptOfftake).
+// snake_case kept as a defensive fallback.
+export interface RawIncomingBidRow {
   readonly id?: string;
+  readonly listingId?: string;
   readonly listing_id?: string;
+  readonly buyerId?: string;
   readonly buyer_id?: string;
+  readonly bidPriceTzs?: string | number | null;
   readonly bid_price_tzs?: string | number | null;
   readonly status?: string;
+  readonly paymentTerms?: string | null;
   readonly payment_terms?: string | null;
   readonly notes?: string | null;
+  readonly createdAt?: string;
   readonly created_at?: string;
 }
 
@@ -294,14 +304,14 @@ const INCOMING_BID_STATUSES = new Set<IncomingBid['status']>([
   'withdrawn',
 ]);
 
-function adaptIncomingBid(row: RawIncomingBidRow): IncomingBid | null {
+export function adaptIncomingBid(row: RawIncomingBidRow): IncomingBid | null {
   if (typeof row.id !== 'string' || row.id.length === 0) return null;
   const status =
     typeof row.status === 'string' &&
     INCOMING_BID_STATUSES.has(row.status as IncomingBid['status'])
       ? (row.status as IncomingBid['status'])
       : 'pending';
-  const priceRaw = row.bid_price_tzs;
+  const priceRaw = row.bidPriceTzs ?? row.bid_price_tzs;
   const bidPriceTzs =
     priceRaw == null
       ? 0
@@ -310,13 +320,13 @@ function adaptIncomingBid(row: RawIncomingBidRow): IncomingBid | null {
         : Number(priceRaw);
   return {
     id: row.id,
-    listingId: row.listing_id ?? '',
-    buyerId: row.buyer_id ?? '',
+    listingId: firstString(row.listingId, row.listing_id) ?? '',
+    buyerId: firstString(row.buyerId, row.buyer_id) ?? '',
     bidPriceTzs: Number.isFinite(bidPriceTzs) ? bidPriceTzs : 0,
     status,
-    paymentTerms: row.payment_terms ?? null,
+    paymentTerms: firstString(row.paymentTerms, row.payment_terms),
     notes: row.notes ?? null,
-    createdAt: row.created_at ?? '',
+    createdAt: firstString(row.createdAt, row.created_at) ?? '',
   };
 }
 
@@ -405,16 +415,37 @@ export interface OfftakeAgreement {
   readonly createdAt: string;
 }
 
-interface RawOfftakeRow {
+/**
+ * Raw offtake row as it arrives over the wire.
+ *
+ * WIRE SHAPE: the gateway (GET /api/v1/mining/bids/offtake-agreements) returns
+ * Drizzle rows selected from the table object, so the keys are the JS field
+ * names (camelCase: `agreedPriceTzs`, `quantityKg`, `paymentTerms`, `bidId`,
+ * `listingId`, `signedAt`, `createdAt` — confirmed by the gateway contract test
+ * services/api-gateway/.../offtake-crystallization.test.ts asserting
+ * `body.data[0].bidId`). We read camelCase as CANONICAL and fall back to
+ * snake_case DEFENSIVELY — same adapter discipline as the buyer leg in
+ * apps/buyer-mobile/src/api/offtake.ts. Reading snake_case alone silently
+ * zeroes the money/volume terms (the casing seam this shape closes).
+ */
+export interface RawOfftakeRow {
   readonly id?: string;
+  readonly listingId?: string;
   readonly listing_id?: string;
+  readonly bidId?: string;
   readonly bid_id?: string;
+  readonly buyerId?: string;
   readonly buyer_id?: string;
+  readonly agreedPriceTzs?: string | number | null;
   readonly agreed_price_tzs?: string | number | null;
+  readonly quantityKg?: string | number | null;
   readonly quantity_kg?: string | number | null;
+  readonly paymentTerms?: string | null;
   readonly payment_terms?: string | null;
   readonly status?: string;
+  readonly signedAt?: string | null;
   readonly signed_at?: string | null;
+  readonly createdAt?: string;
   readonly created_at?: string;
 }
 
@@ -431,7 +462,24 @@ function toFiniteNumber(value: string | number | null | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function adaptOfftake(row: RawOfftakeRow): OfftakeAgreement | null {
+/** First defined string among the candidates (camelCase canonical first). */
+function firstString(
+  ...values: ReadonlyArray<string | null | undefined>
+): string | null {
+  for (const v of values) {
+    if (typeof v === 'string') return v;
+  }
+  return null;
+}
+
+/**
+ * Adapt a raw wire row → typed agreement. Reads camelCase as CANONICAL with
+ * snake_case as a DEFENSIVE fallback (`?? ` / firstString): the gateway
+ * serializes Drizzle rows as camelCase, so reading snake_case alone silently
+ * zeroes `agreedPriceTzs` / `quantityKg` and blanks `paymentTerms` — the casing
+ * seam this adapter closes. Mirrors apps/buyer-mobile/src/api/offtake.ts.
+ */
+export function adaptOfftake(row: RawOfftakeRow): OfftakeAgreement | null {
   if (typeof row.id !== 'string' || row.id.length === 0) return null;
   const status =
     typeof row.status === 'string' &&
@@ -440,15 +488,15 @@ function adaptOfftake(row: RawOfftakeRow): OfftakeAgreement | null {
       : 'pending_signature';
   return {
     id: row.id,
-    listingId: row.listing_id ?? '',
-    bidId: row.bid_id ?? '',
-    buyerId: row.buyer_id ?? '',
-    agreedPriceTzs: toFiniteNumber(row.agreed_price_tzs),
-    quantityKg: toFiniteNumber(row.quantity_kg),
-    paymentTerms: row.payment_terms ?? null,
+    listingId: firstString(row.listingId, row.listing_id) ?? '',
+    bidId: firstString(row.bidId, row.bid_id) ?? '',
+    buyerId: firstString(row.buyerId, row.buyer_id) ?? '',
+    agreedPriceTzs: toFiniteNumber(row.agreedPriceTzs ?? row.agreed_price_tzs),
+    quantityKg: toFiniteNumber(row.quantityKg ?? row.quantity_kg),
+    paymentTerms: firstString(row.paymentTerms, row.payment_terms),
     status,
-    signedAt: row.signed_at ?? null,
-    createdAt: row.created_at ?? '',
+    signedAt: firstString(row.signedAt, row.signed_at),
+    createdAt: firstString(row.createdAt, row.created_at) ?? '',
   };
 }
 
@@ -472,5 +520,40 @@ export function useOfftakeAgreements(status?: OfftakeAgreement['status']) {
         .filter((a): a is OfftakeAgreement => a !== null);
     },
     staleTime: 30_000,
+  });
+}
+
+/**
+ * Sign a `pending_signature` offtake agreement — the COMPLETION-LAW leg that
+ * advances the contract to `signed` AND enqueues settlement.
+ *
+ * Hits POST /api/v1/mining/bids/offtake-agreements/:id/sign — the SOLE path
+ * that writes a `settlement.requested` row into the transactional
+ * `event_outbox` (in the same transaction as the status flip), so the
+ * settlement worker can consume it via `LedgerService.post()` (money never
+ * moves from this surface; the contract table holds contract terms only).
+ * The gateway is idempotent: re-signing a signed contract returns it
+ * unchanged and never enqueues a second settlement.
+ *
+ * On success both the offtake ledger and the bids inbox are invalidated so
+ * the row's terminal `signed` state paints immediately. The caller wires the
+ * localized error path (`localizeError` by stable code) — never a raw English
+ * message — so a failed signature is a recoverable, single-locale dead-end,
+ * never a silent no-op.
+ */
+export function useSignOfftake() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (agreementId: string): Promise<void> => {
+      await apiRequest<unknown>(
+        `/api/v1/mining/bids/offtake-agreements/${encodeURIComponent(
+          agreementId,
+        )}/sign`,
+        { method: 'POST' },
+      );
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['marketplace'] });
+    },
   });
 }

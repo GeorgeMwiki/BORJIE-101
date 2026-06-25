@@ -139,7 +139,27 @@
     "message_placeholder": "Reply to the seller",
     "loading": "Loading bid",
     "load_failed": "Could not load bid",
-    "seller_label": "Seller"
+    "seller_label": "Seller",
+    "offtake": {
+      "title": "Offtake contract",
+      "subtitle": "The binding supply agreement struck when the seller accepted your bid",
+      "loading": "Loading contract",
+      "load_failed": "Could not load the contract",
+      "error_network": "No connection. Check your network and try again.",
+      "empty": "The contract is being prepared. Check back shortly.",
+      "agreed_price": "Agreed price",
+      "quantity": "Agreed quantity",
+      "payment_terms": "Payment terms",
+      "created": "Agreed on",
+      "signed_at": "Signed on",
+      "awaiting_signature": "Awaiting both parties' signatures.",
+      "status": {
+        "pending_signature": "Awaiting signature",
+        "signed": "Signed",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      }
+    }
   },
   "inquiry": {
     "title": "Ask the seller",

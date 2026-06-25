@@ -1,12 +1,14 @@
 'use client';
 
-import { useMemo } from 'react';
-import { FileSignature, ScrollText } from 'lucide-react';
-import { Skeleton, StatusBadge } from '@borjie/design-system';
+import { useMemo, useState } from 'react';
+import { FileSignature, PenLine, ScrollText } from 'lucide-react';
+import { Alert, Button, Skeleton, StatusBadge } from '@borjie/design-system';
 import {
   useOfftakeAgreements,
+  useSignOfftake,
   type OfftakeAgreement,
 } from '@/lib/queries/marketplace';
+import { localizeError } from '@/lib/api-client';
 import { fmtDateForLocale, fmtNum, formatMoney, LAUNCH_CURRENCY } from '@/lib/format';
 import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
@@ -33,6 +35,31 @@ export function OfftakeContractsPanel({
 }: OfftakeContractsPanelProps): JSX.Element {
   const query = useOfftakeAgreements();
   const contracts = query.data ?? [];
+
+  // COMPLETION-LAW sign leg. Track WHICH row is signing (the mutation is
+  // single-flight) and the localized error keyed by agreement id so a failed
+  // signature surfaces a recoverable, single-locale message on the affected
+  // row — never a silent no-op, never a raw English string.
+  const signMutation = useSignOfftake();
+  const [signingId, setSigningId] = useState<string | null>(null);
+  const [signError, setSignError] = useState<{
+    readonly id: string;
+    readonly message: string;
+  } | null>(null);
+
+  const handleSign = (agreementId: string): void => {
+    setSignError(null);
+    setSigningId(agreementId);
+    signMutation.mutate(agreementId, {
+      onSuccess: () => {
+        setSigningId(null);
+      },
+      onError: (err: unknown) => {
+        setSigningId(null);
+        setSignError({ id: agreementId, message: localizeError(err, locale) });
+      },
+    });
+  };
 
   const metrics = useMemo<readonly MetricTile[]>(() => {
     if (contracts.length === 0) return [];
@@ -90,7 +117,15 @@ export function OfftakeContractsPanel({
           {metrics.length > 0 ? <MetricStrip tiles={metrics} cols={2} /> : null}
           <ul className="divide-y divide-border/60 rounded-xl border border-border">
             {contracts.map((c) => (
-              <OfftakeRow key={c.id} contract={c} locale={locale} />
+              <OfftakeRow
+                key={c.id}
+                contract={c}
+                locale={locale}
+                onSign={handleSign}
+                signing={signingId === c.id}
+                signDisabled={signingId !== null}
+                errorMessage={signError?.id === c.id ? signError.message : null}
+              />
             ))}
           </ul>
         </div>
@@ -102,10 +137,19 @@ export function OfftakeContractsPanel({
 function OfftakeRow({
   contract,
   locale,
+  onSign,
+  signing,
+  signDisabled,
+  errorMessage,
 }: {
   readonly contract: OfftakeAgreement;
   readonly locale: Locale;
+  readonly onSign: (agreementId: string) => void;
+  readonly signing: boolean;
+  readonly signDisabled: boolean;
+  readonly errorMessage: string | null;
 }): JSX.Element {
+  const canSign = contract.status === 'pending_signature';
   return (
     <li className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 flex-1">
@@ -133,9 +177,29 @@ function OfftakeRow({
             </span>
           ) : null}
         </div>
+        {errorMessage ? (
+          <Alert variant="error" className="mt-2 text-xs">
+            {errorMessage}
+          </Alert>
+        ) : null}
       </div>
-      <div className="shrink-0">
+      <div className="flex shrink-0 items-center gap-2">
         <OfftakeStatusBadge status={contract.status} locale={locale} />
+        {canSign ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            loading={signing}
+            disabled={signDisabled}
+            leftIcon={<PenLine className="h-3.5 w-3.5" />}
+            onClick={() => onSign(contract.id)}
+          >
+            {signing
+              ? pickByLocale(locale, S.offtakeSigningLabel)
+              : pickByLocale(locale, S.offtakeSignButton)}
+          </Button>
+        ) : null}
       </div>
     </li>
   );

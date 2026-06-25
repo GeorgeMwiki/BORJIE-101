@@ -21,6 +21,7 @@
 import { useEffect, useState, type ReactElement } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { tokens } from '../ui-litfin'
+import { pickStrings } from '../i18n'
 import {
   formatTimerHms,
   selectShiftVisual,
@@ -58,18 +59,15 @@ export function WorkerHeroCard({
   onNeedHelp,
   now = Date.now,
 }: WorkerHeroCardProps): ReactElement {
+  const copy = pickStrings(locale).workerHero
   const isSw = locale === 'sw'
   const shiftVisual = selectShiftVisual(data.shiftStatus)
   const shiftLabel = isSw ? shiftVisual.labelSw : shiftVisual.labelEn
-  const noTaskLabel = isSw
-    ? 'Hakuna kazi inayofuata'
-    : 'No next task assigned'
-  const noTaskHelp = isSw
-    ? 'Pumzika, msimamizi atakupa kazi mpya hivi karibuni.'
-    : 'Stand by. A supervisor will assign the next task shortly.'
-  const startCtaLabel = isSw ? 'Imekamilika' : 'Mark done'
-  const helpLabel = isSw ? 'Naomba msaada' : 'Need help'
-  const inProgressLabel = isSw ? 'Inaendelea' : 'In progress'
+  const noTaskLabel = copy.noNextTask
+  const noTaskHelp = copy.noNextTaskHelp
+  const startCtaLabel = copy.markDone
+  const helpLabel = copy.needHelp
+  const inProgressLabel = copy.inProgress
 
   // Live timer — tick once a second while a task has a startedAt and we
   // are visibly active. Cleared on unmount and on task swap.
@@ -101,9 +99,7 @@ export function WorkerHeroCard({
     >
       <View style={styles.header}>
         <View style={styles.identity}>
-          <Text style={styles.eyebrow}>
-            {isSw ? 'MFANYAKAZI' : 'WORKER'}
-          </Text>
+          <Text style={styles.eyebrow}>{copy.roleEyebrow}</Text>
           <Text style={styles.name} numberOfLines={1}>
             {data.workerName}
           </Text>
@@ -130,9 +126,7 @@ export function WorkerHeroCard({
       ) : null}
 
       <View style={styles.taskBlock}>
-        <Text style={styles.taskEyebrow}>
-          {isSw ? 'KAZI INAYOFUATA' : 'NEXT TASK'}
-        </Text>
+        <Text style={styles.taskEyebrow}>{copy.nextTaskEyebrow}</Text>
         {data.nextTask !== null ? (
           <>
             <Text testID="worker-hero-task-title" style={styles.taskTitle}>
@@ -154,9 +148,7 @@ export function WorkerHeroCard({
                 </View>
               ) : (
                 <View style={[styles.timerPill, styles.timerPillIdle]}>
-                  <Text style={styles.timerLabelIdle}>
-                    {isSw ? 'Bado haijaanza' : 'Not started'}
-                  </Text>
+                  <Text style={styles.timerLabelIdle}>{copy.notStarted}</Text>
                 </View>
               )}
             </View>

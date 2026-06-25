@@ -50,6 +50,10 @@ export const COPY = Object.freeze({
   emptyExceptions: { sw: 'Hakuna vikwazo. Kazi inaendelea.', en: 'No exceptions. Site running.' },
   emptyCrew: { sw: 'Hakuna watu walioandikishwa kwa zamu hii.', en: 'No crew rostered for this shift.' },
   emptyTasks: { sw: 'Foleni ya kazi haina cha kupanga.', en: 'No unassigned tasks.' },
+  taskQueueHint: {
+    sw: 'Foleni itajaa pale B-Manager atakapowezesha /tasks/unassigned.',
+    en: 'Queue will populate once /tasks/unassigned is wired.'
+  },
   emptyApprovals: { sw: 'Hakuna maombi yanayosubiri.', en: 'No pending approvals.' },
   loading: { sw: 'Inapakia...', en: 'Loading...' },
   errorRetry: { sw: 'Imeshindikana. Gusa kujaribu tena.', en: 'Failed. Tap to retry.' },

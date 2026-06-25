@@ -8,12 +8,17 @@
  *   2. Approve as manager — POST /api/v1/compliance/inspections/:id/narratives/:narrativeId/manager-approve
  *   3. Submit to regulator — POST /api/v1/compliance/inspections/:id/narratives/:narrativeId/submit-to-regulator
  *
- * Bilingual sw/en labels via `useI18n`. Errors render inline.
+ * Single-language-per-active-locale copy via `useI18n` (the `narrative`
+ * namespace — no inline `isSw ? '…' : '…'` ternaries). Gateway errors localize
+ * by code through `localizeApiError` from `@borjie/error-catalog` — never the
+ * raw English `err.message` (which under `sw` is language mixing). Errors render
+ * inline.
  */
 
 import { useCallback, useEffect, useState } from 'react'
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
+import { localizeApiError } from '@borjie/error-catalog'
 
 import { ScreenShell } from '../../../../src/components/ScreenShell'
 import { Section } from '../../../../src/components/Section'
@@ -24,6 +29,7 @@ import { narrativeStatusLabel } from '../../../../src/i18n/enumLabels'
 import { colors } from '../../../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../../../src/theme/spacing'
 import { request as apiRequest } from '../../../../src/api/client'
+import { ApiError } from '../../../../src/api/errors'
 import { API_BASE_URL } from '../../../../src/api/config'
 
 const API_V1 = `${API_BASE_URL}/api/v1`
@@ -52,6 +58,15 @@ interface NarrativeRow {
   readonly regulatorSentAt: string | null
 }
 
+/**
+ * Active-locale draft body (a data-field pick, not bilingual inline copy). The
+ * row carries both locales pre-authored by the brain; we render only the active
+ * one — no cross-language fallback.
+ */
+function draftBody(row: NarrativeRow, lang: 'sw' | 'en'): string {
+  return lang === 'sw' ? row.draftMdSw : row.draftMdEn
+}
+
 export default function InspectionNarrativeScreen(): JSX.Element {
   return (
     <RoleGuard screenId={SCREEN_ID}>
@@ -64,7 +79,7 @@ function InspectionNarrativeView(): JSX.Element {
   const params = useLocalSearchParams<{ id: string }>()
   const inspectionId = String(params.id ?? '')
   const { lang, t } = useI18n()
-  const isSw = lang === 'sw'
+  const copy = t.narrative
 
   const [rows, setRows] = useState<readonly NarrativeRow[]>([])
   const [notes, setNotes] = useState<string>('')
@@ -82,13 +97,15 @@ function InspectionNarrativeView(): JSX.Element {
         data: readonly NarrativeRow[]
       }>(`${API_V1}/compliance/inspections/${inspectionId}/narratives`)
       if (json.success) setRows(json.data)
-      else setError('Failed to load narratives')
+      else setError(copy.loadFailed)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'load failed')
+      setError(
+        localizeApiError(err instanceof ApiError ? err.code : undefined, lang),
+      )
     } finally {
       setLoading(false)
     }
-  }, [inspectionId])
+  }, [inspectionId, copy.loadFailed, lang])
 
   useEffect(() => {
     void refresh()
@@ -106,17 +123,19 @@ function InspectionNarrativeView(): JSX.Element {
         { method: 'POST', body }
       )
       if (json.success) {
-        setMessage(isSw ? 'Rasimu imezalishwa' : 'Narrative drafted')
+        setMessage(copy.drafted)
         await refresh()
       } else {
-        setError(json.error ?? 'generate failed')
+        setError(copy.generateFailed)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'generate failed')
+      setError(
+        localizeApiError(err instanceof ApiError ? err.code : undefined, lang),
+      )
     } finally {
       setLoading(false)
     }
-  }, [kind, notes, inspectionId, isSw, refresh])
+  }, [kind, notes, inspectionId, copy.drafted, copy.generateFailed, lang, refresh])
 
   const approve = useCallback(
     async (narrativeId: string): Promise<void> => {
@@ -128,30 +147,25 @@ function InspectionNarrativeView(): JSX.Element {
           { method: 'POST', body: {} }
         )
         if (json.success) {
-          setMessage(isSw ? 'Imeidhinishwa' : 'Approved as manager')
+          setMessage(copy.approved)
           await refresh()
         } else {
-          setError(json.error ?? 'approve failed')
+          setError(copy.approveFailed)
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'approve failed')
+        setError(
+          localizeApiError(err instanceof ApiError ? err.code : undefined, lang),
+        )
       } finally {
         setLoading(false)
       }
     },
-    [inspectionId, isSw, refresh]
+    [inspectionId, copy.approved, copy.approveFailed, lang, refresh]
   )
 
   return (
     <ScreenShell screenId={SCREEN_ID}>
-      <Section
-        title={isSw ? 'Tengeneza ripoti' : 'Generate narrative'}
-        hint={
-          isSw
-            ? 'Mr. Mwikila ataandaa rasimu ya ukaguzi kwa Kiswahili na Kiingereza.'
-            : 'Mr. Mwikila will draft the inspection narrative in Swahili and English.'
-        }
-      >
+      <Section title={copy.generateTitle} hint={copy.generateHint}>
         <View style={styles.formRow}>
           {(['safety', 'environmental', 'financial', 'other'] as const).map(
             (k) => (
@@ -168,14 +182,12 @@ function InspectionNarrativeView(): JSX.Element {
         <TextInput
           value={notes}
           onChangeText={setNotes}
-          placeholder={
-            isSw ? 'Maelezo ya ziada (hiari)' : 'Extra notes (optional)'
-          }
+          placeholder={copy.notesPlaceholder}
           multiline
           style={styles.textArea}
         />
         <Button
-          label={isSw ? 'Tengeneza rasimu' : 'Generate draft'}
+          label={copy.generateCta}
           onPress={() => void generate()}
           disabled={loading}
         />
@@ -192,14 +204,10 @@ function InspectionNarrativeView(): JSX.Element {
         </View>
       ) : null}
 
-      <Section
-        title={isSw ? `Rasimu (${rows.length})` : `Drafts (${rows.length})`}
-      >
+      <Section title={copy.draftsTitle.replace('{{count}}', String(rows.length))}>
         <ScrollView style={styles.list}>
           {rows.length === 0 ? (
-            <Text style={styles.empty}>
-              {isSw ? 'Bado hakuna rasimu' : 'No narratives yet.'}
-            </Text>
+            <Text style={styles.empty}>{copy.empty}</Text>
           ) : null}
           {rows.map((row) => (
             <View key={row.id} style={styles.narrativeCard}>
@@ -208,36 +216,26 @@ function InspectionNarrativeView(): JSX.Element {
                 {row.generatedAt.slice(0, 16).replace('T', ' ')}
               </Text>
               <Text style={styles.narrativeBody}>
-                {(isSw ? row.draftMdSw : row.draftMdEn).slice(0, 480)}
-                {(isSw ? row.draftMdSw : row.draftMdEn).length > 480
-                  ? '…'
-                  : ''}
+                {draftBody(row, lang).slice(0, 480)}
+                {draftBody(row, lang).length > 480 ? '…' : ''}
               </Text>
               {row.status === 'draft' ? (
                 <Button
-                  label={isSw ? 'Idhinisha' : 'Approve as manager'}
+                  label={copy.approveCta}
                   onPress={() => void approve(row.id)}
                   disabled={loading}
                   style={styles.approveBtn}
                 />
               ) : null}
               {row.status === 'manager_ok' ? (
-                <Text style={styles.hint}>
-                  {isSw
-                    ? 'Inasubiri mmiliki kuthibitisha.'
-                    : 'Awaiting owner sign.'}
-                </Text>
+                <Text style={styles.hint}>{copy.awaitingOwner}</Text>
               ) : null}
               {row.status === 'owner_signed' ? (
-                <Text style={styles.hint}>
-                  {isSw
-                    ? 'Tayari kuwasilishwa kwa msimamizi.'
-                    : 'Ready for regulator submission.'}
-                </Text>
+                <Text style={styles.hint}>{copy.readyForRegulator}</Text>
               ) : null}
               {row.status === 'submitted' ? (
                 <Text style={styles.hint}>
-                  {isSw ? 'Imewasilishwa' : 'Submitted'} ·{' '}
+                  {copy.submitted} ·{' '}
                   {row.regulatorSentAt?.slice(0, 16).replace('T', ' ') ?? ''}
                 </Text>
               ) : null}

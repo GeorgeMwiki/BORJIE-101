@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { FileCheck2 } from 'lucide-react';
-import { Button } from '@borjie/design-system';
+import { Alert, Button } from '@borjie/design-system';
 import { useGenerateRenewalPack } from '@/lib/queries/licence';
+import { localizeError } from '@/lib/api-client';
 import { Toast } from '@/components/shared/Toast';
 import { useLocale } from '@/lib/locale';
 import { pickByLocale } from '@/lib/locale-shared';
@@ -26,12 +27,20 @@ export function RenewalActions({ licenceId, completePct, missing }: RenewalActio
   const locale = useLocale();
   const mutation = useGenerateRenewalPack();
   const [toastUrl, setToastUrl] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const generate = (): void => {
+    // Clear any prior toast/error so a re-run starts clean.
+    setToastUrl(null);
+    setErrorMessage(null);
     mutation.mutate(
       { licenceId },
       {
         onSuccess: (data) => setToastUrl(data.url),
+        // NEVER-BLOCKED: a failed generation lands on a localized, recoverable
+        // error (the stable catalog code → active-locale copy, never a raw
+        // English message). Mirrors CompliancePackSurface's onError leg.
+        onError: (err: unknown) => setErrorMessage(localizeError(err, locale)),
       },
     );
   };
@@ -71,6 +80,11 @@ export function RenewalActions({ licenceId, completePct, missing }: RenewalActio
       >
         {pickByLocale(locale, S.renewal.generate)}
       </Button>
+      {mutation.isError && errorMessage ? (
+        <Alert variant="error" className="mt-3 text-xs">
+          {errorMessage}
+        </Alert>
+      ) : null}
       {toastUrl ? (
         <Toast
           message={pickByLocale(locale, S.renewal.ready)}

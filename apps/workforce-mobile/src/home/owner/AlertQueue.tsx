@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { colors } from '../../theme/colors'
 import { fontSize, radius, spacing } from '../../theme/spacing'
+import { pickStrings } from '../../i18n'
 import { MAX_DECISIONS, type DecisionItem } from './types'
 
 export interface AlertQueueProps {
@@ -19,11 +20,12 @@ export function AlertQueue({ items, lang, onTriage }: AlertQueueProps): JSX.Elem
   if (items.length === 0) {
     return null
   }
+  const copy = pickStrings(lang).ownerDashboard
   const capped = items.slice(0, MAX_DECISIONS)
   return (
     <View testID="owner-home-alert-queue" style={styles.wrap}>
       <Text style={styles.header}>
-        {lang === 'sw' ? `Inahitaji uangalizi · ${capped.length}` : `Needs review · ${capped.length}`}
+        {copy.needsReview.replace('{{count}}', String(capped.length))}
       </Text>
       {capped.map((item) => (
         <Pressable
@@ -40,9 +42,7 @@ export function AlertQueue({ items, lang, onTriage }: AlertQueueProps): JSX.Elem
           <Text style={styles.rowTitle}>
             {lang === 'sw' ? item.titleSw : item.titleEn}
           </Text>
-          <Text style={styles.rowAction}>
-            {lang === 'sw' ? 'Fungua' : 'Open'}
-          </Text>
+          <Text style={styles.rowAction}>{copy.open}</Text>
         </Pressable>
       ))}
     </View>
