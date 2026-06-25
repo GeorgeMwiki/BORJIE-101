@@ -203,6 +203,8 @@ export const sw = {
   "nav": {
     "tenant": "Shirika",
     "ownerCockpit": "Kokpiti ya Mmiliki",
+    "openNavigation": "Fungua urambazaji",
+    "closeNavigation": "Funga urambazaji",
     "sectionOverview": "Muhtasari",
     "sectionField": "Shamba",
     "sectionOperations": "Uendeshaji",

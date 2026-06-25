@@ -2,47 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  LayoutDashboard,
-  Brain,
-  Network,
-  FileText,
-  Map,
-  Mountain,
-  FileCheck,
-  Users,
-  Truck,
-  Package,
-  TestTubes,
-  Calculator,
-  Store,
-  ShieldCheck,
-  HardHat,
-  HeartHandshake,
-  TrendingUp,
-  BarChart3,
-  Layers,
-  Sparkles,
-  Settings,
-  MessageCircle,
-  Building2,
-  Link as LinkIcon,
-  Scale,
-  GraduationCap,
-  Workflow,
-  LineChart,
-  Banknote,
-  FileSearch,
-  ListChecks,
-  Landmark,
-  Gem,
-  GitBranch,
-  ArrowLeftRight,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
 import { BorjieLogo, Logomark } from '@borjie/design-system';
 import { cn } from '@borjie/design-system';
 import { useT } from '@/i18n/t.client';
+import type { TFn } from '@/i18n/resolve';
+import { SECTIONS, bestActiveHref } from './nav-sections';
 
 /**
  * Owner-web sidebar — Portal pattern adapted to Borjie.
@@ -54,167 +18,46 @@ import { useT } from '@/i18n/t.client';
  *      truncated in the middle, optional badge on the right.
  *   4. Active state shows a 3px primary pill flush to the left edge
  *      plus an `icon-glass-active` tile and `bg-primary/5` row.
- *   5. Bottom: user identity chip (handled in `TopBar` for now).
  *
- * Sections track Borjie's existing `OWNER_SCREENS` mental model
- * (Overview / Field / Operations / Money / Compliance / Community /
- * Settings) so no orphan routes go missing. Each label maps to a
- * Lucide icon for visual scan.
+ * The nav model (`SECTIONS`) lives in `./nav-sections` so the desktop rail
+ * and the below-`lg` `MobileNavDrawer` render the SAME routes — the
+ * responsive collapse can never strand a route.
+ *
+ * RESPONSIVE: the desktop rail is `hidden lg:flex`, mirroring admin-web — it
+ * is removed from the layout below `lg` (where it would otherwise eat a
+ * 260px slice of a narrow viewport, SC 1.4.10). Below `lg` the same nav is
+ * reachable through the TopBar hamburger → `MobileNavDrawer`.
  */
-
-interface NavItem {
-  readonly labelKey: string;
-  readonly href: string;
-  readonly icon: LucideIcon;
-}
-
-interface NavSection {
-  readonly headingKey: string;
-  readonly items: ReadonlyArray<NavItem>;
-}
-
-const SECTIONS: ReadonlyArray<NavSection> = [
-  {
-    headingKey: 'nav.sectionOverview',
-    items: [
-      { labelKey: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
-      { labelKey: 'nav.cockpit', href: '/cockpit', icon: BarChart3 },
-      { labelKey: 'nav.masterBrain', href: '/master-brain', icon: Brain },
-      { labelKey: 'nav.lmbm', href: '/lmbm', icon: Network },
-      { labelKey: 'nav.ask', href: '/ask', icon: MessageCircle },
-      { labelKey: 'nav.headBriefing', href: '/head-briefing', icon: Sparkles },
-      { labelKey: 'nav.agentic', href: '/agentic', icon: Brain },
-      { labelKey: 'nav.training', href: '/training/scenarios', icon: GraduationCap },
-      { labelKey: 'nav.livingPlan', href: '/living-plan', icon: ListChecks },
-    ],
-  },
-  {
-    headingKey: 'nav.sectionField',
-    items: [
-      { labelKey: 'nav.portfolioMap', href: '/portfolio-map', icon: Map },
-      { labelKey: 'nav.sites', href: '/sites', icon: Mountain },
-      { labelKey: 'nav.siteCockpit', href: '/site-cockpit', icon: Layers },
-      { labelKey: 'nav.licences', href: '/licences', icon: FileCheck },
-      { labelKey: 'nav.documents', href: '/documents', icon: FileText },
-      { labelKey: 'nav.documentIntelligence', href: '/document-intelligence', icon: FileSearch },
-      { labelKey: 'nav.people', href: '/people', icon: Users },
-      { labelKey: 'nav.workforceTabs', href: '/workforce-tabs', icon: Users },
-    ],
-  },
-  {
-    headingKey: 'nav.sectionOperations',
-    items: [
-      { labelKey: 'nav.flows', href: '/flows', icon: Workflow },
-      { labelKey: 'nav.fleet', href: '/fleet', icon: Truck },
-      { labelKey: 'nav.inventory', href: '/inventory', icon: Package },
-      { labelKey: 'nav.geology', href: '/geology', icon: TestTubes },
-      { labelKey: 'nav.counterparties', href: '/counterparties', icon: Building2 },
-      { labelKey: 'nav.chainOfCustody', href: '/chain-of-custody', icon: LinkIcon },
-    ],
-  },
-  {
-    headingKey: 'nav.sectionMoney',
-    items: [
-      { labelKey: 'nav.finance', href: '/finance', icon: Calculator },
-      { labelKey: 'nav.sales', href: '/sales', icon: TrendingUp },
-      { labelKey: 'nav.treasury', href: '/treasury', icon: TrendingUp },
-      { labelKey: 'nav.marketplace', href: '/marketplace', icon: Store },
-      { labelKey: 'nav.market', href: '/market', icon: LineChart },
-      { labelKey: 'nav.payroll', href: '/payroll', icon: Banknote },
-    ],
-  },
-  {
-    headingKey: 'nav.sectionEstate',
-    items: [
-      { labelKey: 'nav.estate', href: '/estate', icon: Landmark },
-      { labelKey: 'nav.estateEntities', href: '/estate/entities', icon: Building2 },
-      { labelKey: 'nav.estateAssets', href: '/estate/assets', icon: Gem },
-      { labelKey: 'nav.estateCapitalMovements', href: '/estate/capital-movements', icon: ArrowLeftRight },
-      { labelKey: 'nav.estateSuccession', href: '/estate/succession', icon: GitBranch },
-    ],
-  },
-  {
-    headingKey: 'nav.sectionCompliance',
-    items: [
-      { labelKey: 'nav.compliance', href: '/compliance', icon: ShieldCheck },
-      { labelKey: 'nav.safety', href: '/safety', icon: HardHat },
-      { labelKey: 'nav.regulatorCalendar', href: '/regulatory-calendar', icon: Scale },
-    ],
-  },
-  {
-    headingKey: 'nav.sectionCommunity',
-    items: [
-      { labelKey: 'nav.community', href: '/community', icon: HeartHandshake },
-    ],
-  },
-  {
-    headingKey: 'nav.sectionSettings',
-    items: [
-      { labelKey: 'nav.reports', href: '/reports', icon: BarChart3 },
-      { labelKey: 'nav.groupView', href: '/group', icon: Layers },
-      { labelKey: 'nav.onboarding', href: '/onboarding', icon: Sparkles },
-      { labelKey: 'nav.settings', href: '/settings', icon: Settings },
-    ],
-  },
-];
-
-/** Does `href` cover `pathname` (exact or as a path-segment prefix)? */
-function hrefCovers(href: string, pathname: string): boolean {
-  if (href === '/') return pathname === '/';
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
 
 /**
- * The single most-specific nav href for the current path. With nested
- * routes in the nav (e.g. `/estate` and `/estate/assets`), a bare prefix
- * test would light BOTH the parent and the child — so the longest covering
- * href wins and only that one renders active. For the flat, non-overlapping
- * entries this is identical to a plain prefix match.
+ * Shared nav body — the brand header, tenant chip, and sectioned link list.
+ * Rendered by the desktop rail and by the mobile drawer (with
+ * `onNavigate` wired to close the drawer on selection). Keeping ONE renderer
+ * means the two surfaces can never drift in routes or active-state logic.
  */
-function bestActiveHref(
-  pathname: string | null,
-  sections: ReadonlyArray<NavSection>,
-): string | null {
-  if (!pathname) return null;
-  let best: string | null = null;
-  for (const section of sections) {
-    for (const item of section.items) {
-      if (hrefCovers(item.href, pathname) && item.href.length > (best?.length ?? -1)) {
-        best = item.href;
-      }
-    }
-  }
-  return best;
-}
-
-interface SidebarProps {
+export function SidebarNav({
+  tenantName,
+  t,
+  activeHref,
+  onNavigate,
+}: {
   readonly tenantName: string;
-  /**
-   * Server-resolved locale, threaded down from OwnerShell so `useT` SEEDS
-   * the first client render to the SAME language the SSR `<html lang>`
-   * chrome used. Without this seed `useT` defaults to `en` and renders a
-   * one-frame EN sidebar under an SW page (the first-paint split-brain —
-   * a zero-mix canon violation).
-   */
-  readonly languagePreference?: 'sw' | 'en';
-}
-
-export function Sidebar({ tenantName, languagePreference }: SidebarProps) {
-  const pathname = usePathname();
-  const t = useT(languagePreference);
-  const activeHref = bestActiveHref(pathname, SECTIONS);
-
+  readonly t: TFn;
+  readonly activeHref: string | null;
+  readonly onNavigate?: () => void;
+}) {
+  // Spread only when defined — `exactOptionalPropertyTypes` rejects passing
+  // `onClick={undefined}` to next/link.
+  const navHandler = onNavigate ? { onClick: onNavigate } : {};
   return (
-    <aside
-      className={cn(
-        'z-40 flex h-screen w-[260px] shrink-0 flex-col',
-        'border-r border-border/60 bg-surface/40',
-        'sticky top-0',
-      )}
-    >
+    <>
       {/* Brand mark + tenant strapline */}
       <div className="flex h-16 items-center gap-3 border-b border-border/60 px-5">
-        <Link href="/" className="flex items-center gap-3">
+        <Link
+          href="/"
+          className="flex items-center gap-3"
+          {...navHandler}
+        >
           <Logomark className="h-8 w-8" />
           <div className="leading-tight text-foreground">
             {/* Canonical wordmark — Fraunces display, not hand-set text.
@@ -258,10 +101,12 @@ export function Sidebar({ tenantName, languagePreference }: SidebarProps) {
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      {...navHandler}
                       className={cn(
                         'group relative flex items-center gap-3 rounded-xl px-2.5 py-2',
                         'text-sm font-medium text-neutral-400 transition-colors',
                         'hover:bg-surface hover:text-foreground',
+                        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                         active && 'bg-signal-500/10 text-foreground',
                       )}
                       aria-current={active ? 'page' : undefined}
@@ -291,6 +136,38 @@ export function Sidebar({ tenantName, languagePreference }: SidebarProps) {
           </div>
         ))}
       </nav>
+    </>
+  );
+}
+
+interface SidebarProps {
+  readonly tenantName: string;
+  /**
+   * Server-resolved locale, threaded down from OwnerShell so `useT` SEEDS
+   * the first client render to the SAME language the SSR `<html lang>`
+   * chrome used. Without this seed `useT` defaults to `en` and renders a
+   * one-frame EN sidebar under an SW page (the first-paint split-brain —
+   * a zero-mix canon violation).
+   */
+  readonly languagePreference?: 'sw' | 'en';
+}
+
+export function Sidebar({ tenantName, languagePreference }: SidebarProps) {
+  const pathname = usePathname();
+  const t = useT(languagePreference);
+  const activeHref = bestActiveHref(pathname, SECTIONS);
+
+  return (
+    <aside
+      className={cn(
+        // Hidden below `lg`, shown as a sticky rail from `lg` up. Below `lg`
+        // the TopBar hamburger opens the same nav in a Drawer.
+        'z-40 hidden h-screen w-[260px] shrink-0 flex-col lg:flex',
+        'border-r border-border/60 bg-surface/40',
+        'sticky top-0',
+      )}
+    >
+      <SidebarNav tenantName={tenantName} t={t} activeHref={activeHref} />
     </aside>
   );
 }

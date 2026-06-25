@@ -95,4 +95,12 @@ export const marketplaceSellerStrings = {
   offtakeStatusSigned: { en: 'Signed', sw: 'Imesainiwa' },
   offtakeStatusCancelled: { en: 'Cancelled', sw: 'Imeghairiwa' },
   offtakeStatusCompleted: { en: 'Completed', sw: 'Imekamilika' },
+
+  // ── Sign action (COMPLETION-LAW: advances → signed + enqueues settlement) ─
+  offtakeSignButton: { en: 'Sign & settle', sw: 'Saini na lipa' },
+  offtakeSigningLabel: { en: 'Signing…', sw: 'Inasaini…' },
+  offtakeSignError: {
+    en: 'Could not sign this contract. Try again shortly.',
+    sw: 'Imeshindwa kusaini mkataba huu. Jaribu tena baadaye.',
+  },
 } as const;

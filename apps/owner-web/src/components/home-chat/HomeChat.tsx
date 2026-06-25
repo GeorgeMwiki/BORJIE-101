@@ -278,6 +278,7 @@ export function HomeChat({
           <AskComposer
             busy={isStreaming}
             disabled={composerDisabled}
+            voiceLocale={languagePreference}
             onAbort={abort}
             onSubmit={(content) => {
               // Re-engage bottom-follow for the fresh answer so a prior
