@@ -10,8 +10,10 @@ import { Pill, type PillTone } from '@/components/Pill'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { EmptyState } from '@/components/EmptyState'
 import { MessageBubble } from '@/components/MessageBubble'
+import { OfftakeContractCard } from '@/components/OfftakeContractCard'
 import { useToast } from '@/components/Toast'
 import { useTranslation } from '@/hooks/useTranslation'
+import { useOfftakeForBid } from '@/hooks/useOfftake'
 import { useDebouncedSubmit } from '@/hooks/useDebouncedSubmit'
 import { fetchBid, updateBidStatus } from '@/api/marketplace'
 import { fetchThread, sendThreadMessage } from '@/api/bid-messaging'
@@ -87,6 +89,12 @@ export default function BidDetail() {
     onError: () => toast.show(t('bids.bid_failed'), 'error')
   })
 
+  // COMPLETION-LAW: an accepted bid crystallizes a binding offtake contract on
+  // the seller side. Surface the buyer's mirror of that contract here — fetched
+  // only once the bid is accepted (no contract exists before then).
+  const bidAccepted = query.data?.status === 'accepted'
+  const offtakeQuery = useOfftakeForBid(bidId, bidAccepted)
+
   if (query.isLoading) {
     return (
       <Screen>
@@ -155,6 +163,15 @@ export default function BidDetail() {
         <KeyValueRow label={t('bids.your_offer')} value={`${formatTzs(bid.offerTzsPerKg)} / ${t('common.kg')}`} />
         <KeyValueRow label={t('marketplace.quantity')} value={formatKg(bid.quantityKg)} />
       </Card>
+
+      {bid.status === 'accepted' ? (
+        <OfftakeContractCard
+          contract={offtakeQuery.data}
+          isLoading={offtakeQuery.isPending}
+          isError={offtakeQuery.isError}
+          error={offtakeQuery.error}
+        />
+      ) : null}
 
       {hasThread ? (
         <Card>

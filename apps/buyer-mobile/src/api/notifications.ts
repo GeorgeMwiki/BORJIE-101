@@ -14,6 +14,11 @@ export type BuyerNotificationKind =
   | 'rfb_fulfilled'
   | 'rfb_response_received'
   | 'settlement_paid'
+  // Marketplace-bid outcomes — emitted by the gateway when a seller resolves
+  // a bid. `bid_accepted` carries `payload.bidId` and deep-links to the bid
+  // detail (where the binding offtake contract now surfaces).
+  | 'bid_accepted'
+  | 'bid_rejected'
 
 export interface BuyerNotificationRow {
   readonly id: string
