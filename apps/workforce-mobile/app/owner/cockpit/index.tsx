@@ -25,6 +25,12 @@ import { ScreenShell } from '../../../src/components/ScreenShell'
 import { Section } from '../../../src/components/Section'
 import { useAuth } from '../../../src/auth/useAuth'
 import { useI18n } from '../../../src/i18n/useI18n'
+import type { StringDict } from '../../../src/i18n'
+import {
+  severityLabel,
+  opportunityKindLabel,
+  riskKindLabel,
+} from '../../../src/i18n/enumLabels'
 import { colors } from '../../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../../src/theme/spacing'
 import {
@@ -66,7 +72,7 @@ export default function CockpitHubScreen(): JSX.Element {
 }
 
 function CockpitHubView(): JSX.Element {
-  const { lang } = useI18n()
+  const { lang, t } = useI18n()
   const isSw = lang === 'sw'
   const query = useCockpitHub()
   const [refreshing, setRefreshing] = useState<boolean>(false)
@@ -137,7 +143,7 @@ function CockpitHubView(): JSX.Element {
           </Text>
         ) : (
           data.decisions.slice(0, 5).map((decision) => (
-            <DecisionRow key={decision.id} decision={decision} isSw={isSw} />
+            <DecisionRow key={decision.id} decision={decision} isSw={isSw} t={t} />
           ))
         )}
       </Section>
@@ -154,6 +160,7 @@ function CockpitHubView(): JSX.Element {
             <OpportunityRow
               key={opportunity.id}
               opportunity={opportunity}
+              t={t}
             />
           ))
         )}
@@ -166,7 +173,7 @@ function CockpitHubView(): JSX.Element {
           </Text>
         ) : (
           data.risks.slice(0, 5).map((risk) => (
-            <RiskRow key={risk.id} risk={risk} />
+            <RiskRow key={risk.id} risk={risk} t={t} />
           ))
         )}
       </Section>
@@ -191,15 +198,17 @@ function CockpitHubView(): JSX.Element {
 function DecisionRow({
   decision,
   isSw,
+  t,
 }: {
   readonly decision: CockpitDecisionSummary
   readonly isSw: boolean
+  readonly t: StringDict
 }): JSX.Element {
   return (
     <Pressable style={styles.row}>
       <View style={styles.rowHead}>
         <Text style={styles.rowTitle}>{decision.summary}</Text>
-        <Text style={styles.severity}>{decision.severity.toUpperCase()}</Text>
+        <Text style={styles.severity}>{severityLabel(decision.severity, t)}</Text>
       </View>
       <Text style={styles.muted}>
         {isSw ? 'Imeibuliwa' : 'Raised'} {new Date(decision.raisedAt).toLocaleString()}
@@ -210,28 +219,36 @@ function DecisionRow({
 
 function OpportunityRow({
   opportunity,
+  t,
 }: {
   readonly opportunity: CockpitOpportunity
+  readonly t: StringDict
 }): JSX.Element {
   return (
     <Pressable style={styles.row}>
       <Text style={styles.rowTitle}>{opportunity.summary}</Text>
       <Text style={styles.muted}>
         ~TZS {Math.round(opportunity.expectedValueTzs).toLocaleString()} ·{' '}
-        {opportunity.kind}
+        {opportunityKindLabel(opportunity.kind, t)}
       </Text>
     </Pressable>
   )
 }
 
-function RiskRow({ risk }: { readonly risk: CockpitRisk }): JSX.Element {
+function RiskRow({
+  risk,
+  t,
+}: {
+  readonly risk: CockpitRisk
+  readonly t: StringDict
+}): JSX.Element {
   return (
     <Pressable style={styles.row}>
       <View style={styles.rowHead}>
         <Text style={styles.rowTitle}>{risk.summary}</Text>
-        <Text style={styles.severity}>{risk.severity.toUpperCase()}</Text>
+        <Text style={styles.severity}>{severityLabel(risk.severity, t)}</Text>
       </View>
-      <Text style={styles.muted}>{risk.kind}</Text>
+      <Text style={styles.muted}>{riskKindLabel(risk.kind, t)}</Text>
     </Pressable>
   )
 }

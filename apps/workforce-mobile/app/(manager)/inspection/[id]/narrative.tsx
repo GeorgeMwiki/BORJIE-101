@@ -20,6 +20,7 @@ import { Section } from '../../../../src/components/Section'
 import { RoleGuard } from '../../../../src/components/RoleGuard'
 import { Button } from '../../../../src/forms/Button'
 import { useI18n } from '../../../../src/i18n/useI18n'
+import { narrativeStatusLabel } from '../../../../src/i18n/enumLabels'
 import { colors } from '../../../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../../../src/theme/spacing'
 import { request as apiRequest } from '../../../../src/api/client'
@@ -62,7 +63,7 @@ export default function InspectionNarrativeScreen(): JSX.Element {
 function InspectionNarrativeView(): JSX.Element {
   const params = useLocalSearchParams<{ id: string }>()
   const inspectionId = String(params.id ?? '')
-  const { lang } = useI18n()
+  const { lang, t } = useI18n()
   const isSw = lang === 'sw'
 
   const [rows, setRows] = useState<readonly NarrativeRow[]>([])
@@ -203,7 +204,8 @@ function InspectionNarrativeView(): JSX.Element {
           {rows.map((row) => (
             <View key={row.id} style={styles.narrativeCard}>
               <Text style={styles.narrativeMeta}>
-                {row.status} · {row.generatedAt.slice(0, 16).replace('T', ' ')}
+                {narrativeStatusLabel(row.status, t)} ·{' '}
+                {row.generatedAt.slice(0, 16).replace('T', ' ')}
               </Text>
               <Text style={styles.narrativeBody}>
                 {(isSw ? row.draftMdSw : row.draftMdEn).slice(0, 480)}

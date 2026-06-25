@@ -535,5 +535,85 @@
     "searchAccessibility": "Universal search input",
     "openSearchAccessibility": "Open universal search",
     "openTargetAccessibility": "Open {{label}}"
+  },
+  "enums": {
+    "statusPrefix": "Status",
+    "severity": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "critical": "Critical",
+      "sovereign": "Sovereign"
+    },
+    "opportunityKind": {
+      "cost_saving": "Cost saving",
+      "revenue": "Revenue",
+      "tax_efficiency": "Tax efficiency",
+      "regulatory_window": "Regulatory window",
+      "capital": "Capital",
+      "market_timing": "Market timing",
+      "operational_arbitrage": "Operational arbitrage",
+      "hr": "Workforce",
+      "compliance_shortcut": "Compliance shortcut",
+      "estate_planning": "Estate planning",
+      "counterparty": "Counterparty",
+      "peer_best_practice": "Peer best practice"
+    },
+    "riskKind": {
+      "cash_flow": "Cash flow",
+      "regulatory": "Regulatory",
+      "operational": "Operational",
+      "hr": "Workforce",
+      "compliance": "Compliance",
+      "counterparty": "Counterparty"
+    },
+    "taskStatus": {
+      "pending": "Pending",
+      "in_progress": "In progress",
+      "done": "Done",
+      "blocked": "Blocked",
+      "cancelled": "Cancelled"
+    },
+    "trainingStatus": {
+      "assigned": "Assigned",
+      "in_progress": "In progress",
+      "completed": "Completed"
+    },
+    "documentStatus": {
+      "pending_upload": "Pending upload",
+      "uploaded": "Uploaded",
+      "processing": "Processing",
+      "ocr_complete": "OCR complete",
+      "validated": "Validated",
+      "rejected": "Rejected",
+      "expired": "Expired",
+      "archived": "Archived"
+    },
+    "narrativeStatus": {
+      "draft": "Draft",
+      "manager_ok": "Manager approved",
+      "owner_signed": "Owner signed",
+      "submitted": "Submitted",
+      "delivered": "Delivered",
+      "superseded": "Superseded"
+    },
+    "sitePhase": {
+      "exploration": "Exploration",
+      "development": "Development",
+      "production": "Production",
+      "closure": "Closure",
+      "reclamation": "Reclamation"
+    },
+    "entityKind": {
+      "site": "Site",
+      "licence": "Licence",
+      "parcel": "Parcel",
+      "counterparty": "Counterparty",
+      "document": "Document",
+      "scope": "Scope",
+      "employee": "Employee",
+      "subsidiary": "Subsidiary",
+      "custom": "Custom"
+    }
   }
 }

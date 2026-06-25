@@ -10,6 +10,8 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { colors } from '../theme/colors'
 import { fontSize, radius, spacing } from '../theme/spacing'
+import { pickStrings } from '../i18n'
+import { entityKindLabel } from '../i18n/enumLabels'
 import type {
   EntityItem,
   SlashCommandItem
@@ -74,6 +76,7 @@ export function SlashMenu({ commands, locale, onSelect }: SlashMenuProps): JSX.E
 
 export function AtMenu({ entities, locale, onSelect }: AtMenuProps): JSX.Element {
   const rows = entities.slice(0, MAX_ROWS)
+  const t = pickStrings(locale)
   return (
     <View style={styles.menu} testID="home-chat-at-menu">
       {rows.length === 0 ? (
@@ -94,7 +97,7 @@ export function AtMenu({ entities, locale, onSelect }: AtMenuProps): JSX.Element
             >
               <Text style={styles.label}>{entity.label[locale]}</Text>
               <Text style={styles.hint}>
-                {entity.kind}
+                {entityKindLabel(entity.kind, t)}
                 {entity.hint ? ` · ${entity.hint[locale]}` : ''}
               </Text>
             </Pressable>

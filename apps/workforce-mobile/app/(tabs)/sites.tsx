@@ -7,6 +7,8 @@ import { PlaceholderList, type PlaceholderItem } from '../../src/components/Plac
 import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { useAuth } from '../../src/auth/useAuth'
 import { useI18n } from '../../src/i18n/useI18n'
+import type { StringDict } from '../../src/i18n'
+import { sitePhaseLabel } from '../../src/i18n/enumLabels'
 import { miningApi } from '../../src/api/client'
 import { ApiError, isNetworkError } from '../../src/api/errors'
 import { colors } from '../../src/theme/colors'
@@ -80,12 +82,14 @@ function statusLabel(status: string, lang: Lang): string {
   return STATUS_LABEL[lang][status] ?? status
 }
 
-function toPlaceholderItem(site: SiteRow, lang: Lang): PlaceholderItem {
+function toPlaceholderItem(site: SiteRow, lang: Lang, t: StringDict): PlaceholderItem {
   const mineral = site.mineral.length > 0 ? site.mineral : COPY[lang].unknownMineral
   return {
     id: site.id,
     primary: `${site.name} · ${mineral}`,
-    secondary: `${site.phase} · ${statusLabel(site.status, lang)}`
+    // Both phase and status localize through label maps — neither renders a
+    // raw enum token (a raw token under `sw` is language mixing).
+    secondary: `${sitePhaseLabel(site.phase, t)} · ${statusLabel(site.status, lang)}`
   }
 }
 
@@ -97,13 +101,13 @@ function isBackendUnavailable(error: unknown): boolean {
 
 export default function SitesTab(): JSX.Element {
   const { user } = useAuth()
-  const { screen, lang } = useI18n()
+  const { screen, lang, t } = useI18n()
   const screenId = user?.role === 'owner' ? 'O-M-04' : 'W-M-19'
 
   return (
     <ScreenShell screenId={screenId}>
       <Section title={COPY[lang].sectionAll}>
-        <SitesList lang={lang} />
+        <SitesList lang={lang} t={t} />
       </Section>
       <Section title={COPY[lang].sectionRelated}>
         <View style={styles.grid}>
@@ -123,7 +127,7 @@ export default function SitesTab(): JSX.Element {
   )
 }
 
-function SitesList({ lang }: { readonly lang: Lang }): JSX.Element {
+function SitesList({ lang, t }: { readonly lang: Lang; readonly t: StringDict }): JSX.Element {
   const query = useQuery<ReadonlyArray<SiteRow>, Error>({
     queryKey: ['mining', 'sites'],
     queryFn: async ({ signal }) => {
@@ -161,7 +165,7 @@ function SitesList({ lang }: { readonly lang: Lang }): JSX.Element {
     )
   }
 
-  return <PlaceholderList items={query.data.map((site) => toPlaceholderItem(site, lang))} />
+  return <PlaceholderList items={query.data.map((site) => toPlaceholderItem(site, lang, t))} />
 }
 
 function hrefFor(id: string): string {

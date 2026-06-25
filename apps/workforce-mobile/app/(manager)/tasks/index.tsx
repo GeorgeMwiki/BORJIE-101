@@ -16,6 +16,8 @@ import { Section } from '../../../src/components/Section'
 import { RoleGuard } from '../../../src/components/RoleGuard'
 import { useManagerOpenTasks } from '../../../src/manager/useManagerTasks'
 import { useI18n } from '../../../src/i18n/useI18n'
+import type { StringDict } from '../../../src/i18n'
+import { taskStatusLabel } from '../../../src/i18n/enumLabels'
 import { colors } from '../../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../../src/theme/spacing'
 
@@ -31,7 +33,7 @@ export default function ManagerTasksScreen(): JSX.Element {
 
 function ManagerTasksView(): JSX.Element {
   const tasksQuery = useManagerOpenTasks()
-  const { lang } = useI18n()
+  const { lang, t } = useI18n()
   const isSw = lang === 'sw'
 
   const tasks = tasksQuery.data ?? []
@@ -71,6 +73,7 @@ function ManagerTasksView(): JSX.Element {
                 key={task.id}
                 task={task}
                 isSw={isSw}
+                t={t}
                 accent={colors.gold}
               />
             ))}
@@ -95,7 +98,7 @@ function ManagerTasksView(): JSX.Element {
         ) : (
           <View style={styles.list}>
             {standardTasks.map((task) => (
-              <TaskCard key={task.id} task={task} isSw={isSw} />
+              <TaskCard key={task.id} task={task} isSw={isSw} t={t} />
             ))}
           </View>
         )}
@@ -111,10 +114,11 @@ interface TaskCardProps {
     ? T
     : never
   readonly isSw: boolean
+  readonly t: StringDict
   readonly accent?: string
 }
 
-function TaskCard({ task, isSw, accent }: TaskCardProps): JSX.Element {
+function TaskCard({ task, isSw, t, accent }: TaskCardProps): JSX.Element {
   const title = isSw ? task.titleSw : task.titleEn ?? task.titleSw
   return (
     <Link href={`/(manager)/tasks/${task.id}/assign`} asChild>
@@ -141,7 +145,7 @@ function TaskCard({ task, isSw, accent }: TaskCardProps): JSX.Element {
         </View>
         <View style={styles.cardMeta}>
           <Text style={styles.cardMetaText}>
-            {isSw ? 'Hali:' : 'Status:'} {task.status}
+            {isSw ? 'Hali:' : 'Status:'} {taskStatusLabel(task.status, t)}
           </Text>
           {task.assignedToUserId ? (
             <Text style={styles.cardMetaText}>

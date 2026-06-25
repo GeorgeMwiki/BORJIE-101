@@ -7,6 +7,7 @@
  */
 
 import { miningApi } from '../api/client'
+import { ApiError } from '../api/errors'
 import type {
   AskResponse,
   DocumentSession,
@@ -14,6 +15,25 @@ import type {
   UploadResult,
   UploadedDocument,
 } from './types'
+
+/**
+ * Build an ApiError from a 2xx body whose envelope reports `success:false`.
+ * Carries the machine `code` so call sites localize by code (never the raw
+ * English wire `message`, which under `sw` is language mixing). The raw
+ * message lands on `Error.message` for dev/logs only.
+ */
+function envelopeError(
+  error: { readonly code?: string; readonly message?: string } | undefined,
+  url: string,
+): ApiError {
+  return new ApiError(
+    error?.message ?? 'Request failed',
+    200,
+    url,
+    { error },
+    error?.code ?? null,
+  )
+}
 
 interface Envelope<T> {
   readonly success: boolean
@@ -75,13 +95,14 @@ export interface AskInput {
 }
 
 export async function askSession(input: AskInput): Promise<AskResponse> {
+  const path = `/document-intelligence/sessions/${encodeURIComponent(input.sessionId)}/ask`
   const response = await miningApi.post<Envelope<AskResponse>>(
-    `/document-intelligence/sessions/${encodeURIComponent(input.sessionId)}/ask`,
+    path,
     // English default per CLAUDE.md (flipped 2026-05).
     { question: input.question, language: input.language ?? 'en' },
   )
   if (!response.success || !response.data) {
-    throw new Error(response.error?.message ?? 'Ask failed')
+    throw envelopeError(response.error, path)
   }
   return response.data
 }

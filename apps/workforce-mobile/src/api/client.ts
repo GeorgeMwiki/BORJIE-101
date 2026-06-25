@@ -5,7 +5,7 @@ import {
   MINING_PREFIX,
   DEFAULT_TIMEOUT_MS
 } from './config'
-import { ApiError } from './errors'
+import { ApiError, parseError } from './errors'
 import { getAuthToken } from '../auth/session'
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
@@ -103,11 +103,17 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   clearTimeout(timer)
   const body = await parseBody(response)
   if (!response.ok) {
+    // Lift the gateway envelope code so call sites can localize by code
+    // (`localizeApiError(err.code, locale)`) instead of rendering the raw
+    // English wire message — which under `sw` is language mixing. The raw
+    // `message` is kept on `Error.message` for dev/logs only.
+    const { code, message } = parseError(body)
     throw new ApiError(
-      `Request to ${path} failed with ${response.status}`,
+      message ?? `Request to ${path} failed with ${response.status}`,
       response.status,
       url,
-      body
+      body,
+      code
     )
   }
   return body as T

@@ -688,5 +688,85 @@
     "searchAccessibility": "Sehemu ya utafutaji wa jumla",
     "openSearchAccessibility": "Fungua utafutaji wa jumla",
     "openTargetAccessibility": "Fungua {{label}}"
+  },
+  "enums": {
+    "statusPrefix": "Hali",
+    "severity": {
+      "low": "Chini",
+      "medium": "Wastani",
+      "high": "Juu",
+      "critical": "Hatari kubwa",
+      "sovereign": "Kuu"
+    },
+    "opportunityKind": {
+      "cost_saving": "Kuokoa gharama",
+      "revenue": "Mapato",
+      "tax_efficiency": "Ufanisi wa kodi",
+      "regulatory_window": "Dirisha la udhibiti",
+      "capital": "Mtaji",
+      "market_timing": "Muda wa soko",
+      "operational_arbitrage": "Uwiano wa uendeshaji",
+      "hr": "Wafanyakazi",
+      "compliance_shortcut": "Njia ya haraka ya utii",
+      "estate_planning": "Mipango ya urithi",
+      "counterparty": "Mshirika",
+      "peer_best_practice": "Mbinu bora za wenzako"
+    },
+    "riskKind": {
+      "cash_flow": "Mtiririko wa fedha",
+      "regulatory": "Udhibiti",
+      "operational": "Uendeshaji",
+      "hr": "Wafanyakazi",
+      "compliance": "Utii",
+      "counterparty": "Mshirika"
+    },
+    "taskStatus": {
+      "pending": "Inasubiri",
+      "in_progress": "Inaendelea",
+      "done": "Imekamilika",
+      "blocked": "Imezuiwa",
+      "cancelled": "Imeghairiwa"
+    },
+    "trainingStatus": {
+      "assigned": "Imepangiwa",
+      "in_progress": "Inaendelea",
+      "completed": "Imekamilika"
+    },
+    "documentStatus": {
+      "pending_upload": "Inasubiri kupakiwa",
+      "uploaded": "Imepakiwa",
+      "processing": "Inachakatwa",
+      "ocr_complete": "OCR imekamilika",
+      "validated": "Imethibitishwa",
+      "rejected": "Imekataliwa",
+      "expired": "Imekwisha muda",
+      "archived": "Imehifadhiwa"
+    },
+    "narrativeStatus": {
+      "draft": "Rasimu",
+      "manager_ok": "Meneja amekubali",
+      "owner_signed": "Mmiliki amesaini",
+      "submitted": "Imewasilishwa",
+      "delivered": "Imefikishwa",
+      "superseded": "Imebadilishwa"
+    },
+    "sitePhase": {
+      "exploration": "Utafutaji",
+      "development": "Uendelezaji",
+      "production": "Uzalishaji",
+      "closure": "Kufunga",
+      "reclamation": "Urejeshaji"
+    },
+    "entityKind": {
+      "site": "Mgodi",
+      "licence": "Leseni",
+      "parcel": "Kiwanja",
+      "counterparty": "Mshirika",
+      "document": "Hati",
+      "scope": "Wigo",
+      "employee": "Mfanyakazi",
+      "subsidiary": "Kampuni tanzu",
+      "custom": "Maalum"
+    }
   }
 }

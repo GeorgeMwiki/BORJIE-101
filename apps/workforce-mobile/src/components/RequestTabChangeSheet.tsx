@@ -26,7 +26,9 @@ import {
   type WorkforceRoleId,
   type WorkforceTabSpec
 } from '@borjie/persona-runtime'
+import { localizeApiError } from '@borjie/error-catalog'
 import { request } from '../api/client'
+import { ApiError } from '../api/errors'
 import { useI18n } from '../i18n/useI18n'
 import { tokens } from '../ui-litfin'
 import type { ResolvedWorkforceTab } from '../lib/hooks/useWorkforceTabConfig'
@@ -146,15 +148,22 @@ export function RequestTabChangeSheet(
         { method: 'POST', body: payload }
       )
       if (!resp?.success) {
-        throw new Error(resp?.error?.message ?? copy.error)
+        // 2xx body with success:false — localize by the envelope code, never
+        // the raw English message (under `sw` that is language mixing).
+        setErrorMessage(localizeApiError(resp?.error?.code, lang))
+        return
       }
       setDoneMessage(copy.sent)
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : copy.error)
+      // request() throws ApiError carrying the gateway code; localize by code
+      // in the active locale. Non-ApiError (unexpected) → generic localized copy.
+      setErrorMessage(
+        err instanceof ApiError ? localizeApiError(err.code, lang) : copy.error
+      )
     } finally {
       setSubmitting(false)
     }
-  }, [addTabs, copy.error, copy.reasonPlaceholder, copy.sent, density, reason, removeTabs, siteId])
+  }, [addTabs, copy.error, copy.reasonPlaceholder, copy.sent, density, lang, reason, removeTabs, siteId])
 
   const renderTabChip = (
     spec: WorkforceTabSpec,

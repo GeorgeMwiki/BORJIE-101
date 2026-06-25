@@ -10,6 +10,8 @@ import { miningApi } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
 import { useOnlineStatus } from '../../src/offline/useOnlineStatus'
 import { useAuth } from '../../src/auth/useAuth'
+import { useI18n } from '../../src/i18n/useI18n'
+import { documentStatusLabel } from '../../src/i18n/enumLabels'
 import { enqueueWrite } from '../../src/sync/queue'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
@@ -62,6 +64,7 @@ export default function Screen(): JSX.Element {
 
 function DocumentSigning(): JSX.Element {
   const { user } = useAuth()
+  const { t } = useI18n()
   const { online } = useOnlineStatus()
   const queryClient = useQueryClient()
   const [docId, setDocId] = useState<string>('')
@@ -145,7 +148,7 @@ function DocumentSigning(): JSX.Element {
                 style={[styles.docRow, selected ? styles.docRowSelected : null]}
               >
                 <Text style={styles.docTitle}>{doc.fileName}</Text>
-                <Text style={styles.docMeta}>{doc.status}</Text>
+                <Text style={styles.docMeta}>{documentStatusLabel(doc.status, t)}</Text>
               </Pressable>
             )
           })
