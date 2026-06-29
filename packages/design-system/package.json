@@ -58,7 +58,7 @@
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@storybook/addon-links": "^10.4.0",
+    "@storybook/addon-links": "^10.4.6",
     "@storybook/react": "^10.4.0",
     "@storybook/react-vite": "^10.4.0",
     "@types/react": "^18.2.0",
