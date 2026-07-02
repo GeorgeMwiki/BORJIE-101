@@ -4899,6 +4899,12 @@ async function gracefulShutdown(signal: string): Promise<void> {
   } catch (err) {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: sovereign-ledger verify cron stop failed');
   }
+  try {
+    serviceRegistry.auditVerifyCron?.stop();
+    logger.info('shutdown: audit-verify cron stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: audit-verify cron stop failed');
+  }
 
   // Scale-P0 cron-leader-election lane (RSS-06) — release every per-cron
   // advisory lock so another replica can be promoted promptly. No-op (and
@@ -5262,6 +5268,13 @@ if (require.main === module) {
   // hash-chain on cadence (default 1h) and emits verified/tampered
   // events on the shared bus. Degraded-mode (no DB) is a no-op.
   serviceRegistry.sovereignLedgerVerifyCron?.start();
+  // A2b-2 wire — AI audit-chain verify cron. Verifies a random sample +
+  // the full chain per tenant on cadence and records every verdict through
+  // the observability integrity recorder (`audit_chain_integrity_failures_total`
+  // metric + pager alert on tamper). Constructed in service-registry but was
+  // NEVER started, so that production tamper-alert path stayed dark. Null in
+  // degraded mode; `.start()` is a no-op there.
+  serviceRegistry.auditVerifyCron?.start();
 
   // Start the outbox drainer + register domain-event subscribers. The
   // outbox publishes events into the in-process bus; the subscribers

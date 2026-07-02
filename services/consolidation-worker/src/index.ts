@@ -74,6 +74,12 @@ import {
   resolveCorpusIngestIntervalMs,
   type CorpusIngestDb,
 } from './tasks/corpus-ingest-cron.js';
+import {
+  buildAuditIntegritySweepCronDeps,
+  runAuditIntegritySweepTick,
+  resolveAuditSweepIntervalMs,
+  type AuditSweepDbLike,
+} from './tasks/audit-integrity-sweep-cron.js';
 
 // Async per-upload OCR + full-text extraction poll cadence. Documents that
 // flip to `ingestion_status='ready'` are picked up here; default every 30s,
@@ -846,6 +852,51 @@ export async function main(options: MainOptions = {}): Promise<void> {
   // Fire once on boot so a fresh deploy ingests the global corpus immediately.
   void runCorpusIngest();
 
+  // ───────────────────────────────────────────────────────────────────
+  // Audit-chain integrity SWEEP (Tier-1 integrity-sweep wiring). Reads
+  // `audit_trail_entries`, recomputes each row's hash from first principles,
+  // re-verifies the per-tenant hash-chain, and RECORDS every verdict through
+  // the observability integrity recorder — the OTel
+  // `audit_chain_integrity_failures_total` counter + pager alert on tamper.
+  // Until this cron the sweep had ZERO production callers, so a real tamper in
+  // the audit trail was never detected in a live scheduled path. Built ONCE
+  // (the pager hook is stable); fires hourly + once on boot.
+  //
+  // Fail-safe: the sweep performs zero I/O and never throws; the tick wrapper
+  // additionally reads the DB inside a try/catch (a source/DB error degrades
+  // to an empty read → zero chains checked), so a cron error never crashes the
+  // supervisor. Ticks never overlap.
+  const auditSweepIntervalMs = resolveAuditSweepIntervalMs();
+  const auditSweepDeps = buildAuditIntegritySweepCronDeps(
+    db as unknown as AuditSweepDbLike,
+  );
+  let auditSweepTickInFlight = false;
+  const runAuditSweepTick = async (): Promise<void> => {
+    if (auditSweepTickInFlight) return; // never overlap ticks
+    auditSweepTickInFlight = true;
+    try {
+      await runAuditIntegritySweepTick(auditSweepDeps);
+    } catch (err) {
+      logger.warn(
+        { reason: asMessage(err) },
+        'consolidation-worker: audit-integrity-sweep tick failed',
+      );
+    } finally {
+      auditSweepTickInFlight = false;
+    }
+  };
+  const auditSweepHandle = setInterval(
+    () => void runAuditSweepTick(),
+    auditSweepIntervalMs,
+  );
+  auditSweepHandle.unref();
+  logger.info(
+    { auditSweepIntervalMs },
+    'consolidation-worker: audit-integrity-sweep started',
+  );
+  // Fire once on boot so a fresh deploy verifies the audit trail immediately.
+  void runAuditSweepTick();
+
   // SIGTERM-safe shutdown.
   let shuttingDown = false;
   const shutdown = (signal: NodeJS.Signals) => {
@@ -857,6 +908,7 @@ export async function main(options: MainOptions = {}): Promise<void> {
     clearInterval(orchestratorHandle);
     clearInterval(attestorHandle);
     clearInterval(corpusIngestHandle);
+    clearInterval(auditSweepHandle);
     // Give in-flight tick room to finish (the loop's safeTick is
     // already guarded; we just want to flush pending logs before exit).
     setTimeout(() => process.exit(0), 50).unref();
