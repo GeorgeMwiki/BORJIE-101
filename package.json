@@ -32,6 +32,7 @@
     "check:module-list": "node scripts/audit-hardcoded-module-list.mjs",
     "check:consent-sw": "node scripts/audit-consent-sw-coverage.mjs",
     "check:consent-sw:report": "node scripts/audit-consent-sw-coverage.mjs --report Docs/audit/consent-sw-coverage.md",
+    "check:mobile-zero-mix": "node scripts/audit-mobile-zero-mix.mjs",
     "check:barriers": "vitest run --config scripts/ci/mutation-barriers/vitest.config.ts",
     "check:locale-coverage": "node scripts/audit-hardcoded-locale-coverage.mjs",
     "check:currency-coverage": "node scripts/audit-hardcoded-currency-coverage.mjs",

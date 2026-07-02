@@ -21,8 +21,6 @@ const SCREEN_ID = 'W-M-13'
 const TRAINING_PATH = '/api/v1/training'
 
 const COPY = {
-  loading: 'Inapakia mada... · Loading topics...',
-  empty: 'Hakuna mada za toolbox kwa sasa. · No toolbox topics now.',
   errorPrefix: 'Hitilafu: ',
   ackOk: 'Toolbox-talk imethibitishwa kwenye seva.',
   ackQueued: 'Imehifadhiwa offline kwa sync.'
@@ -60,6 +58,7 @@ export default function Screen(): JSX.Element {
 function ToolboxTalk(): JSX.Element {
   const { user } = useAuth()
   const { t } = useI18n()
+  const copy = t.workerScreens.statusCopy
   const { online } = useOnlineStatus()
   const queryClient = useQueryClient()
   const queryKey = useMemo(
@@ -130,7 +129,7 @@ function ToolboxTalk(): JSX.Element {
         {query.isLoading ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.gold} />
-            <Text style={styles.muted}>{COPY.loading}</Text>
+            <Text style={styles.muted}>{copy.wm13Loading}</Text>
           </View>
         ) : null}
         {query.error && networkError ? <PreviewBanner kind="env-missing" /> : null}
@@ -140,7 +139,7 @@ function ToolboxTalk(): JSX.Element {
         {!query.isLoading && !query.error && assignments.length === 0 ? (
           <View>
             <PreviewBanner kind="no-data" />
-            <Text style={styles.muted}>{COPY.empty}</Text>
+            <Text style={styles.muted}>{copy.wm13Empty}</Text>
           </View>
         ) : null}
         {assignments.length > 0 ? (
@@ -194,7 +193,7 @@ function ToolboxTalk(): JSX.Element {
             {mutation.isPending ? (
               <View style={styles.loadingRow}>
                 <ActivityIndicator color={colors.gold} />
-                <Text style={styles.muted}>{COPY.loading}</Text>
+                <Text style={styles.muted}>{copy.wm13Loading}</Text>
               </View>
             ) : (
               <FingerprintPlaceholder

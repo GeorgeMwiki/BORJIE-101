@@ -20,8 +20,6 @@ import { fontSize, radius, spacing } from '../../src/theme/spacing'
 const SCREEN_ID = 'W-M-12'
 
 const COPY = {
-  loading: 'Inatuma... · Submitting...',
-  historyLoading: 'Inapakia historia... · Loading history...',
   historyError: 'Imeshindwa kupakia historia ya zamu.',
   emptyHistory: 'Hakuna kumbukumbu ya zamu bado.',
   noFence:
@@ -91,7 +89,8 @@ export default function Screen(): JSX.Element {
 
 function HoursLog(): JSX.Element {
   const { user } = useAuth()
-  const { lang } = useI18n()
+  const { t, lang } = useI18n()
+  const copy = t.workerScreens.statusCopy
   const { online } = useOnlineStatus()
   const { capture } = useLocation()
   const [segments, setSegments] = useState<ReadonlyArray<LocalSegment>>([])
@@ -261,7 +260,7 @@ function HoursLog(): JSX.Element {
         {submitting ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.gold} />
-            <Text style={styles.muted}>{COPY.loading}</Text>
+            <Text style={styles.muted}>{copy.wm12Loading}</Text>
           </View>
         ) : clockedIn ? (
           <Pressable
@@ -316,7 +315,7 @@ function HoursLog(): JSX.Element {
         {history.isPending ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.gold} />
-            <Text style={styles.muted}>{COPY.historyLoading}</Text>
+            <Text style={styles.muted}>{copy.wm12HistoryLoading}</Text>
           </View>
         ) : history.isError ? (
           <Text style={styles.errorText}>{COPY.historyError}</Text>

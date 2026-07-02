@@ -19,9 +19,6 @@ import { fontSize, radius, spacing } from '../../src/theme/spacing'
 const SCREEN_ID = 'W-M-03'
 
 const COPY = {
-  loading: 'Inapakia mada za toolbox... · Loading briefing topics...',
-  empty: 'Hakuna mada za toolbox bado. · No toolbox topics yet.',
-  loadError: 'Imeshindwa kupakia mada. · Failed to load topics.',
   ackOk: 'Briefing imethibitishwa kwenye seva.',
   ackQueued: 'Briefing imehifadhiwa kwa sync ya baadaye.'
 } as const
@@ -67,7 +64,8 @@ export default function Screen(): JSX.Element {
 function BriefingView(): JSX.Element {
   const { user } = useAuth()
   const { online } = useOnlineStatus()
-  const { lang } = useI18n()
+  const { t, lang } = useI18n()
+  const copy = t.workerScreens.statusCopy
   const isSw = lang === 'sw'
   const [signedFlag, setSignedFlag] = useState<'idle' | 'ok' | 'queued'>('idle')
 
@@ -128,12 +126,12 @@ function BriefingView(): JSX.Element {
         {topicsQuery.isPending ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.gold} />
-            <Text style={styles.loadingText}>{COPY.loading}</Text>
+            <Text style={styles.loadingText}>{copy.wm03Loading}</Text>
           </View>
         ) : topicsQuery.isError ? (
-          <Text style={styles.empty}>{COPY.loadError}</Text>
+          <Text style={styles.empty}>{copy.wm03LoadError}</Text>
         ) : topics.length === 0 ? (
-          <Text style={styles.empty}>{COPY.empty}</Text>
+          <Text style={styles.empty}>{copy.wm03Empty}</Text>
         ) : (
           topics.map((topic) => {
             // Active-locale heading; null active-locale value shows a neutral
@@ -157,7 +155,7 @@ function BriefingView(): JSX.Element {
           submitting ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator color={colors.gold} />
-              <Text style={styles.loadingText}>{COPY.loading}</Text>
+              <Text style={styles.loadingText}>{copy.wm03Loading}</Text>
             </View>
           ) : (
             <FingerprintPlaceholder label="Saini briefing" onSign={onSign} />

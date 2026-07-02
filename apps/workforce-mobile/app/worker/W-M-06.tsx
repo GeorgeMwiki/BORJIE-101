@@ -13,13 +13,12 @@ import { useAuth } from '../../src/auth/useAuth'
 import { enqueueWrite } from '../../src/sync/queue'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
+import { useI18n } from '../../src/i18n/useI18n'
 
 const SCREEN_ID = 'W-M-06'
 const HISTORY_LIMIT = 10
 
 const COPY = {
-  loading: 'Inapakia historia... · Loading history...',
-  empty: 'Bado hujahesabu scoop. · No scoops counted yet.',
   errorPrefix: 'Hitilafu: ',
   scoopOk: 'Scoop imerekodiwa kwenye seva.',
   scoopQueued: 'Scoop imehifadhiwa offline.'
@@ -56,6 +55,8 @@ export default function Screen(): JSX.Element {
 }
 
 function ExcavatorCounter(): JSX.Element {
+  const { t } = useI18n()
+  const copy = t.workerScreens.statusCopy
   const { user } = useAuth()
   const { online } = useOnlineStatus()
   const queryClient = useQueryClient()
@@ -137,7 +138,7 @@ function ExcavatorCounter(): JSX.Element {
         {history.isLoading ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.gold} />
-            <Text style={styles.muted}>{COPY.loading}</Text>
+            <Text style={styles.muted}>{copy.wm06Loading}</Text>
           </View>
         ) : null}
         {history.error && networkError ? <PreviewBanner kind="env-missing" /> : null}
@@ -147,7 +148,7 @@ function ExcavatorCounter(): JSX.Element {
         {!history.isLoading && !history.error && rows.length === 0 ? (
           <View>
             <PreviewBanner kind="no-data" />
-            <Text style={styles.muted}>{COPY.empty}</Text>
+            <Text style={styles.muted}>{copy.wm06Empty}</Text>
           </View>
         ) : null}
         {rows.map((parcel, idx) => (

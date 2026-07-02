@@ -20,11 +20,7 @@ import { fontSize, radius, spacing } from '../../src/theme/spacing'
 const SCREEN_ID = 'W-M-18'
 
 const COPY = {
-  loading: 'Inasaini... · Signing...',
-  listLoading: 'Inapakia hati... · Loading documents...',
   errorPrefix: 'Hitilafu: ',
-  listError: 'Imeshindwa kupakia hati. · Failed to load documents.',
-  empty: 'Hakuna hati za kusaini. · No documents to sign.',
   signOk: 'Hati imesainiwa kwenye seva.',
   signQueued: 'Sahihi imehifadhiwa offline kwa sync.',
   hint: 'Chagua hati uliyopewa na meneja, kisha bonyeza saini.'
@@ -66,6 +62,7 @@ export default function Screen(): JSX.Element {
 function DocumentSigning(): JSX.Element {
   const { user } = useAuth()
   const { t, lang } = useI18n()
+  const copy = t.workerScreens.statusCopy
   const { online } = useOnlineStatus()
   const queryClient = useQueryClient()
   const [docId, setDocId] = useState<string>('')
@@ -131,12 +128,12 @@ function DocumentSigning(): JSX.Element {
         {docsQuery.isPending ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.gold} />
-            <Text style={styles.muted}>{COPY.listLoading}</Text>
+            <Text style={styles.muted}>{copy.wm18ListLoading}</Text>
           </View>
         ) : docsQuery.isError ? (
-          <Text style={styles.errorText}>{COPY.listError}</Text>
+          <Text style={styles.errorText}>{copy.wm18ListError}</Text>
         ) : docs.length === 0 ? (
-          <Text style={styles.empty}>{COPY.empty}</Text>
+          <Text style={styles.empty}>{copy.wm18Empty}</Text>
         ) : (
           docs.map((doc) => {
             const selected = docId === doc.id
@@ -169,7 +166,7 @@ function DocumentSigning(): JSX.Element {
         ) : mutation.isPending ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.gold} />
-            <Text style={styles.muted}>{COPY.loading}</Text>
+            <Text style={styles.muted}>{copy.wm18Loading}</Text>
           </View>
         ) : docId.trim().length === 0 ? (
           <FingerprintPlaceholder label="Chagua hati kwanza" />

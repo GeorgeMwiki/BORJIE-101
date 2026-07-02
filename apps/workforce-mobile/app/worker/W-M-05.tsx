@@ -9,6 +9,7 @@ import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { miningApi } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
 import { useOnlineStatus } from '../../src/offline/useOnlineStatus'
+import { useI18n } from '../../src/i18n/useI18n'
 import { enqueueWrite } from '../../src/sync/queue'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
@@ -20,9 +21,7 @@ const SCREEN_ID = 'W-M-05'
 const MISSING_REPLY_ENDPOINT = 'POST /api/v1/mining/cockpit/sic-pings (reply)'
 
 const COPY = {
-  loadingPings: 'Inapakia pings... · Loading pings...',
   pingsError: 'Imeshindwa kupakia pings.',
-  empty: 'Hakuna ping mpya. Endelea na kazi. · No new pings.',
   errorPrefix: 'Hitilafu: ',
   replyNote: `Jibu litahifadhiwa offline (endpoint ya jibu haijaundwa: ${MISSING_REPLY_ENDPOINT}).`,
   replyOk: 'Jibu limetumwa kwenye seva.',
@@ -61,6 +60,8 @@ export default function Screen(): JSX.Element {
 
 function PingsView(): JSX.Element {
   const { online } = useOnlineStatus()
+  const { t } = useI18n()
+  const copy = t.workerScreens.statusCopy
   const [loads, setLoads] = useState<string>('')
   const [blockers, setBlockers] = useState<string>('')
   const [confirmation, setConfirmation] = useState<'idle' | 'ok' | 'queued'>('idle')
@@ -109,12 +110,12 @@ function PingsView(): JSX.Element {
         {pings.isPending ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.gold} />
-            <Text style={styles.muted}>{COPY.loadingPings}</Text>
+            <Text style={styles.muted}>{copy.wm05LoadingPings}</Text>
           </View>
         ) : pings.isError ? (
           <Text style={styles.errorText}>{COPY.pingsError}</Text>
         ) : items.length === 0 ? (
-          <Text style={styles.muted}>{COPY.empty}</Text>
+          <Text style={styles.muted}>{copy.wm05Empty}</Text>
         ) : (
           items.map((ping) => (
             <View key={ping.id} style={styles.ping}>

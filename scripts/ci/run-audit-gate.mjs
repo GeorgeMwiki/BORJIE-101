@@ -59,6 +59,14 @@ const gates = [
     command: process.execPath,
     args: ['scripts/ci/audit-service-role-tenant-scope.mjs'],
   },
+  {
+    // Mobile arm of the zero-mix canon: no single rendered string in the
+    // Expo app trees may carry BOTH Swahili and English (dual-language
+    // COPY constants like `'Inapakia... · Loading...'`).
+    name: 'mobile zero-mix',
+    command: process.execPath,
+    args: ['scripts/audit-mobile-zero-mix.mjs'],
+  },
 ];
 
 /**

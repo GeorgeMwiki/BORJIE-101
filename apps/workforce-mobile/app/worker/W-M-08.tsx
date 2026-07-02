@@ -13,12 +13,11 @@ import { useAuth } from '../../src/auth/useAuth'
 import { enqueueWrite } from '../../src/sync/queue'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
+import { useI18n } from '../../src/i18n/useI18n'
 
 const SCREEN_ID = 'W-M-08'
 
 const COPY = {
-  loading: 'Inapakia sampuli... · Loading samples...',
-  empty: 'Hakuna sampuli leo. · No samples today.',
   errorPrefix: 'Hitilafu: ',
   sealOk: 'Sampuli imehifadhiwa kwenye seva.',
   sealQueued: 'Sampuli imehifadhiwa offline.'
@@ -59,6 +58,8 @@ export default function Screen(): JSX.Element {
 }
 
 function SampleView(): JSX.Element {
+  const { t } = useI18n()
+  const copy = t.workerScreens.statusCopy
   const { user } = useAuth()
   const { online } = useOnlineStatus()
   const queryClient = useQueryClient()
@@ -128,7 +129,7 @@ function SampleView(): JSX.Element {
         <Section title="Sampuli za leo">
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.gold} />
-            <Text style={styles.muted}>{COPY.loading}</Text>
+            <Text style={styles.muted}>{copy.wm08Loading}</Text>
           </View>
         </Section>
       ) : null}
@@ -145,7 +146,7 @@ function SampleView(): JSX.Element {
       {!query.isLoading && !query.error && samples.length === 0 ? (
         <Section title="Sampuli za leo">
           <PreviewBanner kind="no-data" />
-          <Text style={styles.muted}>{COPY.empty}</Text>
+          <Text style={styles.muted}>{copy.wm08Empty}</Text>
         </Section>
       ) : null}
       {samples.length > 0 ? (
@@ -213,7 +214,7 @@ function SampleView(): JSX.Element {
           {sealMutation.isPending ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator color={colors.gold} />
-              <Text style={styles.muted}>{COPY.loading}</Text>
+              <Text style={styles.muted}>{copy.wm08Loading}</Text>
             </View>
           ) : (
             <Button

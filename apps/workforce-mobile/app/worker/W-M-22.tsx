@@ -20,8 +20,6 @@ const SCREEN_ID = 'W-M-22'
 const TRAINING_PATH = '/api/v1/training'
 
 const COPY = {
-  loading: 'Inapakia mafunzo... · Loading training catalogue...',
-  empty: 'Hakuna mafunzo umepangiwa. · No training paths assigned.',
   errorPrefix: 'Hitilafu: ',
   startedOk: 'Mafunzo yameanza kwenye seva.'
 } as const
@@ -59,6 +57,7 @@ export default function Screen(): JSX.Element {
 function TrainingLibrary(): JSX.Element {
   const { user } = useAuth()
   const { t } = useI18n()
+  const copy = t.workerScreens.statusCopy
   const { online } = useOnlineStatus()
   const queryClient = useQueryClient()
   const queryKey = useMemo(
@@ -118,7 +117,7 @@ function TrainingLibrary(): JSX.Element {
         {list.isLoading ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.gold} />
-            <Text style={styles.muted}>{COPY.loading}</Text>
+            <Text style={styles.muted}>{copy.wm22Loading}</Text>
           </View>
         ) : null}
         {list.error && networkError ? <PreviewBanner kind="env-missing" /> : null}
@@ -128,7 +127,7 @@ function TrainingLibrary(): JSX.Element {
         {!list.isLoading && !list.error && assignments.length === 0 ? (
           <View>
             <PreviewBanner kind="no-data" />
-            <Text style={styles.muted}>{COPY.empty}</Text>
+            <Text style={styles.muted}>{copy.wm22Empty}</Text>
           </View>
         ) : null}
         {assignments.length > 0 ? (

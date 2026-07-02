@@ -14,14 +14,13 @@ import { useAuth } from '../../src/auth/useAuth'
 import { enqueueWrite } from '../../src/sync/queue'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
+import { useI18n } from '../../src/i18n/useI18n'
 
 const SCREEN_ID = 'W-M-15'
 const WAREHOUSE_PATH = '/api/v1/warehouse/items'
 const PPE_CATEGORY = 'PPE'
 
 const COPY = {
-  loading: 'Inapakia PPE... · Loading PPE list...',
-  empty: 'Hakuna PPE iliyotolewa leo. · No PPE issued today.',
   errorPrefix: 'Hitilafu: ',
   ackOk: 'Risiti ya PPE imethibitishwa kwenye seva.',
   ackQueued: 'Risiti imehifadhiwa offline.'
@@ -62,6 +61,8 @@ export default function Screen(): JSX.Element {
 }
 
 function PpeReceipt(): JSX.Element {
+  const { t } = useI18n()
+  const copy = t.workerScreens.statusCopy
   const { user } = useAuth()
   const { online } = useOnlineStatus()
   const queryClient = useQueryClient()
@@ -133,7 +134,7 @@ function PpeReceipt(): JSX.Element {
         {query.isLoading ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.gold} />
-            <Text style={styles.muted}>{COPY.loading}</Text>
+            <Text style={styles.muted}>{copy.wm15Loading}</Text>
           </View>
         ) : null}
         {query.error && networkError ? <PreviewBanner kind="env-missing" /> : null}
@@ -143,7 +144,7 @@ function PpeReceipt(): JSX.Element {
         {!query.isLoading && !query.error && items.length === 0 ? (
           <View>
             <PreviewBanner kind="no-data" />
-            <Text style={styles.muted}>{COPY.empty}</Text>
+            <Text style={styles.muted}>{copy.wm15Empty}</Text>
           </View>
         ) : null}
         {items.map((item) => (
@@ -178,7 +179,7 @@ function PpeReceipt(): JSX.Element {
         ) : mutation.isPending ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.gold} />
-            <Text style={styles.muted}>{COPY.loading}</Text>
+            <Text style={styles.muted}>{copy.wm15Loading}</Text>
           </View>
         ) : items.length === 0 ? (
           <FingerprintPlaceholder label="Hakuna PPE" />

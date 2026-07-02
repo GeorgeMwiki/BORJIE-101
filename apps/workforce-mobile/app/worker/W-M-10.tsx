@@ -14,15 +14,12 @@ import { useAuth } from '../../src/auth/useAuth'
 import { enqueueWrite } from '../../src/sync/queue'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
+import { useI18n } from '../../src/i18n/useI18n'
 
 const SCREEN_ID = 'W-M-10'
 const WAREHOUSE_PATH = '/api/v1/warehouse/items'
 
 const COPY = {
-  loading: 'Inapakia bidhaa... · Loading items...',
-  empty: 'Hakuna bidhaa kwenye stoo. · No items in warehouse.',
-  loadingMoves: 'Inapakia mwendo... · Loading movements...',
-  emptyMoves: 'Hakuna mwendo wa hivi karibuni. · No recent movements.',
   errorPrefix: 'Hitilafu: ',
   txnOk: 'Mwendo umeingia kwenye seva.',
   txnQueued: 'Mwendo umehifadhiwa offline.'
@@ -75,6 +72,8 @@ export default function Screen(): JSX.Element {
 }
 
 function StoreIssueReturn(): JSX.Element {
+  const { t } = useI18n()
+  const copy = t.workerScreens.statusCopy
   const { user } = useAuth()
   const { online } = useOnlineStatus()
   const queryClient = useQueryClient()
@@ -171,7 +170,7 @@ function StoreIssueReturn(): JSX.Element {
         {items.isLoading ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.gold} />
-            <Text style={styles.muted}>{COPY.loading}</Text>
+            <Text style={styles.muted}>{copy.wm10Loading}</Text>
           </View>
         ) : null}
         {items.error && itemsErrorIsMissing ? <PreviewBanner kind="env-missing" /> : null}
@@ -181,7 +180,7 @@ function StoreIssueReturn(): JSX.Element {
         {!items.isLoading && !items.error && itemRows.length === 0 ? (
           <View>
             <PreviewBanner kind="no-data" />
-            <Text style={styles.muted}>{COPY.empty}</Text>
+            <Text style={styles.muted}>{copy.wm10Empty}</Text>
           </View>
         ) : null}
         {itemRows.length > 0 ? (
@@ -238,7 +237,7 @@ function StoreIssueReturn(): JSX.Element {
         {mutation.isPending ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.gold} />
-            <Text style={styles.muted}>{COPY.loading}</Text>
+            <Text style={styles.muted}>{copy.wm10Loading}</Text>
           </View>
         ) : null}
         {!online ? <PreviewBanner kind="offline" /> : null}
@@ -253,7 +252,7 @@ function StoreIssueReturn(): JSX.Element {
         {itemId && movements.isLoading ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.gold} />
-            <Text style={styles.muted}>{COPY.loadingMoves}</Text>
+            <Text style={styles.muted}>{copy.wm10LoadingMoves}</Text>
           </View>
         ) : null}
         {itemId && movements.error && movesErrorIsMissing ? <PreviewBanner kind="env-missing" /> : null}
@@ -263,7 +262,7 @@ function StoreIssueReturn(): JSX.Element {
         {itemId && !movements.isLoading && !movements.error && moveRows.length === 0 ? (
           <View>
             <PreviewBanner kind="no-data" />
-            <Text style={styles.muted}>{COPY.emptyMoves}</Text>
+            <Text style={styles.muted}>{copy.wm10EmptyMoves}</Text>
           </View>
         ) : null}
         {moveRows.map((mv) => (

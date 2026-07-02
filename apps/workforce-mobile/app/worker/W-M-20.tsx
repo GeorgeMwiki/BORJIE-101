@@ -19,7 +19,6 @@ import { fontSize, radius, spacing } from '../../src/theme/spacing'
 const SCREEN_ID = 'W-M-20'
 
 const COPY = {
-  loading: 'Inatengeneza barua... · Creating letter...',
   hint: 'Weka taarifa za safari, kisha tuma. Barua itahifadhiwa kama PDF kwenye seva.',
   letterOk: 'Barua (PDF) imepakiwa kwenye seva.',
   letterQueued: 'Barua imehifadhiwa offline kwa sync.',
@@ -66,7 +65,8 @@ export default function Screen(): JSX.Element {
 
 function DriverLetterView(): JSX.Element {
   const { user } = useAuth()
-  const { lang } = useI18n()
+  const { t, lang } = useI18n()
+  const copy = t.workerScreens.statusCopy
   const { online } = useOnlineStatus()
   const [draft, setDraft] = useState<LetterDraft>({
     truckReg: '',
@@ -187,7 +187,7 @@ function DriverLetterView(): JSX.Element {
         {mutation.isPending ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.gold} />
-            <Text style={styles.muted}>{COPY.loading}</Text>
+            <Text style={styles.muted}>{copy.wm20Loading}</Text>
           </View>
         ) : (
           <Pressable
