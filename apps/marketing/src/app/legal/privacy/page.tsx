@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { LegalShell, type LegalSection } from '@/components/LegalShell';
 import { getLocale } from '@/lib/locale';
+import { getMessages } from '@/lib/i18n';
+import { buildSegmentMetadata } from '@/components/marketing/segment-metadata';
 
 /**
  * /legal/privacy , long-form Privacy Policy.
@@ -10,11 +12,16 @@ import { getLocale } from '@/lib/locale';
  * section 7. Bilingual sw / en, no em-dashes.
  */
 
-export const metadata: Metadata = {
-  title: 'Privacy Policy · Borjie',
-  description:
-    'Borjie Privacy Policy. Tanzania Personal Data Protection Act 2022. Per-tenant audit chain, scope-separated data, regional storage.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const t = getMessages(locale).pageMeta.legalPrivacy;
+  return buildSegmentMetadata({
+    path: '/legal/privacy',
+    locale,
+    title: t.metaTitle,
+    description: t.metaDescription,
+  });
+}
 
 function buildSections(locale: 'sw' | 'en'): ReadonlyArray<LegalSection> {
   const isSw = locale === 'sw';

@@ -1,12 +1,19 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getLocale } from '@/lib/locale';
+import { getMessages } from '@/lib/i18n';
+import { buildSegmentMetadata } from '@/components/marketing/segment-metadata';
 
-export const metadata: Metadata = {
-  title: 'Data Processing Agreement — Borjie',
-  description:
-    'Borjie Data Processing Agreement (DPA). Tanzania Personal Data Protection Act 2022. Tenant isolation, regional storage, audit-hash chains, sub-processor list.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const t = getMessages(locale).pageMeta.dpa;
+  return buildSegmentMetadata({
+    path: '/dpa',
+    locale,
+    title: t.metaTitle,
+    description: t.metaDescription,
+  });
+}
 
 interface Clause {
   readonly title: string;

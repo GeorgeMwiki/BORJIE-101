@@ -10,6 +10,8 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { getLocale } from '@/lib/locale';
+import { getMessages } from '@/lib/i18n';
+import { buildSegmentMetadata } from '@/components/marketing/segment-metadata';
 
 /**
  * /contact , LitFin-parity contact surface.
@@ -22,11 +24,16 @@ import { getLocale } from '@/lib/locale';
  *   - final CTA: schedule a 15-minute call
  */
 
-export const metadata: Metadata = {
-  title: 'Contact · Borjie',
-  description:
-    'Talk to the Borjie team. Demo requests, partnerships, support, press. Tanzania office address.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const t = getMessages(locale).pageMeta.contact;
+  return buildSegmentMetadata({
+    path: '/contact',
+    locale,
+    title: t.metaTitle,
+    description: t.metaDescription,
+  });
+}
 
 const INQUIRY_CHIPS: ReadonlyArray<{
   readonly id: string;

@@ -6,13 +6,19 @@ import { FaqAccordion } from '@/components/shared/FaqAccordion';
 import { TrustBadgeStrip } from '@/components/shared/TrustBadgeStrip';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
+import { buildSegmentMetadata } from '@/components/marketing/segment-metadata';
 import { TIERS, tierFeatures } from '@/lib/pricing';
 
-export const metadata: Metadata = {
-  title: 'Pricing · Borjie',
-  description:
-    'Borjie pricing: Mwanzo (free), Mkulima, Mfanyabiashara, Kampuni, Group. All tiers in TZS. Payable via M-Pesa, Tigo Pesa, Airtel Money, or bank transfer.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const t = getMessages(locale).pageMeta.pricing;
+  return buildSegmentMetadata({
+    path: '/pricing',
+    locale,
+    title: t.metaTitle,
+    description: t.metaDescription,
+  });
+}
 
 /**
  * /pricing , full pricing page.

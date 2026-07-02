@@ -1,16 +1,23 @@
 import type { Metadata } from 'next';
 import { LegalShell, type LegalSection } from '@/components/LegalShell';
 import { getLocale } from '@/lib/locale';
+import { getMessages } from '@/lib/i18n';
+import { buildSegmentMetadata } from '@/components/marketing/segment-metadata';
 
 /**
  * /legal/cookies , cookie table per LitFin marketing secondary spec §7.
  */
 
-export const metadata: Metadata = {
-  title: 'Cookie Policy · Borjie',
-  description:
-    'Borjie cookie policy. Strictly necessary cookies, analytics opt-in, lifetimes documented per category.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const t = getMessages(locale).pageMeta.legalCookies;
+  return buildSegmentMetadata({
+    path: '/legal/cookies',
+    locale,
+    title: t.metaTitle,
+    description: t.metaDescription,
+  });
+}
 
 interface CookieRow {
   readonly cookie: string;

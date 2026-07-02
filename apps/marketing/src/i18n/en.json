@@ -3172,5 +3172,71 @@
     "sub": "The Borjie site needs a connection to load the live data. Check your signal and try again, or open a cached page from your history.",
     "retry": "Reload",
     "goHome": "Back to home"
+  },
+  "pageMeta": {
+    "pricing": {
+      "metaTitle": "Pricing · Borjie",
+      "metaDescription": "Borjie pricing: Mwanzo (free), Mkulima, Mfanyabiashara, Kampuni, Group. All tiers in TZS. Pay via M-Pesa, Tigo Pesa, Airtel Money, or bank."
+    },
+    "about": {
+      "metaTitle": "About Borjie — AI-native mining estate OS",
+      "metaDescription": "Borjie is an AI-native mining estate operating system, with Mr. Mwikila as its brain layer. Built in Dar es Salaam for owners, regulators, and buyers."
+    },
+    "contact": {
+      "metaTitle": "Contact · Borjie",
+      "metaDescription": "Talk to the Borjie team. Demo requests, partnerships, support, and press. Tanzania office address and direct channels."
+    },
+    "docs": {
+      "metaTitle": "Documentation — Borjie API & integration",
+      "metaDescription": "Borjie developer docs. OpenAPI spec, authentication, Master Brain SSE protocol, marketplace bids, and compliance webhooks."
+    },
+    "buyers": {
+      "metaTitle": "Borjie for buyers — verified Tanzanian minerals",
+      "metaDescription": "Borjie for mineral buyers and off-takers. KYB-verified sellers, chain-of-custody assays, biometric signing. Live from Geita, Mererani, Kahama, Mbeya."
+    },
+    "privacy": {
+      "metaTitle": "Privacy Policy — Borjie",
+      "metaDescription": "Borjie privacy policy. Tanzania Personal Data Protection Act 2022. Per-tenant audit chain and scope-separated data."
+    },
+    "terms": {
+      "metaTitle": "Terms of Service — Borjie",
+      "metaDescription": "Borjie terms of service. Tanzania jurisdiction. Mining-domain specific (Mining Commission, NEMC, TRA, FIU)."
+    },
+    "dpa": {
+      "metaTitle": "Data Processing Agreement — Borjie",
+      "metaDescription": "Borjie Data Processing Agreement. Tanzania Personal Data Protection Act 2022. Tenant isolation, regional storage, audit-hash chains."
+    },
+    "careers": {
+      "metaTitle": "Careers at Borjie — build AI for mining",
+      "metaDescription": "Open roles at Borjie: site engineers, AI engineers, compliance leads. Dar es Salaam HQ, field deployments across Tanzania."
+    },
+    "support": {
+      "metaTitle": "Support · Borjie",
+      "metaDescription": "Borjie support hub. FAQ, office hours, and direct channels for owners, buyers, and regulators."
+    },
+    "status": {
+      "metaTitle": "System Status — Borjie",
+      "metaDescription": "Live status and 90-day uptime for the Borjie platform — API gateway, database, auth, storage, workers, and realtime."
+    },
+    "pilot": {
+      "metaTitle": "Apply for the Borjie pilot",
+      "metaDescription": "Apply to join the Borjie pilot programme. 20 selected Tanzanian mining operators. No cost. 12 weeks of co-development."
+    },
+    "legalSubprocessors": {
+      "metaTitle": "Sub-processors · Borjie",
+      "metaDescription": "Borjie sub-processor list. Vendor, role, region, and contract reference. Updated 30 days before any change."
+    },
+    "legalPrivacy": {
+      "metaTitle": "Privacy Policy · Borjie",
+      "metaDescription": "Borjie Privacy Policy. Tanzania Personal Data Protection Act 2022. Per-tenant audit chain, scope-separated data, regional storage."
+    },
+    "legalCookies": {
+      "metaTitle": "Cookie Policy · Borjie",
+      "metaDescription": "Borjie cookie policy. Strictly necessary cookies, analytics opt-in, and lifetimes documented per category."
+    },
+    "legalTerms": {
+      "metaTitle": "Terms of Service · Borjie",
+      "metaDescription": "Borjie terms of service. Tanzania jurisdiction. Mining-domain specific (Mining Commission, NEMC, TRA, FIU)."
+    }
   }
 }

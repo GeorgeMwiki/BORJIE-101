@@ -81,3 +81,75 @@ describe('audience-page SEO copy stays within length limits (both locales)', () 
     });
   }
 });
+
+/**
+ * The non-segment public pages (pricing, about, contact, docs, buyers, the
+ * legal set, …) that were migrated OFF a static hardcoded-English
+ * `export const metadata` ONTO a locale-aware `generateMetadata` +
+ * buildSegmentMetadata. Each `pageMeta.<key>` supplies the localized title +
+ * description; the map's value is the route path the page passes to
+ * buildSegmentMetadata, so the same table proves the canonical it resolves.
+ */
+const PAGE_META_ROUTES: ReadonlyArray<
+  readonly [keyof ReturnType<typeof getMessages>['pageMeta'], string]
+> = [
+  ['pricing', '/pricing'],
+  ['about', '/about'],
+  ['contact', '/contact'],
+  ['docs', '/docs'],
+  ['buyers', '/buyers'],
+  ['privacy', '/privacy'],
+  ['terms', '/terms'],
+  ['dpa', '/dpa'],
+  ['careers', '/careers'],
+  ['support', '/support'],
+  ['status', '/status'],
+  ['pilot', '/pilot'],
+  ['legalSubprocessors', '/legal/subprocessors'],
+  ['legalPrivacy', '/legal/privacy'],
+  ['legalCookies', '/legal/cookies'],
+  ['legalTerms', '/legal/terms'],
+];
+
+describe('converted static-metadata pages: pageMeta SEO copy', () => {
+  const locales: Locale[] = ['en', 'sw'];
+
+  for (const [key, path] of PAGE_META_ROUTES) {
+    it(`${key}: en/sw parity + title ≤${TITLE_MAX}, description ≤${DESCRIPTION_MAX} in both locales`, () => {
+      for (const locale of locales) {
+        const t = getMessages(locale).pageMeta[key];
+        // parity: the key resolves a real, non-empty title/description in BOTH
+        // locales — a missing sw key would fall to a placeholder, never to en.
+        expect(t?.metaTitle, `${key} metaTitle missing in ${locale}`).toBeTruthy();
+        expect(
+          t?.metaDescription,
+          `${key} metaDescription missing in ${locale}`,
+        ).toBeTruthy();
+        expect(t.metaTitle.length).toBeLessThanOrEqual(TITLE_MAX);
+        expect(t.metaDescription.length).toBeLessThanOrEqual(DESCRIPTION_MAX);
+      }
+    });
+
+    it(`${key}: resolves the per-route canonical + en/sw/x-default hreflang (both locales)`, () => {
+      for (const locale of locales) {
+        const t = getMessages(locale).pageMeta[key];
+        const meta = buildSegmentMetadata({
+          path,
+          locale,
+          title: t.metaTitle,
+          description: t.metaDescription,
+        });
+        // per-route canonical, not the homepage
+        expect(String(meta.alternates?.canonical).endsWith(path)).toBe(true);
+        expect(String(meta.alternates?.canonical)).not.toMatch(/borjie\.co\.tz$/);
+        // full hreflang set + active-locale OG token (zero-mix SEO-L3)
+        const langs = meta.alternates?.languages ?? {};
+        expect(langs).toHaveProperty('en');
+        expect(langs).toHaveProperty('sw');
+        expect(langs).toHaveProperty('x-default');
+        expect(meta.openGraph?.locale).toBe(locale === 'sw' ? 'sw_TZ' : 'en_US');
+        expect(meta.title).toBe(t.metaTitle);
+      }
+    });
+  }
+});

@@ -3169,5 +3169,71 @@
     "sub": "Tovuti ya Borjie inahitaji muunganisho ili kupakia data ya moja kwa moja. Angalia mtandao wako na jaribu tena, au fungua ukurasa uliohifadhiwa kutoka kwa historia yako.",
     "retry": "Pakia upya",
     "goHome": "Rudi nyumbani"
+  },
+  "pageMeta": {
+    "pricing": {
+      "metaTitle": "Bei · Borjie",
+      "metaDescription": "Bei za Borjie: Mwanzo (bure), Mkulima, Mfanyabiashara, Kampuni, Group. Vifurushi vyote kwa TZS. Lipa kwa M-Pesa, Tigo Pesa, Airtel Money au benki."
+    },
+    "about": {
+      "metaTitle": "Kuhusu Borjie — mfumo wa uendeshaji wa migodi",
+      "metaDescription": "Borjie ni mfumo wa uendeshaji wa mashamba ya migodi wenye akili bandia, na Bwana Mwikila ni ubongo wake. Umejengwa Dar es Salaam kwa wamiliki na wanunuzi."
+    },
+    "contact": {
+      "metaTitle": "Wasiliana · Borjie",
+      "metaDescription": "Ongea na timu ya Borjie. Maombi ya onyesho, ushirikiano, msaada na vyombo vya habari. Anwani ya ofisi ya Tanzania na njia za moja kwa moja."
+    },
+    "docs": {
+      "metaTitle": "Nyaraka — API na uunganishaji wa Borjie",
+      "metaDescription": "Nyaraka za wasanidi wa Borjie. Vipimo vya OpenAPI, uthibitishaji, itifaki ya SSE ya Ubongo Mkuu, zabuni za soko na webhooks za uzingatiaji."
+    },
+    "buyers": {
+      "metaTitle": "Borjie kwa wanunuzi — madini ya Tanzania",
+      "metaDescription": "Borjie kwa wanunuzi na wachukuaji wa madini. Wauzaji waliothibitishwa kwa KYB, vipimo vya asili, saini za kibaolojia. Moja kwa moja kutoka Geita na Mererani."
+    },
+    "privacy": {
+      "metaTitle": "Sera ya Faragha — Borjie",
+      "metaDescription": "Sera ya faragha ya Borjie. Sheria ya Ulinzi wa Data Binafsi ya Tanzania 2022. Mnyororo wa ukaguzi kwa kila mteja na data iliyotenganishwa."
+    },
+    "terms": {
+      "metaTitle": "Masharti ya Huduma — Borjie",
+      "metaDescription": "Masharti ya huduma ya Borjie. Mamlaka ya Tanzania. Mahususi kwa sekta ya migodi (Tume ya Madini, NEMC, TRA, FIU)."
+    },
+    "dpa": {
+      "metaTitle": "Mkataba wa Uchakataji wa Data — Borjie",
+      "metaDescription": "Mkataba wa Uchakataji wa Data wa Borjie. Sheria ya Ulinzi wa Data Binafsi ya Tanzania 2022. Utengano wa mteja, hifadhi ya kikanda, mnyororo wa ukaguzi."
+    },
+    "careers": {
+      "metaTitle": "Kazi Borjie — jenga akili bandia ya migodi",
+      "metaDescription": "Nafasi za kazi Borjie: wahandisi wa migodini, wahandisi wa akili bandia, viongozi wa uzingatiaji. Makao makuu Dar es Salaam, kazi kote Tanzania."
+    },
+    "support": {
+      "metaTitle": "Msaada · Borjie",
+      "metaDescription": "Kituo cha msaada cha Borjie. Maswali, saa za ofisi na njia za moja kwa moja kwa wamiliki, wanunuzi na wadhibiti."
+    },
+    "status": {
+      "metaTitle": "Hali ya Mfumo — Borjie",
+      "metaDescription": "Hali ya moja kwa moja na utendaji wa siku 90 wa jukwaa la Borjie — lango la API, hifadhidata, uthibitishaji, hifadhi, wafanyakazi na wakati halisi."
+    },
+    "pilot": {
+      "metaTitle": "Omba kujiunga na majaribio ya Borjie",
+      "metaDescription": "Omba kujiunga na mpango wa majaribio wa Borjie. Waendeshaji 20 wa migodi ya Tanzania waliochaguliwa. Bila gharama. Wiki 12 za ushirikiano."
+    },
+    "legalSubprocessors": {
+      "metaTitle": "Wachakataji wasaidizi · Borjie",
+      "metaDescription": "Orodha ya wachakataji wasaidizi wa Borjie. Muuzaji, jukumu, kanda na kumbukumbu ya mkataba. Husasishwa siku 30 kabla ya mabadiliko yoyote."
+    },
+    "legalPrivacy": {
+      "metaTitle": "Sera ya Faragha · Borjie",
+      "metaDescription": "Sera ya Faragha ya Borjie. Sheria ya Ulinzi wa Data Binafsi ya Tanzania 2022. Mnyororo wa ukaguzi kwa mteja, data iliyotenganishwa, hifadhi ya kikanda."
+    },
+    "legalCookies": {
+      "metaTitle": "Sera ya Vidakuzi · Borjie",
+      "metaDescription": "Sera ya vidakuzi ya Borjie. Vidakuzi muhimu tu, uchambuzi kwa idhini, na muda wa maisha umeandikwa kwa kila kundi."
+    },
+    "legalTerms": {
+      "metaTitle": "Masharti ya Huduma · Borjie",
+      "metaDescription": "Masharti ya huduma ya Borjie. Mamlaka ya Tanzania. Mahususi kwa sekta ya migodi (Tume ya Madini, NEMC, TRA, FIU)."
+    }
   }
 }

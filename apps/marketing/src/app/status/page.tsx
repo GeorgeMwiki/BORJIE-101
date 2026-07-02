@@ -12,12 +12,18 @@ import type { Metadata } from 'next';
 import { StatusBoard } from '@/components/StatusBoard';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
+import { buildSegmentMetadata } from '@/components/marketing/segment-metadata';
 
-export const metadata: Metadata = {
-  title: 'System Status — Borjie',
-  description:
-    'Live status and 90-day uptime for the Borjie platform — API gateway, database, auth, storage, workers, realtime.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const t = getMessages(locale).pageMeta.status;
+  return buildSegmentMetadata({
+    path: '/status',
+    locale,
+    title: t.metaTitle,
+    description: t.metaDescription,
+  });
+}
 
 export default async function StatusPage() {
   const locale = await getLocale();

@@ -1,11 +1,18 @@
 import type { Metadata } from 'next';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
+import { buildSegmentMetadata } from '@/components/marketing/segment-metadata';
 
-export const metadata: Metadata = {
-  title: 'Privacy Policy — Borjie',
-  description: 'Borjie privacy policy. Tanzania Personal Data Protection Act 2022. Per-tenant audit chain, scope-separated data.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const t = getMessages(locale).pageMeta.privacy;
+  return buildSegmentMetadata({
+    path: '/privacy',
+    locale,
+    title: t.metaTitle,
+    description: t.metaDescription,
+  });
+}
 
 export default async function PrivacyPage() {
   const locale = await getLocale();

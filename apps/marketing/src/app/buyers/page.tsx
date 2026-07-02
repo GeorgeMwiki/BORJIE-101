@@ -3,12 +3,18 @@ import Link from 'next/link';
 import { ArrowRight, Check, ShieldCheck } from 'lucide-react';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
+import { buildSegmentMetadata } from '@/components/marketing/segment-metadata';
 
-export const metadata: Metadata = {
-  title: 'Borjie for buyers — verified Tanzanian minerals',
-  description:
-    'Borjie for mineral buyers and off-takers. KYB-verified sellers, chain-of-custody assays, biometric contract signing. Live marketplace from Geita, Mererani, Kahama, Mbeya.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const t = getMessages(locale).pageMeta.buyers;
+  return buildSegmentMetadata({
+    path: '/buyers',
+    locale,
+    title: t.metaTitle,
+    description: t.metaDescription,
+  });
+}
 
 /**
  * /buyers — landing page for the buyer / off-taker audience.

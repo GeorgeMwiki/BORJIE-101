@@ -2,12 +2,18 @@ import type { Metadata } from 'next';
 import { PilotForm } from '@/components/PilotForm';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
+import { buildSegmentMetadata } from '@/components/marketing/segment-metadata';
 
-export const metadata: Metadata = {
-  title: 'Apply for the Borjie pilot — Borjie',
-  description:
-    'Apply to join the Borjie pilot programme. 20 selected Tanzanian mining operators. No cost. 12 weeks of co-development.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const t = getMessages(locale).pageMeta.pilot;
+  return buildSegmentMetadata({
+    path: '/pilot',
+    locale,
+    title: t.metaTitle,
+    description: t.metaDescription,
+  });
+}
 
 export default async function PilotPage() {
   const locale = await getLocale();

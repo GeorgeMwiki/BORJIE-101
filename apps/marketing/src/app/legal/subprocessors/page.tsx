@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { LegalShell, type LegalSection } from '@/components/LegalShell';
 import { getLocale } from '@/lib/locale';
+import { getMessages } from '@/lib/i18n';
+import { buildSegmentMetadata } from '@/components/marketing/segment-metadata';
 
 /**
  * /legal/subprocessors , vendor / role / region table.
@@ -11,11 +13,16 @@ import { getLocale } from '@/lib/locale';
  * the legal set.
  */
 
-export const metadata: Metadata = {
-  title: 'Sub-processors · Borjie',
-  description:
-    'Borjie sub-processor list. Vendor, role, region, contract reference. Updated 30 days before any change.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const t = getMessages(locale).pageMeta.legalSubprocessors;
+  return buildSegmentMetadata({
+    path: '/legal/subprocessors',
+    locale,
+    title: t.metaTitle,
+    description: t.metaDescription,
+  });
+}
 
 interface VendorRow {
   readonly vendor: string;

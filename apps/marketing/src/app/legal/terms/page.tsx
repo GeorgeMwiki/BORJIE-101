@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { LegalShell, type LegalSection } from '@/components/LegalShell';
 import { getLocale } from '@/lib/locale';
+import { getMessages } from '@/lib/i18n';
+import { buildSegmentMetadata } from '@/components/marketing/segment-metadata';
 
 /**
  * /legal/terms , long-form Terms of Service.
@@ -11,11 +13,16 @@ import { getLocale } from '@/lib/locale';
  * NEMC, TRA, FIU).
  */
 
-export const metadata: Metadata = {
-  title: 'Terms of Service · Borjie',
-  description:
-    'Borjie terms of service. Tanzania jurisdiction. Mining-domain specific (Mining Commission, NEMC, TRA, FIU).',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const t = getMessages(locale).pageMeta.legalTerms;
+  return buildSegmentMetadata({
+    path: '/legal/terms',
+    locale,
+    title: t.metaTitle,
+    description: t.metaDescription,
+  });
+}
 
 function buildSections(locale: 'sw' | 'en'): ReadonlyArray<LegalSection> {
   const isSw = locale === 'sw';

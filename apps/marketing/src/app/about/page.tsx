@@ -1,12 +1,19 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getLocale } from '@/lib/locale';
+import { getMessages } from '@/lib/i18n';
+import { buildSegmentMetadata } from '@/components/marketing/segment-metadata';
 
-export const metadata: Metadata = {
-  title: 'About Borjie — AI-native mining estate operating system',
-  description:
-    'Borjie is an AI-native mining estate operating system. Mr. Mwikila is its brain layer. Built in Dar es Salaam, designed for owners, operators, regulators, and buyers — Swahili-first, audit-grade, deployable in days.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const t = getMessages(locale).pageMeta.about;
+  return buildSegmentMetadata({
+    path: '/about',
+    locale,
+    title: t.metaTitle,
+    description: t.metaDescription,
+  });
+}
 
 const SECTIONS: ReadonlyArray<{ title: string; body: string }> = [
   {

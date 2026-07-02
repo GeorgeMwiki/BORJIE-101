@@ -1,12 +1,19 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getLocale } from '@/lib/locale';
+import { getMessages } from '@/lib/i18n';
+import { buildSegmentMetadata } from '@/components/marketing/segment-metadata';
 
-export const metadata: Metadata = {
-  title: 'Documentation — Borjie API & integration',
-  description:
-    'Borjie developer documentation. OpenAPI spec, authentication, Master Brain SSE protocol, marketplace bids, compliance webhooks. Hosted Swagger UI on GitHub Pages.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const t = getMessages(locale).pageMeta.docs;
+  return buildSegmentMetadata({
+    path: '/docs',
+    locale,
+    title: t.metaTitle,
+    description: t.metaDescription,
+  });
+}
 
 interface DocLink {
   readonly title: string;

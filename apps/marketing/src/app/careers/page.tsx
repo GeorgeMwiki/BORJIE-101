@@ -1,12 +1,19 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getLocale } from '@/lib/locale';
+import { getMessages } from '@/lib/i18n';
+import { buildSegmentMetadata } from '@/components/marketing/segment-metadata';
 
-export const metadata: Metadata = {
-  title: 'Careers at Borjie — build AI for Tanzanian mining',
-  description:
-    'Open roles at Borjie: site engineers, AI engineers, compliance leads. Dar es Salaam HQ, field deployments across Tanzania. Swahili-first product, world-class engineering.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const t = getMessages(locale).pageMeta.careers;
+  return buildSegmentMetadata({
+    path: '/careers',
+    locale,
+    title: t.metaTitle,
+    description: t.metaDescription,
+  });
+}
 
 interface Role {
   readonly title: string;

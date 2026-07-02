@@ -11,6 +11,8 @@ import {
   Activity,
 } from 'lucide-react';
 import { getLocale } from '@/lib/locale';
+import { getMessages } from '@/lib/i18n';
+import { buildSegmentMetadata } from '@/components/marketing/segment-metadata';
 
 /**
  * /support , LitFin-parity support hub.
@@ -25,11 +27,16 @@ import { getLocale } from '@/lib/locale';
  * Bilingual sw / en, no em-dashes, time-aware copy where applicable.
  */
 
-export const metadata: Metadata = {
-  title: 'Support · Borjie',
-  description:
-    'Borjie support hub. FAQ, office hours, and direct channels for owners, buyers, and regulators.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const t = getMessages(locale).pageMeta.support;
+  return buildSegmentMetadata({
+    path: '/support',
+    locale,
+    title: t.metaTitle,
+    description: t.metaDescription,
+  });
+}
 
 interface FaqItem {
   readonly en: { readonly q: string; readonly a: string };
