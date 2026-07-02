@@ -49,6 +49,7 @@ import {
   createNoopNotificationSink,
   createLogLevelController,
   formatSseEvent,
+  SelfApprovalError,
   type BorjieMcpAuthContext,
   type BorjieScope,
   type SseChannel,
@@ -423,7 +424,18 @@ app.post('/actions/approve', authMiddleware, async (c) => {
     // one whose owning token we cannot resolve).
     return c.json({ success: false, error: 'forbidden' }, 403);
   }
-  const approved = await approvalStore.approve(approvalId, auth.userId ?? auth.tenantId);
+  let approved;
+  try {
+    approved = await approvalStore.approve(approvalId, auth.userId ?? auth.tenantId);
+  } catch (err) {
+    // Four-eye separation-of-duties: the approver principal must differ from
+    // the action's initiator. The store rejects a self-approval either way;
+    // surface it as a clean 403 rather than a 500.
+    if (err instanceof SelfApprovalError) {
+      return c.json({ success: false, error: 'self_approval_forbidden' }, 403);
+    }
+    throw err;
+  }
   if (approved.status === 'expired') {
     return c.json({ success: false, error: 'expired', status: approved.status }, 410);
   }

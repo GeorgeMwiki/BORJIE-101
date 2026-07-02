@@ -227,6 +227,7 @@ export {
   requiresFourEye,
   createInMemoryApprovalStore,
   buildPendingApprovalResponse,
+  SelfApprovalError,
   type ApprovalStatus,
   type ActionApproval,
   type ApprovalStore,
