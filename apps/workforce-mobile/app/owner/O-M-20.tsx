@@ -9,6 +9,8 @@ import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { miningApi } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
 import { useI18n } from '../../src/i18n/useI18n'
+import { formatInteger } from '../../src/i18n/locale-format'
+import type { Lang } from '../../src/auth/types'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
@@ -75,12 +77,12 @@ function isVerified(attributes: Record<string, unknown>): boolean {
   return false
 }
 
-function formatPrice(priceTzs: string | null | undefined, unit: string | null | undefined, currencyCode: string): string {
+function formatPrice(priceTzs: string | null | undefined, unit: string | null | undefined, currencyCode: string, lang: Lang): string {
   if (priceTzs == null) return ''
   const parsed = Number(priceTzs)
   if (!Number.isFinite(parsed)) return ''
   const tail = unit ? ` / ${unit}` : ''
-  return `${currencyCode} ${Math.round(parsed).toLocaleString('en-US')}${tail}`
+  return `${currencyCode} ${formatInteger(Math.round(parsed), lang)}${tail}`
 }
 
 export default function Screen(): JSX.Element {
@@ -94,7 +96,7 @@ export default function Screen(): JSX.Element {
 }
 
 function MarketplaceView(): JSX.Element {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const copy = t.ownerScreens.om20
   const [filter, setFilter] = useState<MineralFilter>('all')
   const [verifiedOnly, setVerifiedOnly] = useState<boolean>(false)
@@ -185,7 +187,7 @@ function MarketplaceView(): JSX.Element {
               const location = readString(l.attributes.location) ?? readString(l.attributes.region)
               const rating = readNumber(l.attributes.rating)
               const currency = readString(l.attributes.currency) ?? 'TZS'
-              const priceLine = formatPrice(l.priceTzs ?? null, l.priceUnit ?? null, currency)
+              const priceLine = formatPrice(l.priceTzs ?? null, l.priceUnit ?? null, currency, lang)
               return (
                 <View key={l.id} style={styles.card}>
                   <View style={styles.cardHead}>

@@ -7,28 +7,12 @@ import { RoleGuard } from '../../src/components/RoleGuard'
 import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { miningApi } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
+import { useI18n } from '../../src/i18n/useI18n'
+import { formatInteger } from '../../src/i18n/locale-format'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'O-M-10'
-
-const COPY = Object.freeze({
-  loading: 'Inapakia mauzo…',
-  filterTitle: 'Chuja kwa hatua',
-  totalsPrefix: 'Jumla · ',
-  totalsParcels: ' kontena',
-  marketPriceLabel: 'Bei ya soko ya wastani: ',
-  variancePrefix: 'Tofauti dhidi ya soko: ',
-  noBuyer: 'Bila mnunuzi',
-  stageAll: 'Zote',
-  stageSampling: 'Sampuli',
-  stageOffer: 'Bei imepokelewa',
-  stageShipped: 'Imesafirishwa',
-  statusPending: 'Inasubiri malipo',
-  statusPartial: 'Sehemu',
-  statusPaid: 'Imelipwa',
-  statusCancelled: 'Imefutwa'
-})
 
 type ParcelStatus = 'in_stockpile' | 'in_transit' | 'at_buyer' | 'sold' | 'spoiled'
 type PaymentStatus = 'pending' | 'partial' | 'paid' | 'cancelled'
@@ -84,21 +68,6 @@ interface JoinedRow {
 
 const STAGE_ORDER: ReadonlyArray<StageFilter> = ['all', 'sampling', 'offer', 'shipped', 'sold']
 
-const STAGE_LABEL: Readonly<Record<StageFilter, string>> = {
-  all: COPY.stageAll,
-  sampling: COPY.stageSampling,
-  offer: COPY.stageOffer,
-  shipped: COPY.stageShipped,
-  sold: COPY.statusPaid
-}
-
-const PAYMENT_LABEL: Readonly<Record<PaymentStatus, string>> = {
-  pending: COPY.statusPending,
-  partial: COPY.statusPartial,
-  paid: COPY.statusPaid,
-  cancelled: COPY.statusCancelled
-}
-
 const PARCELS_KEY = ['mining', 'ore-parcels'] as const
 const SALES_KEY = ['mining', 'sales'] as const
 
@@ -135,8 +104,25 @@ export default function Screen(): JSX.Element {
 }
 
 function SalesPipeline(): JSX.Element {
+  const { t, lang } = useI18n()
+  const COPY = t.ownerScreens.om10
   const [filter, setFilter] = useState<StageFilter>('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  const stageLabel: Readonly<Record<StageFilter, string>> = {
+    all: COPY.stageAll,
+    sampling: COPY.stageSampling,
+    offer: COPY.stageOffer,
+    shipped: COPY.stageShipped,
+    sold: COPY.statusPaid
+  }
+
+  const paymentLabel: Readonly<Record<PaymentStatus, string>> = {
+    pending: COPY.statusPending,
+    partial: COPY.statusPartial,
+    paid: COPY.statusPaid,
+    cancelled: COPY.statusCancelled
+  }
 
   const parcelsQuery = useQuery<ReadonlyArray<ParcelRow>, ApiError>({
     queryKey: PARCELS_KEY,
@@ -227,18 +213,18 @@ function SalesPipeline(): JSX.Element {
             <Pressable
               key={s}
               accessibilityRole="button"
-              accessibilityLabel={`Chuja ${STAGE_LABEL[s]}`}
+              accessibilityLabel={`${COPY.filterActionPrefix}${stageLabel[s]}`}
               onPress={() => setFilter(s)}
               style={[styles.chip, filter === s && styles.chipActive]}
             >
               <Text style={[styles.chipLabel, filter === s && styles.chipLabelActive]}>
-                {STAGE_LABEL[s]}
+                {stageLabel[s]}
               </Text>
             </Pressable>
           ))}
         </View>
       </Section>
-      <Section title={`${COPY.totalsPrefix}${totals.count}${COPY.totalsParcels} · TZS ${Math.round(totals.netTzs).toLocaleString('en-US')}`}>
+      <Section title={`${COPY.totalsPrefix}${totals.count}${COPY.totalsParcels} · TZS ${formatInteger(Math.round(totals.netTzs), lang)}`}>
         {visible.map((row) => {
           const isOpen = selectedId === row.id
           const marketUsd = referencePricePerKgUsd > 0 ? Math.round(referencePricePerKgUsd * row.massKg) : 0
@@ -250,7 +236,7 @@ function SalesPipeline(): JSX.Element {
             <Pressable
               key={row.id}
               accessibilityRole="button"
-              accessibilityLabel={`Chagua ${row.id}`}
+              accessibilityLabel={`${COPY.selectActionPrefix}${row.id}`}
               onPress={() => select(row.id)}
               style={[styles.row, isOpen && styles.rowOpen]}
             >
@@ -258,21 +244,21 @@ function SalesPipeline(): JSX.Element {
                 {row.id.slice(0, 8)} - {row.massKg} kg {row.mineralLabel}
               </Text>
               <Text style={styles.rowSecondary}>
-                {STAGE_LABEL[row.stage]}
-                {row.paymentStatus ? ` - ${PAYMENT_LABEL[row.paymentStatus]}` : ''}
+                {stageLabel[row.stage]}
+                {row.paymentStatus ? ` - ${paymentLabel[row.paymentStatus]}` : ''}
                 {' - '}
                 {row.buyerId ?? COPY.noBuyer}
               </Text>
               {row.netTzs > 0 ? (
                 <Text style={styles.rowMoney}>
-                  Net TZS {Math.round(row.netTzs).toLocaleString('en-US')}
+                  Net TZS {formatInteger(Math.round(row.netTzs), lang)}
                 </Text>
               ) : null}
               {isOpen ? (
                 <View style={styles.detail}>
                   {marketUsd > 0 ? (
                     <Text style={styles.detailLine}>
-                      {COPY.marketPriceLabel}USD {marketUsd.toLocaleString('en-US')}
+                      {COPY.marketPriceLabel}USD {formatInteger(marketUsd, lang)}
                     </Text>
                   ) : null}
                   {variancePct !== null ? (

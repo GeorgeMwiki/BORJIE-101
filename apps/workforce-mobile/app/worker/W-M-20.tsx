@@ -18,14 +18,6 @@ import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'W-M-20'
 
-const COPY = {
-  hint: 'Weka taarifa za safari, kisha tuma. Barua itahifadhiwa kama PDF kwenye seva.',
-  letterOk: 'Barua (PDF) imepakiwa kwenye seva.',
-  letterQueued: 'Barua imehifadhiwa offline kwa sync.',
-  uploadIncomplete:
-    'Taarifa zimehifadhiwa lakini PDF haijapakiwa (seva ya hifadhi haikubali upload wa moja kwa moja).'
-} as const
-
 interface DocumentRow {
   readonly id: string
   readonly fileName: string
@@ -67,6 +59,14 @@ function DriverLetterView(): JSX.Element {
   const { user } = useAuth()
   const { t, lang } = useI18n()
   const copy = t.workerScreens.statusCopy
+  const fields: Readonly<Record<keyof LetterDraft, string>> = {
+    truckReg: copy.wm20FieldTruckReg,
+    driverName: copy.wm20FieldDriverName,
+    mineral: copy.wm20FieldMineral,
+    tonnage: copy.wm20FieldTonnage,
+    routeFrom: copy.wm20FieldRouteFrom,
+    routeTo: copy.wm20FieldRouteTo
+  }
   const { online } = useOnlineStatus()
   const [draft, setDraft] = useState<LetterDraft>({
     truckReg: '',
@@ -167,11 +167,11 @@ function DriverLetterView(): JSX.Element {
 
   return (
     <View>
-      <Section title="Barua ya dereva" hint="Itahifadhiwa kama PDF kwenye seva">
-        <Text style={styles.muted}>{COPY.hint}</Text>
+      <Section title={copy.wm20LetterTitle} hint={copy.wm20LetterHint}>
+        <Text style={styles.muted}>{copy.wm20Hint}</Text>
       </Section>
-      <Section title="Maelezo ya safari">
-        {Object.entries(FIELDS).map(([key, label]) => (
+      <Section title={copy.wm20TripDetailsTitle}>
+        {Object.entries(fields).map(([key, label]) => (
           <View key={key} style={styles.fieldRow}>
             <Text style={styles.label}>{label}</Text>
             <TextInput
@@ -192,7 +192,7 @@ function DriverLetterView(): JSX.Element {
         ) : (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Tuma barua"
+            accessibilityLabel={copy.wm20Submit}
             onPress={onSubmit}
             disabled={disabled}
             style={({ pressed }) => [
@@ -201,7 +201,7 @@ function DriverLetterView(): JSX.Element {
               disabled && styles.submitDisabled
             ]}
           >
-            <Text style={styles.submitLabel}>Tuma barua</Text>
+            <Text style={styles.submitLabel}>{copy.wm20Submit}</Text>
           </Pressable>
         )}
         {!online ? <PreviewBanner kind="offline" /> : null}
@@ -212,7 +212,7 @@ function DriverLetterView(): JSX.Element {
         ) : null}
       </Section>
       {issued ? (
-        <Section title="Risiti ya seva">
+        <Section title={copy.wm20ReceiptTitle}>
           <View
             style={[
               styles.letter,
@@ -226,10 +226,10 @@ function DriverLetterView(): JSX.Element {
               style={confirmation === 'ok' ? styles.successText : styles.warnText}
             >
               {confirmation === 'ok'
-                ? COPY.letterOk
+                ? copy.wm20LetterOk
                 : confirmation === 'incomplete'
-                  ? COPY.uploadIncomplete
-                  : COPY.letterQueued}
+                  ? copy.wm20UploadIncomplete
+                  : copy.wm20LetterQueued}
             </Text>
           </View>
         </Section>
@@ -274,15 +274,6 @@ async function putPdf(target: string, bytes: Uint8Array): Promise<boolean> {
     )
   }
   return true
-}
-
-const FIELDS: Readonly<Record<keyof LetterDraft, string>> = {
-  truckReg: 'Namba ya gari',
-  driverName: 'Jina la dereva',
-  mineral: 'Aina ya madini',
-  tonnage: 'Uzito (tani)',
-  routeFrom: 'Kutoka',
-  routeTo: 'Kwenda'
 }
 
 const styles = StyleSheet.create({

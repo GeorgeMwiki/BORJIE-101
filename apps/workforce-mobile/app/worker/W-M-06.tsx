@@ -92,17 +92,17 @@ function ExcavatorCounter(): JSX.Element {
 
   return (
     <View>
-      <Section title="Hesabu ya leo" hint="Bonyeza kitufe kikubwa kwa kila scoop">
+      <Section title={copy.wm06TodayCount} hint={copy.wm06CountHint}>
         <View style={styles.countBox}>
           <Text style={styles.countValue}>{rows.length}</Text>
-          <Text style={styles.countLabel}>Scoops</Text>
+          <Text style={styles.countLabel}>{copy.wm06Scoops}</Text>
           <Text style={styles.countCaption}>
-            Scoop ya mwisho: {rows[0] ? formatHMS(rows[0].createdAt) : '—'}
+            {copy.wm06LastScoop}{rows[0] ? formatHMS(rows[0].createdAt) : '—'}
           </Text>
         </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Ongeza scoop moja"
+          accessibilityLabel={copy.wm06AddScoopA11y}
           onPress={onTap}
           disabled={mutation.isPending}
           style={({ pressed }) => [
@@ -116,7 +116,7 @@ function ExcavatorCounter(): JSX.Element {
           ) : (
             <>
               <Text style={styles.fabPlus}>+</Text>
-              <Text style={styles.fabLabel}>SCOOP</Text>
+              <Text style={styles.fabLabel}>{copy.wm06ScoopFab}</Text>
             </>
           )}
         </Pressable>
@@ -128,7 +128,7 @@ function ExcavatorCounter(): JSX.Element {
           <Text style={styles.successText}>{copy.wm06ScoopOk}</Text>
         ) : null}
       </Section>
-      <Section title={`Historia ya hivi karibuni (${rows.length}/${HISTORY_LIMIT})`}>
+      <Section title={`${copy.wm06RecentHistory} (${rows.length}/${HISTORY_LIMIT})`}>
         {history.isLoading ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.gold} />

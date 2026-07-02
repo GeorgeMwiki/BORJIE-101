@@ -10,6 +10,7 @@ import { miningApi } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
 import { useOnlineStatus } from '../../src/offline/useOnlineStatus'
 import { useI18n } from '../../src/i18n/useI18n'
+import { formatDateTime } from '../../src/i18n/locale-format'
 import { enqueueWrite } from '../../src/sync/queue'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
@@ -52,7 +53,7 @@ export default function Screen(): JSX.Element {
 
 function PingsView(): JSX.Element {
   const { online } = useOnlineStatus()
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const copy = t.workerScreens.statusCopy
   const [loads, setLoads] = useState<string>('')
   const [blockers, setBlockers] = useState<string>('')
@@ -98,7 +99,7 @@ function PingsView(): JSX.Element {
 
   return (
     <View>
-      <Section title="Pings zinazosubiri">
+      <Section title={copy.wm05PendingPings}>
         {pings.isPending ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.gold} />
@@ -114,41 +115,41 @@ function PingsView(): JSX.Element {
               <Text style={styles.pingStatus}>{ping.status.toUpperCase()}</Text>
               {ping.noteSw ? <Text style={styles.pingNote}>{ping.noteSw}</Text> : null}
               <Text style={styles.pingMeta}>
-                {new Date(ping.pingedAt).toLocaleString('sw-TZ')}
+                {formatDateTime(ping.pingedAt, lang)}
               </Text>
             </View>
           ))
         )}
       </Section>
-      <Section title="Tuma jibu la haraka" hint="Itahifadhiwa kwa sync ukirudi mtandaoni">
+      <Section title={copy.wm05QuickReplyTitle} hint={copy.wm05QuickReplyHint}>
         <Text style={styles.replyNote}>{copy.wm05ReplyNotePrefix}{MISSING_REPLY_ENDPOINT}{copy.wm05ReplyNoteSuffix}</Text>
-        <Text style={styles.fieldLabel}>Mizigo iliyofanyika</Text>
+        <Text style={styles.fieldLabel}>{copy.wm05LoadsLabel}</Text>
         <TextInput
           value={loads}
           onChangeText={setLoads}
           keyboardType="number-pad"
-          placeholder="mfano: 8"
+          placeholder={copy.wm05LoadsPlaceholder}
           placeholderTextColor={colors.textMuted}
           style={styles.input}
-          accessibilityLabel="Mizigo"
+          accessibilityLabel={copy.wm05LoadsA11y}
         />
-        <Text style={styles.fieldLabel}>Vizuizi (kama vipo)</Text>
+        <Text style={styles.fieldLabel}>{copy.wm05BlockersLabel}</Text>
         <TextInput
           value={blockers}
           onChangeText={setBlockers}
-          placeholder="mfano: tairi limepasuka"
+          placeholder={copy.wm05BlockersPlaceholder}
           placeholderTextColor={colors.textMuted}
           style={[styles.input, styles.inputMulti]}
           multiline
-          accessibilityLabel="Vizuizi"
+          accessibilityLabel={copy.wm05BlockersA11y}
         />
         {mutation.isPending ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.gold} />
-            <Text style={styles.muted}>Inahifadhi...</Text>
+            <Text style={styles.muted}>{copy.wm05Saving}</Text>
           </View>
         ) : (
-          <Button label="Tuma Jibu" onPress={onSend} disabled={loads.trim().length === 0} />
+          <Button label={copy.wm05SendReply} onPress={onSend} disabled={loads.trim().length === 0} />
         )}
         {!online ? <PreviewBanner kind="offline" /> : null}
         {confirmation !== 'idle' ? (

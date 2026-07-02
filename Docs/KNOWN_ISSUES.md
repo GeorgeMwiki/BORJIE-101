@@ -441,7 +441,48 @@ staff surface, fully functional — this is a canon/polish defect, not a
 customer-facing or fatal one. Owner/marketing surfaces are single-locale
 (verified live).
 
-End of register. **Open KI count: 0 user-reachable customer-facing; 1 incomplete feature (KI-017); 1 internal-console canon residual (KI-018, nav fixed).**
+### KI-019 — Audit-integrity sweep cannot detect TAIL-TRUNCATION of a hash chain — **REGISTERED 2026-07-03 — LOW (defense-in-depth, non-customer-facing)**
+
+`packages/observability/src/audit/integrity-sweep.ts` (`groupRowsIntoExports`,
+line 122-128) synthesizes each tenant chain's claimed `head` from the SURVIVING
+rows (`head = last.thisHash`). If an attacker deletes the last N rows of a
+tenant's `audit_trail_entries` chain, the recomputed head matches the (now
+shorter) synthesized head, so `verifyAuditChainExport` reports the truncated
+chain as VALID — internal consistency holds, but rows are gone. Payload mutation,
+prev-hash rewrite, and mid-chain gaps ARE detected; only tail-truncation slips.
+
+**Why this is REGISTERED, not a shipped bug:** the sweep is an internal
+observability cron (no customer surface), and the attack requires DB-level row
+deletion, which the append-only trigger + FORCE-RLS + service-role isolation
+already resist. This is a defense-in-depth gap, not a reachable customer defect.
+
+**Why not fixed in-line (avoids born-dark):** a correct fix needs a persistent,
+independent per-tenant monotonic high-water anchor (`{maxSequenceId, headHash}`
+in a separate durable table) that the worker reads and the sweep reconciles
+against (`swept.maxSequenceId < anchor.maxSequenceId` OR `head !== anchor.head` ⇒
+broken). A pure-function-only change (accept an `expectedHeads` param) with no
+caller supplying the anchor would be a born-dark detector — the exact anti-pattern
+the discipline forbids. Ship anchor table + migration + worker wiring together or
+not at all. Owner-prioritised.
+
+### KI-020 — "scoop" is an adopted Swahili loanword in the workforce-mobile bundle (glossary ratification) — **REGISTERED 2026-07-03 — LOW (glossary decision, no visible mix)**
+
+The `sw.json` bundle uses **"scoop"** consistently as a Swahili-adopted mining
+term (`wm06ScoopOk = "Scoop imerekodiwa kwenye seva"`, `intent = "Gusa kwa kila
+scoop"`, `wm06Empty = "Bado hujahesabu scoop"`, and the W-M-06 count label
+`wm06Scoops = "Scoop"`). It is ratcheted in
+`scripts/__allowlists__/mobile-bundle-shared-allowlist.mjs` so the `sw==en` gate
+does not flag it. This is internally consistent (canon rule 6, one term per
+concept) but is an English-origin loanword.
+
+**Decision needed (owner/glossary):** either (a) RATIFY "scoop" as the canonical
+Swahili mining loanword (keep as-is — many Swahili technical terms are adopted,
+e.g. "kompyuta", "simu"), or (b) replace it everywhere with a native term
+(e.g. "kijiko"/"sepetu") in ONE coordinated pass across all W-M-06 keys to avoid
+glossary drift. No user-visible mixing today; this is a terminology ratification,
+not a bug.
+
+End of register. **Open KI count: 0 user-reachable customer-facing; 1 incomplete feature (KI-017); 3 non-customer residuals (KI-018 admin-i18n nav-fixed, KI-019 audit-sweep tail-truncation, KI-020 scoop loanword glossary decision).**
 
 ---
 

@@ -15,34 +15,22 @@ import { Button } from '../../src/forms/Button'
 import { request } from '../../src/api/client'
 import { API_BASE_URL } from '../../src/api/config'
 import { ApiError } from '../../src/api/errors'
+import { useI18n } from '../../src/i18n/useI18n'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'O-M-24'
 
-const COPY = Object.freeze({
-  loading: 'Inapakia mipangilio ya arifa...',
-  summaryTitle: 'Muhtasari',
-  summaryHint: (count: number): string => `Njia za arifa zilizowashwa: ${count}`,
-  quietHoursLabel: (start: string, end: string): string => `Saa za utulivu (${start} - ${end})`,
-  quietHoursOn: 'Imewashwa',
-  quietHoursOff: 'Imezimwa',
-  categories: 'Kategoria',
-  categoriesHint: 'Bonyeza njia ili kuzima au kuwasha',
-  saveSection: 'Hifadhi mabadiliko',
-  save: 'Hifadhi',
-  savedNote: (time: string): string => `Imehifadhiwa - ${time}`,
-  pending: 'Bado hakuna mabadiliko yaliyohifadhiwa'
-})
+type Om24Copy = ReturnType<typeof useI18n>['t']['ownerScreens']['om24']
 
 type Channel = 'push' | 'whatsapp' | 'sms' | 'email'
 
-const CHANNEL_LABELS: Readonly<Record<Channel, string>> = Object.freeze({
-  push: 'Push',
-  whatsapp: 'WA',
-  sms: 'SMS',
-  email: 'Barua'
-})
+function channelLabelOf(channel: Channel, copy: Om24Copy): string {
+  if (channel === 'email') return copy.channelEmail
+  if (channel === 'push') return 'Push'
+  if (channel === 'whatsapp') return 'WA'
+  return 'SMS'
+}
 
 const CHANNEL_ORDER: ReadonlyArray<Channel> = ['push', 'whatsapp', 'sms', 'email']
 
@@ -52,38 +40,40 @@ interface CategorySpec {
   readonly hint: string
 }
 
-const CATEGORIES: ReadonlyArray<CategorySpec> = [
-  {
-    id: 'maamuzi',
-    label: 'Maamuzi',
-    hint: 'Maamuzi mapya ya AI yanahitaji idhini'
-  },
-  {
-    id: 'pricing',
-    label: 'Pricing',
-    hint: 'Mabadiliko ya bei ya dhahabu, shaba, tanzanite'
-  },
-  {
-    id: 'safety',
-    label: 'Safety',
-    hint: 'Matukio ya hatari migodini'
-  },
-  {
-    id: 'compliance',
-    label: 'Compliance',
-    hint: 'PML, hati za ushuru, ripoti za mdhibiti'
-  },
-  {
-    id: 'crew',
-    label: 'Crew',
-    hint: 'Ripoti za shifti, mahudhurio, malipo'
-  },
-  {
-    id: 'fx',
-    label: 'FX',
-    hint: 'TZS-USD-KES rates, USD-cliff alerts'
-  }
-]
+function categoriesOf(copy: Om24Copy): ReadonlyArray<CategorySpec> {
+  return [
+    {
+      id: 'maamuzi',
+      label: copy.catDecisionsLabel,
+      hint: copy.catDecisionsHint
+    },
+    {
+      id: 'pricing',
+      label: copy.catPricingLabel,
+      hint: copy.catPricingHint
+    },
+    {
+      id: 'safety',
+      label: copy.catSafetyLabel,
+      hint: copy.catSafetyHint
+    },
+    {
+      id: 'compliance',
+      label: copy.catComplianceLabel,
+      hint: copy.catComplianceHint
+    },
+    {
+      id: 'crew',
+      label: copy.catCrewLabel,
+      hint: copy.catCrewHint
+    },
+    {
+      id: 'fx',
+      label: copy.catFxLabel,
+      hint: copy.catFxHint
+    }
+  ]
+}
 
 interface NotificationPrefs {
   readonly channels: Readonly<{
@@ -155,11 +145,13 @@ function setCategoryChannel(
   }
 }
 
+const CATEGORY_IDS: ReadonlyArray<string> = ['maamuzi', 'pricing', 'safety', 'compliance', 'crew', 'fx']
+
 function activeChannelCount(prefs: NotificationPrefs): number {
   let count = 0
-  for (const category of CATEGORIES) {
+  for (const categoryId of CATEGORY_IDS) {
     for (const channel of CHANNEL_ORDER) {
-      if (isCategoryChannelOn(prefs, category.id, channel)) {
+      if (isCategoryChannelOn(prefs, categoryId, channel)) {
         count += 1
       }
     }
@@ -244,6 +236,9 @@ export default function Screen(): JSX.Element {
 }
 
 function NotificationsCenter(): JSX.Element {
+  const { t } = useI18n()
+  const copy = t.ownerScreens.om24
+  const categories = useMemo(() => categoriesOf(copy), [copy])
   const query = usePreferences()
   const saveMutation = useSavePreferences()
   const [localPrefs, setLocalPrefs] = useState<NotificationPrefs | null>(null)
@@ -297,7 +292,7 @@ function NotificationsCenter(): JSX.Element {
     return (
       <View style={styles.loadingWrap}>
         <ActivityIndicator color={colors.gold} />
-        <Text style={styles.loadingText}>{COPY.loading}</Text>
+        <Text style={styles.loadingText}>{copy.loading}</Text>
       </View>
     )
   }
@@ -326,9 +321,9 @@ function NotificationsCenter(): JSX.Element {
 
   return (
     <View>
-      <Section title={COPY.summaryTitle} hint={COPY.summaryHint(channelCount)}>
+      <Section title={copy.summaryTitle} hint={`${copy.summaryHintPrefix}${channelCount}`}>
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>{COPY.quietHoursLabel(quietStart, quietEnd)}</Text>
+          <Text style={styles.summaryLabel}>{`${copy.quietHoursPrefix}(${quietStart} - ${quietEnd})`}</Text>
           <Pressable
             accessibilityRole="switch"
             accessibilityState={{ checked: quietOn }}
@@ -336,14 +331,14 @@ function NotificationsCenter(): JSX.Element {
             style={[styles.toggle, quietOn ? styles.toggleOn : styles.toggleOff]}
           >
             <Text style={[styles.toggleLabel, quietOn ? styles.toggleLabelOn : null]}>
-              {quietOn ? COPY.quietHoursOn : COPY.quietHoursOff}
+              {quietOn ? copy.quietHoursOn : copy.quietHoursOff}
             </Text>
           </Pressable>
         </View>
       </Section>
 
-      <Section title={COPY.categories} hint={COPY.categoriesHint}>
-        {CATEGORIES.map((category) => (
+      <Section title={copy.categories} hint={copy.categoriesHint}>
+        {categories.map((category) => (
           <View key={category.id} style={styles.categoryRow}>
             <View style={styles.categoryHead}>
               <Text style={styles.categoryLabel}>{category.label}</Text>
@@ -356,7 +351,7 @@ function NotificationsCenter(): JSX.Element {
                   <Pressable
                     key={channel}
                     accessibilityRole="button"
-                    accessibilityLabel={`${category.label} ${CHANNEL_LABELS[channel]}`}
+                    accessibilityLabel={`${category.label} ${channelLabelOf(channel, copy)}`}
                     accessibilityState={{ selected: enabled }}
                     onPress={() => toggle(category.id, channel)}
                     style={({ pressed }) => [
@@ -366,7 +361,7 @@ function NotificationsCenter(): JSX.Element {
                     ]}
                   >
                     <Text style={[styles.chipText, enabled ? styles.chipTextOn : null]}>
-                      {CHANNEL_LABELS[channel]}
+                      {channelLabelOf(channel, copy)}
                     </Text>
                   </Pressable>
                 )
@@ -376,12 +371,12 @@ function NotificationsCenter(): JSX.Element {
         ))}
       </Section>
 
-      <Section title={COPY.saveSection}>
-        <Button label={COPY.save} onPress={save} loading={saveMutation.isPending} />
+      <Section title={copy.saveSection}>
+        <Button label={copy.save} onPress={save} loading={saveMutation.isPending} />
         {savedAt ? (
-          <Text style={styles.savedNote}>{COPY.savedNote(formatTime(savedAt))}</Text>
+          <Text style={styles.savedNote}>{`${copy.savedNotePrefix}${formatTime(savedAt)}`}</Text>
         ) : (
-          <Text style={styles.savedNote}>{COPY.pending}</Text>
+          <Text style={styles.savedNote}>{copy.pending}</Text>
         )}
       </Section>
     </View>

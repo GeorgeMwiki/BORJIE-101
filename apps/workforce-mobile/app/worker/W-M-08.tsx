@@ -120,7 +120,7 @@ function SampleView(): JSX.Element {
   return (
     <View>
       {query.isLoading ? (
-        <Section title="Sampuli za leo">
+        <Section title={copy.wm08TodaySamples}>
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.gold} />
             <Text style={styles.muted}>{copy.wm08Loading}</Text>
@@ -128,30 +128,30 @@ function SampleView(): JSX.Element {
         </Section>
       ) : null}
       {query.error && networkError ? (
-        <Section title="Sampuli za leo">
+        <Section title={copy.wm08TodaySamples}>
           <PreviewBanner kind="env-missing" />
         </Section>
       ) : null}
       {query.error && !networkError ? (
-        <Section title="Sampuli za leo">
+        <Section title={copy.wm08TodaySamples}>
           <Text style={styles.errorText}>{copy.errorPrefix}{query.error.message}</Text>
         </Section>
       ) : null}
       {!query.isLoading && !query.error && samples.length === 0 ? (
-        <Section title="Sampuli za leo">
+        <Section title={copy.wm08TodaySamples}>
           <PreviewBanner kind="no-data" />
           <Text style={styles.muted}>{copy.wm08Empty}</Text>
         </Section>
       ) : null}
       {samples.length > 0 ? (
-        <Section title={`Sampuli za leo (${samples.length})`}>
+        <Section title={`${copy.wm08TodaySamples} (${samples.length})`}>
           {samples.map((s) => {
             const selected = s.id === activeId
             return (
               <Pressable
                 key={s.id}
                 accessibilityRole="button"
-                accessibilityLabel={`Chagua sampuli ${s.sampleTag ?? s.id.slice(0, 8)}`}
+                accessibilityLabel={`${copy.wm08SelectSampleA11y}${s.sampleTag ?? s.id.slice(0, 8)}`}
                 accessibilityState={{ selected }}
                 onPress={() => onSelect(s.id)}
                 style={({ pressed }) => [
@@ -166,12 +166,12 @@ function SampleView(): JSX.Element {
                 <View style={styles.sampleBody}>
                   <Text style={styles.sampleTag}>{s.sampleTag ?? s.id.slice(0, 8)}</Text>
                   <Text style={styles.sampleMeta}>
-                    Uzito: {formatMassKg(s.massG)} · {countChain(s)} mikono
+                    {copy.wm08MassLabel}{formatMassKg(s.massG)} · {countChain(s)} {copy.wm08HandsSuffix}
                   </Text>
                 </View>
                 {s.passedQaqc === true ? (
                   <View style={styles.sealedBadge}>
-                    <Text style={styles.sealedBadgeText}>IMEPITISHWA</Text>
+                    <Text style={styles.sealedBadgeText}>{copy.wm08PassedBadge}</Text>
                   </View>
                 ) : null}
               </Pressable>
@@ -181,11 +181,11 @@ function SampleView(): JSX.Element {
       ) : null}
       {active ? (
         <Section
-          title={`Mlolongo wa udhibiti — ${active.sampleTag ?? active.id.slice(0, 8)}`}
-          hint="Nani alishika sampuli na lini"
+          title={`${copy.wm08ChainTitle}${active.sampleTag ?? active.id.slice(0, 8)}`}
+          hint={copy.wm08ChainHint}
         >
           {(active.attributes?.chain ?? []).length === 0 ? (
-            <Text style={styles.muted}>Hakuna mlolongo umewekwa bado.</Text>
+            <Text style={styles.muted}>{copy.wm08NoChain}</Text>
           ) : (
             (active.attributes?.chain ?? []).map((step, idx) => (
               <View key={`${active.id}-chain-${idx}`} style={styles.chainRow}>
@@ -204,7 +204,7 @@ function SampleView(): JSX.Element {
         </Section>
       ) : null}
       {active ? (
-        <Section title="Funga sampuli">
+        <Section title={copy.wm08SealTitle}>
           {sealMutation.isPending ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator color={colors.gold} />
@@ -212,7 +212,7 @@ function SampleView(): JSX.Element {
             </View>
           ) : (
             <Button
-              label="Funga Sampuli"
+              label={copy.wm08SealButton}
               onPress={onSeal}
               disabled={confirmation === 'ok'}
             />

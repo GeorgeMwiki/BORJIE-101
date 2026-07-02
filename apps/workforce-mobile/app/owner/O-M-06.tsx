@@ -7,33 +7,11 @@ import { RoleGuard } from '../../src/components/RoleGuard'
 import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { miningApi } from '../../src/api/client'
 import { ApiError, isNetworkError } from '../../src/api/errors'
+import { useI18n } from '../../src/i18n/useI18n'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'O-M-06'
-
-const COPY = Object.freeze({
-  loading: 'Inakusanya muhtasari wa siku…',
-  errorInline: 'Imeshindwa kupakua muhtasari wa siku.',
-  emptyHint: 'Hakuna shifti za siku ya leo bado.',
-  sectionSummary: 'Muhtasari wa siku',
-  sectionSummaryHint: 'Vipande vya KPI kutoka kwa daily-brief + production',
-  sectionSites: 'Migodi · bonyeza moja kuona zaidi',
-  sectionFocus: 'Kina cha mgodi',
-  sectionFocusHint: 'Mizigo, mafuta na shifti za siku 30',
-  sectionBlockers: 'Vizuizi vya leo',
-  kpiAttendance: 'Shifti za leo',
-  kpiAttendanceUnit: 'mlolongo',
-  kpiTonnage: 'Mizigo (30d)',
-  kpiTonnageUnitPrefix: 'tani',
-  kpiFuel: 'Mafuta (30d)',
-  kpiFuelUnit: 'L',
-  kpiBlockers: 'Vizuizi vya wazi',
-  kpiBlockersUnit: 'incidents + grievances',
-  blockerIncidentsLabel: 'Incidents zilizo wazi',
-  blockerGrievancesLabel: 'Grievances zilizo wazi',
-  blockerCriticalLabel: 'Critical / High'
-})
 
 interface DailyBrief {
   readonly date: string
@@ -72,6 +50,8 @@ export default function Screen(): JSX.Element {
 }
 
 function DailyReportView(): JSX.Element {
+  const { t } = useI18n()
+  const COPY = t.ownerScreens.om06
   const [briefQuery, productionQuery] = useQueries({
     queries: [
       {
@@ -191,7 +171,7 @@ function DailyReportView(): JSX.Element {
             <Pressable
               key={site.siteId}
               accessibilityRole="button"
-              accessibilityLabel={`Mgodi ${site.siteId}`}
+              accessibilityLabel={`${COPY.siteA11yPrefix} ${site.siteId}`}
               onPress={() => setFocusSiteId(site.siteId)}
               style={({ pressed }) => [
                 styles.siteRow,
@@ -201,9 +181,15 @@ function DailyReportView(): JSX.Element {
             >
               <Text style={styles.siteName}>{site.siteId}</Text>
               <View style={styles.siteMeta}>
-                <Text style={styles.siteMetaItem}>Shifti {site.shifts}</Text>
-                <Text style={styles.siteMetaItem}>Tani {formatNumber(site.tonnes)}</Text>
-                <Text style={styles.siteMetaItem}>Fuel {formatNumber(site.fuel)} L</Text>
+                <Text style={styles.siteMetaItem}>
+                  {COPY.metaShifts} {site.shifts}
+                </Text>
+                <Text style={styles.siteMetaItem}>
+                  {COPY.metaTonnes} {formatNumber(site.tonnes)}
+                </Text>
+                <Text style={styles.siteMetaItem}>
+                  {COPY.metaFuel} {formatNumber(site.fuel)} L
+                </Text>
               </View>
             </Pressable>
           ))}
@@ -212,16 +198,20 @@ function DailyReportView(): JSX.Element {
       {focusedSite ? (
         <Section title={COPY.sectionFocus} hint={COPY.sectionFocusHint}>
           <View style={styles.focus}>
-            <FocusStat label="Shifti" value={String(focusedSite.shifts)} suffix="siku 30" />
             <FocusStat
-              label="Mizigo"
-              value={formatNumber(focusedSite.tonnes)}
-              suffix={`tani ${formatNumber(focusedSite.tonnes)}`}
+              label={COPY.focusShifts}
+              value={String(focusedSite.shifts)}
+              suffix={COPY.focusShiftsSuffix}
             />
             <FocusStat
-              label="Mafuta"
+              label={COPY.focusTonnage}
+              value={formatNumber(focusedSite.tonnes)}
+              suffix={`${COPY.focusTonnageSuffixPrefix} ${formatNumber(focusedSite.tonnes)}`}
+            />
+            <FocusStat
+              label={COPY.focusFuel}
               value={`${formatNumber(focusedSite.fuel)} L`}
-              suffix="jumla siku 30"
+              suffix={COPY.focusFuelSuffix}
             />
           </View>
         </Section>

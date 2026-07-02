@@ -10,6 +10,8 @@ import { miningApi, request } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
 import { API_BASE_URL } from '../../src/api/config'
 import { useI18n } from '../../src/i18n/useI18n'
+import { formatInteger } from '../../src/i18n/locale-format'
+import type { Lang } from '../../src/auth/types'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
@@ -49,10 +51,9 @@ interface Scenario {
 const CASH_QUERY_KEY = ['mining', 'cockpit', 'cash-runway'] as const
 const BILLING_QUERY_KEY = ['owner', 'billing', 'subscription'] as const
 
-function formatAmount(value: number, currencyCode: string): string {
+function formatAmount(value: number, currencyCode: string, lang: Lang): string {
   if (!Number.isFinite(value)) return `${currencyCode} -`
-  const rounded = Math.round(value)
-  return `${currencyCode} ${rounded.toLocaleString('en-US')}`
+  return `${currencyCode} ${formatInteger(Math.round(value), lang)}`
 }
 
 export default function Screen(): JSX.Element {
@@ -66,7 +67,7 @@ export default function Screen(): JSX.Element {
 }
 
 function CashRunwayView(): JSX.Element {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const COPY = t.ownerScreens.om07
   const [scenarioKey, setScenarioKey] = useState<ScenarioKey>('base')
 
@@ -159,7 +160,7 @@ function CashRunwayView(): JSX.Element {
         <BigNumber
           value={String(activeScenario.daysRemaining)}
           label={COPY.daysLabel}
-          caption={`${COPY.burnPrefix}${formatAmount(activeScenario.burnRateTzs, currencyCode)}${COPY.perDaySuffix}`}
+          caption={`${COPY.burnPrefix}${formatAmount(activeScenario.burnRateTzs, currencyCode, lang)}${COPY.perDaySuffix}`}
         />
       </Section>
       <Section title={COPY.scenarioTitle} hint={COPY.scenarioHint}>
@@ -197,7 +198,7 @@ function CashRunwayView(): JSX.Element {
           <View style={styles.accountHead}>
             <Text style={styles.accountCurrency}>{currencyCode}</Text>
             <Text style={styles.accountAmount}>
-              {formatAmount(cashQuery.data.ninetyDayNetTzs, currencyCode).replace(`${currencyCode} `, '')}
+              {formatAmount(cashQuery.data.ninetyDayNetTzs, currencyCode, lang).replace(`${currencyCode} `, '')}
             </Text>
           </View>
           <Text style={styles.accountBank}>{cashQuery.data.note}</Text>

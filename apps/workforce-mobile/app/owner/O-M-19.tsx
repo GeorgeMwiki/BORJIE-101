@@ -15,25 +15,11 @@ import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { request } from '../../src/api/client'
 import { API_BASE_URL } from '../../src/api/config'
 import { ApiError, isNetworkError } from '../../src/api/errors'
+import { useI18n } from '../../src/i18n/useI18n'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'O-M-19'
-
-const COPY = Object.freeze({
-  loading: 'Inapakia maktaba ya ripoti…',
-  errorInline: 'Imeshindwa kupakua orodha ya ripoti.',
-  emptyHint: 'Hakuna ripoti za maingiliano zilizopatikana kwenye akaunti yako.',
-  shareMissing: 'POST /api/v1/mining/reports/{id}/share haipatikani kwa sasa.',
-  sectionFilter: 'Chuja kwa aina ya render',
-  sectionReports: 'Ripoti za maingiliano',
-  shareLabel: 'Fungua kiunga (signed URL)',
-  shareUnavailableLabel: 'Hakuna kiunga cha signed URL',
-  metaGenerated: 'Imezalishwa',
-  metaExpires: 'Inakwisha',
-  metaActions: 'Vitendo',
-  filterAll: 'Zote'
-})
 
 const REPORTS_BASE = `${API_BASE_URL}/api/v1/interactive-reports`
 
@@ -60,6 +46,8 @@ interface ReportsListEnvelope {
 }
 
 export default function Screen(): JSX.Element {
+  const { t } = useI18n()
+  const COPY = t.ownerScreens.om19
   const [filter, setFilter] = useState<string>('all')
   const [openError, setOpenError] = useState<string | null>(null)
 
@@ -189,7 +177,7 @@ export default function Screen(): JSX.Element {
                 ) : null}
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={`Fungua ${report.reportInstanceId}`}
+                  accessibilityLabel={`${COPY.openA11yPrefix} ${report.reportInstanceId}`}
                   onPress={() => void openSignedUrl(report)}
                   disabled={!report.signedUrl}
                   style={({ pressed }) => [

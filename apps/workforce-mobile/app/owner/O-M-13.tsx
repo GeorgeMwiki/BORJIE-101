@@ -7,26 +7,13 @@ import { RoleGuard } from '../../src/components/RoleGuard'
 import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { miningApi } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
+import { useI18n } from '../../src/i18n/useI18n'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'O-M-13'
 
-const COPY = Object.freeze({
-  loading: 'Inapakia data ya mali...',
-  summary: (total: number, avg: number, dueSoon: number): string =>
-    `Mali ${total} - Wastani wa matumizi ${avg}% - ${dueSoon} zinahitaji huduma`,
-  list: 'Orodha ya mali',
-  all: 'Zote',
-  kindLabel: 'Aina',
-  siteLabel: 'Mgodi',
-  idLabel: 'Kitambulisho',
-  overdue: (days: number): string => `Huduma imechelewa siku ${days}`,
-  now: 'Huduma sasa',
-  soon: (days: number): string => `Huduma baada ya siku ${days}`,
-  ok: (days: number): string => `Huduma baada ya siku ${days}`,
-  noDate: 'Huduma haijapangwa'
-})
+type Om13Copy = ReturnType<typeof useI18n>['t']['ownerScreens']['om13']
 
 type AssetKind = 'excavator' | 'truck' | 'drill' | 'generator' | 'pump' | 'crusher' | 'compressor' | 'vehicle' | 'tool' | 'ppe' | 'other'
 
@@ -69,19 +56,21 @@ const FILTERS: ReadonlyArray<AssetKind | 'all'> = [
   'pump'
 ]
 
-const KIND_LABEL: Readonly<Record<string, string>> = Object.freeze({
-  excavator: 'Excavator',
-  truck: 'Truck',
-  drill: 'Drill',
-  generator: 'Jenereta',
-  pump: 'Pampu',
-  crusher: 'Crusher',
-  compressor: 'Compressor',
-  vehicle: 'Gari',
-  tool: 'Zana',
-  ppe: 'PPE',
-  other: 'Nyingine'
-})
+function kindLabelMap(copy: Om13Copy): Readonly<Record<string, string>> {
+  return {
+    excavator: 'Excavator',
+    truck: 'Truck',
+    drill: 'Drill',
+    generator: copy.kindGenerator,
+    pump: copy.kindPump,
+    crusher: 'Crusher',
+    compressor: 'Compressor',
+    vehicle: copy.kindVehicle,
+    tool: copy.kindTool,
+    ppe: 'PPE',
+    other: copy.kindOther
+  }
+}
 
 export default function Screen(): JSX.Element {
   return (
@@ -93,16 +82,16 @@ export default function Screen(): JSX.Element {
   )
 }
 
-function serviceTone(days: number | null): { label: string; color: string } {
-  if (days === null) return { label: COPY.noDate, color: colors.textMuted }
-  if (days < 0) return { label: COPY.overdue(Math.abs(days)), color: colors.danger }
-  if (days === 0) return { label: COPY.now, color: colors.warn }
-  if (days <= 7) return { label: COPY.soon(days), color: colors.warn }
-  return { label: COPY.ok(days), color: colors.success }
+function serviceTone(days: number | null, copy: Om13Copy): { label: string; color: string } {
+  if (days === null) return { label: copy.noDate, color: colors.textMuted }
+  if (days < 0) return { label: `${copy.overduePrefix}${Math.abs(days)}`, color: colors.danger }
+  if (days === 0) return { label: copy.now, color: colors.warn }
+  if (days <= 7) return { label: `${copy.soonPrefix}${days}`, color: colors.warn }
+  return { label: `${copy.soonPrefix}${days}`, color: colors.success }
 }
 
-function kindLabelOf(kind: string): string {
-  return KIND_LABEL[kind] ?? kind
+function kindLabelOf(kind: string, copy: Om13Copy): string {
+  return kindLabelMap(copy)[kind] ?? kind
 }
 
 function daysUntil(iso: string | null): number | null {
@@ -171,6 +160,8 @@ function useMaintenanceEvents(): UseQueryResult<ReadonlyArray<MaintenanceEventRo
 }
 
 function AssetsAndVehicles(): JSX.Element {
+  const { t } = useI18n()
+  const copy = t.ownerScreens.om13
   const [filter, setFilter] = useState<AssetKind | 'all'>('all')
   const [opened, setOpened] = useState<string | null>(null)
   const query = useMaintenanceEvents()
@@ -195,7 +186,7 @@ function AssetsAndVehicles(): JSX.Element {
     return (
       <View style={styles.loadingWrap}>
         <ActivityIndicator color={colors.gold} />
-        <Text style={styles.loadingText}>{COPY.loading}</Text>
+        <Text style={styles.loadingText}>{copy.loading}</Text>
       </View>
     )
   }
@@ -220,36 +211,36 @@ function AssetsAndVehicles(): JSX.Element {
 
   return (
     <View>
-      <Section title={COPY.summary(fleet.total, fleet.avg, fleet.dueSoon)}>
+      <Section title={`${copy.summaryAssetsPrefix}${fleet.total} - ${copy.summaryAvgPrefix}${fleet.avg}% - ${fleet.dueSoon}${copy.summaryDueSuffix}`}>
         <View style={styles.filterRow}>
           {FILTERS.map((k) => (
             <Pressable
               key={k}
               accessibilityRole="button"
-              accessibilityLabel={`Chuja ${k}`}
+              accessibilityLabel={`${copy.filterPrefix}${k}`}
               onPress={() => setFilter(k)}
               style={[styles.chip, filter === k && styles.chipActive]}
             >
               <Text style={[styles.chipLabel, filter === k && styles.chipLabelActive]}>
-                {k === 'all' ? COPY.all : kindLabelOf(k)}
+                {k === 'all' ? copy.all : kindLabelOf(k, copy)}
               </Text>
             </Pressable>
           ))}
         </View>
       </Section>
-      <Section title={COPY.list}>
+      <Section title={copy.list}>
         {visible.length === 0 ? (
           <PreviewBanner kind="no-data" />
         ) : (
           visible.map((asset) => {
-            const tone = serviceTone(asset.serviceDueInDays)
+            const tone = serviceTone(asset.serviceDueInDays, copy)
             const isOpen = opened === asset.id
             const utilBar = Math.max(2, Math.min(100, asset.utilizationPct))
             return (
               <Pressable
                 key={asset.id}
                 accessibilityRole="button"
-                accessibilityLabel={`Onyesha ${asset.label}`}
+                accessibilityLabel={`${copy.showPrefix}${asset.label}`}
                 onPress={() => open(asset.id)}
                 style={[styles.row, isOpen && styles.rowOpen]}
               >
@@ -263,9 +254,9 @@ function AssetsAndVehicles(): JSX.Element {
                 <Text style={[styles.serviceLine, { color: tone.color }]}>{tone.label}</Text>
                 {isOpen ? (
                   <View style={styles.detail}>
-                    <Text style={styles.detailLine}>{COPY.kindLabel}: {kindLabelOf(asset.kind)}</Text>
-                    <Text style={styles.detailLine}>{COPY.siteLabel}: {asset.site}</Text>
-                    <Text style={styles.detailLine}>{COPY.idLabel}: {asset.id}</Text>
+                    <Text style={styles.detailLine}>{copy.kindLabel}: {kindLabelOf(asset.kind, copy)}</Text>
+                    <Text style={styles.detailLine}>{copy.siteLabel}: {asset.site}</Text>
+                    <Text style={styles.detailLine}>{copy.idLabel}: {asset.id}</Text>
                   </View>
                 ) : null}
               </Pressable>

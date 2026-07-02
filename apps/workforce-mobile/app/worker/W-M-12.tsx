@@ -19,17 +19,6 @@ import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'W-M-12'
 
-const COPY = {
-  historyError: 'Imeshindwa kupakia historia ya zamu.',
-  emptyHistory: 'Hakuna kumbukumbu ya zamu bado.',
-  noFence:
-    'GPS au mipaka ya tovuti haijapatikana. Huwezi kuingia kazini bila kuthibitisha eneo.',
-  outsideFence: 'Uko nje ya mipaka ya tovuti. Sogea ndani ya eneo la kazi.',
-  inOk: 'Umeingia kazini kwenye seva.',
-  outOk: 'Umetoka kazini kwenye seva.',
-  queued: 'Imehifadhiwa offline kwa sync.'
-} as const
-
 interface AttendanceRow {
   readonly id: string
   readonly workDate: string
@@ -256,7 +245,7 @@ function HoursLog(): JSX.Element {
 
   return (
     <View>
-      <Section title="Hali ya zamu">
+      <Section title={copy.wm12ShiftStatus}>
         {submitting ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.gold} />
@@ -265,67 +254,67 @@ function HoursLog(): JSX.Element {
         ) : clockedIn ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Mwisho Saa"
+            accessibilityLabel={copy.wm12ClockOut}
             onPress={() => void clockOut()}
             style={({ pressed }) => [styles.bigButton, styles.stop, pressed && styles.pressed]}
           >
-            <Text style={styles.bigButtonLabel}>Mwisho Saa</Text>
-            <Text style={styles.bigButtonHint}>Bonyeza ili kumaliza zamu</Text>
+            <Text style={styles.bigButtonLabel}>{copy.wm12ClockOut}</Text>
+            <Text style={styles.bigButtonHint}>{copy.wm12ClockOutHint}</Text>
           </Pressable>
         ) : (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Anza Saa"
+            accessibilityLabel={copy.wm12ClockIn}
             onPress={() => void clockIn()}
             style={({ pressed }) => [styles.bigButton, styles.start, pressed && styles.pressed]}
           >
-            <Text style={styles.bigButtonLabelDark}>Anza Saa</Text>
-            <Text style={styles.bigButtonHintDark}>Bonyeza ili kuanza zamu</Text>
+            <Text style={styles.bigButtonLabelDark}>{copy.wm12ClockIn}</Text>
+            <Text style={styles.bigButtonHintDark}>{copy.wm12ClockInHint}</Text>
           </Pressable>
         )}
         {!online ? <PreviewBanner kind="offline" /> : null}
         {locationError === 'no-fence' ? (
-          <Text style={styles.errorText}>{COPY.noFence}</Text>
+          <Text style={styles.errorText}>{copy.wm12NoFence}</Text>
         ) : null}
         {locationError === 'outside' ? (
-          <Text style={styles.errorText}>{COPY.outsideFence}</Text>
+          <Text style={styles.errorText}>{copy.wm12OutsideFence}</Text>
         ) : null}
-        {notice === 'in-ok' ? <Text style={styles.successText}>{COPY.inOk}</Text> : null}
-        {notice === 'out-ok' ? <Text style={styles.successText}>{COPY.outOk}</Text> : null}
-        {notice === 'queued' ? <Text style={styles.warnText}>{COPY.queued}</Text> : null}
+        {notice === 'in-ok' ? <Text style={styles.successText}>{copy.wm12InOk}</Text> : null}
+        {notice === 'out-ok' ? <Text style={styles.successText}>{copy.wm12OutOk}</Text> : null}
+        {notice === 'queued' ? <Text style={styles.warnText}>{copy.wm12Queued}</Text> : null}
         {submitError && !networkError ? (
           <Text style={styles.errorText}>
             {localizeApiError(submitError.code, lang)}
           </Text>
         ) : null}
       </Section>
-      <Section title="Muhtasari">
+      <Section title={copy.wm12Summary}>
         <View style={styles.summaryRow}>
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Leo</Text>
+            <Text style={styles.summaryLabel}>{copy.wm12Today}</Text>
             <Text style={styles.summaryValue}>{todayHours.toFixed(1)} hrs</Text>
           </View>
           <View style={styles.summaryCard}>
-            <Text style={styles.summaryLabel}>Wiki hii</Text>
+            <Text style={styles.summaryLabel}>{copy.wm12ThisWeek}</Text>
             <Text style={styles.summaryValue}>{weekHours.toFixed(1)} hrs</Text>
           </View>
         </View>
       </Section>
-      <Section title="Kumbukumbu ya zamu">
+      <Section title={copy.wm12ShiftHistory}>
         {history.isPending ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.gold} />
             <Text style={styles.muted}>{copy.wm12HistoryLoading}</Text>
           </View>
         ) : history.isError ? (
-          <Text style={styles.errorText}>{COPY.historyError}</Text>
+          <Text style={styles.errorText}>{copy.wm12HistoryError}</Text>
         ) : serverHistory.length === 0 ? (
-          <Text style={styles.muted}>{COPY.emptyHistory}</Text>
+          <Text style={styles.muted}>{copy.wm12EmptyHistory}</Text>
         ) : (
           serverHistory.map((row) => (
             <View key={row.id} style={styles.segment}>
               <Text style={styles.segmentPrimary}>{row.workDate}</Text>
-              <Text style={styles.segmentSecondary}>{describeRow(row)}</Text>
+              <Text style={styles.segmentSecondary}>{describeRow(row, copy)}</Text>
             </View>
           ))
         )}
@@ -363,9 +352,12 @@ function sumHours(
     }, 0)
 }
 
-function describeRow(row: AttendanceRow): string {
-  if (row.hoursWorked) return `${Number(row.hoursWorked).toFixed(1)} hrs (seva)`
-  if (row.signedOffAt) return 'Zamu wazi'
+function describeRow(
+  row: AttendanceRow,
+  copy: { readonly wm12ServerHours: string; readonly wm12ShiftOpen: string }
+): string {
+  if (row.hoursWorked) return `${Number(row.hoursWorked).toFixed(1)} ${copy.wm12ServerHours}`
+  if (row.signedOffAt) return copy.wm12ShiftOpen
   return '—'
 }
 

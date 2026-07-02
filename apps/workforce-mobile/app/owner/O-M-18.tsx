@@ -10,6 +10,7 @@ import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { miningApi } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
 import { useI18n } from '../../src/i18n/useI18n'
+import { formatInteger } from '../../src/i18n/locale-format'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
@@ -60,7 +61,7 @@ export default function Screen(): JSX.Element {
 }
 
 function CliffStatusView(): JSX.Element {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const copy = t.ownerScreens.om18
   const cliffQuery = useQuery<CliffStatusResponse['data'], ApiError>({
     queryKey: CLIFF_KEY,
@@ -162,7 +163,7 @@ function CliffStatusView(): JSX.Element {
                 id: sale.id,
                 primary: `${sale.id.slice(0, 8)} · ${sale.route}`,
                 secondary: isUsd
-                  ? `USD ${usd.toLocaleString('en-US')} · ${copy.actionRewriteTzs}`
+                  ? `USD ${formatInteger(usd, lang)} · ${copy.actionRewriteTzs}`
                   : `${sale.paymentStatus} · ${copy.actionTzsContract}`
               }
             })}

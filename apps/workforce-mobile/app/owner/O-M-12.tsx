@@ -7,33 +7,21 @@ import { RoleGuard } from '../../src/components/RoleGuard'
 import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { miningApi } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
+import { useI18n } from '../../src/i18n/useI18n'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'O-M-12'
 
-const COPY = Object.freeze({
-  loading: 'Inapakia data ya watu...',
-  summary: (total: number, present: number): string =>
-    `Jumla ya watu: ${total} - Waliopo leo: ${present}`,
-  permanent: 'Wa kudumu',
-  casual: 'Wa muda',
-  contractors: 'Wakandarasi',
-  sortBy: 'Panga kwa',
-  mines: 'Migodi',
-  presentToday: 'Waliopo leo',
-  permanentLine: 'Wa kudumu',
-  casualLine: 'Wa muda',
-  contractorsLine: 'Wakandarasi'
-})
-
-const SORT_LABEL = Object.freeze({
-  name: 'Jina',
-  total: 'Jumla',
-  present: 'Waliopo leo'
-}) as Readonly<Record<SortKey, string>>
+type Om12Copy = ReturnType<typeof useI18n>['t']['ownerScreens']['om12']
 
 type SortKey = 'name' | 'total' | 'present'
+
+function sortLabelOf(key: SortKey, copy: Om12Copy): string {
+  if (key === 'name') return copy.sortName
+  if (key === 'total') return copy.sortTotal
+  return copy.sortPresent
+}
 
 const SORT_KEYS: ReadonlyArray<SortKey> = ['name', 'total', 'present']
 
@@ -88,6 +76,8 @@ function useHeadcount(): UseQueryResult<ReadonlyArray<SiteHeadcount>, Error> {
 }
 
 function PeopleByMine(): JSX.Element {
+  const { t } = useI18n()
+  const copy = t.ownerScreens.om12
   const [sortBy, setSortBy] = useState<SortKey>('total')
   const [expanded, setExpanded] = useState<string | null>(null)
   const query = useHeadcount()
@@ -121,7 +111,7 @@ function PeopleByMine(): JSX.Element {
     return (
       <View style={styles.loadingWrap}>
         <ActivityIndicator color={colors.gold} />
-        <Text style={styles.loadingText}>{COPY.loading}</Text>
+        <Text style={styles.loadingText}>{copy.loading}</Text>
       </View>
     )
   }
@@ -148,31 +138,31 @@ function PeopleByMine(): JSX.Element {
 
   return (
     <View>
-      <Section title={COPY.summary(grandTotal, totals.present)}>
+      <Section title={`${copy.summaryTotalPrefix}${grandTotal} - ${copy.summaryPresentPrefix}${totals.present}`}>
         <View style={styles.summaryRow}>
-          <SummaryPill label={COPY.permanent} value={totals.permanent} />
-          <SummaryPill label={COPY.casual} value={totals.casual} />
-          <SummaryPill label={COPY.contractors} value={totals.contractors} />
+          <SummaryPill label={copy.permanent} value={totals.permanent} />
+          <SummaryPill label={copy.casual} value={totals.casual} />
+          <SummaryPill label={copy.contractors} value={totals.contractors} />
         </View>
       </Section>
-      <Section title={COPY.sortBy}>
+      <Section title={copy.sortBy}>
         <View style={styles.sortRow}>
           {SORT_KEYS.map((key) => (
             <Pressable
               key={key}
               accessibilityRole="button"
-              accessibilityLabel={`Panga kwa ${SORT_LABEL[key]}`}
+              accessibilityLabel={`${copy.sortByPrefix}${sortLabelOf(key, copy)}`}
               onPress={() => setSortBy(key)}
               style={[styles.sortChip, sortBy === key && styles.sortChipActive]}
             >
               <Text style={[styles.sortLabel, sortBy === key && styles.sortLabelActive]}>
-                {SORT_LABEL[key]}
+                {sortLabelOf(key, copy)}
               </Text>
             </Pressable>
           ))}
         </View>
       </Section>
-      <Section title={COPY.mines}>
+      <Section title={copy.mines}>
         {sorted.map((mine) => {
           const isOpen = expanded === mine.id
           const total = totalOf(mine)
@@ -181,7 +171,7 @@ function PeopleByMine(): JSX.Element {
             <Pressable
               key={mine.id}
               accessibilityRole="button"
-              accessibilityLabel={`Onyesha ${mine.name}`}
+              accessibilityLabel={`${copy.showPrefix}${mine.name}`}
               onPress={() => toggle(mine.id)}
               style={[styles.mineRow, isOpen && styles.mineRowOpen]}
             >
@@ -190,13 +180,13 @@ function PeopleByMine(): JSX.Element {
                 <Text style={styles.mineTotal}>{total}</Text>
               </View>
               <Text style={styles.mineMeta}>
-                {COPY.presentToday}: {mine.presentToday} ({presentPct}%)
+                {copy.presentToday}: {mine.presentToday} ({presentPct}%)
               </Text>
               {isOpen ? (
                 <View style={styles.mineDetail}>
-                  <Text style={styles.detailLine}>{COPY.permanentLine}: {mine.permanent}</Text>
-                  <Text style={styles.detailLine}>{COPY.casualLine}: {mine.casual}</Text>
-                  <Text style={styles.detailLine}>{COPY.contractorsLine}: {mine.contractors}</Text>
+                  <Text style={styles.detailLine}>{copy.permanent}: {mine.permanent}</Text>
+                  <Text style={styles.detailLine}>{copy.casual}: {mine.casual}</Text>
+                  <Text style={styles.detailLine}>{copy.contractors}: {mine.contractors}</Text>
                 </View>
               ) : null}
             </Pressable>
