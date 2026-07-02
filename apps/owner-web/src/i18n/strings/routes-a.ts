@@ -320,6 +320,22 @@ export const routesAStrings = {
       sw: 'Hakuna kipindi bado. Endesha cha kwanza juu.',
       en: 'No runs yet. Trigger the first one above.',
     },
+    runsLoadError: {
+      sw: 'Imeshindwa kupakia vipindi vya mishahara. Jaribu tena.',
+      en: 'Could not load payroll runs. Please try again.',
+    },
+    colPeriod: { sw: 'Kipindi', en: 'Period' },
+    colStatus: { sw: 'Hali', en: 'Status' },
+    colWorkers: { sw: 'Wafanyakazi', en: 'Workers' },
+    colNetTotal: { sw: 'Jumla halisi', en: 'Net total' },
+    colCommitted: { sw: 'Imethibitishwa', en: 'Committed' },
+    notCommitted: { sw: 'Bado', en: 'Not yet' },
+    statusDraft: { sw: 'Rasimu', en: 'Draft' },
+    statusPreviewed: { sw: 'Imekaguliwa', en: 'Previewed' },
+    statusCommitted: { sw: 'Imethibitishwa', en: 'Committed' },
+    statusPartialCommit: { sw: 'Sehemu imethibitishwa', en: 'Partially committed' },
+    statusPaid: { sw: 'Imelipwa', en: 'Paid' },
+    statusFailed: { sw: 'Imeshindwa', en: 'Failed' },
   },
 
   // app/(routes)/personal-kb/[personId]/personal-kb-detail-panel.tsx

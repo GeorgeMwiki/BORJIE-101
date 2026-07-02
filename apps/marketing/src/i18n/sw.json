@@ -36,7 +36,7 @@
     "workforceApp": "Programu ya wafanyakazi",
     "categories": {
       "operators": "Waendeshaji wa migodi",
-      "buyers": "Wanunuzi na off-takers",
+      "buyers": "Wanunuzi na wanunuzi wa jumla",
       "ecosystem": "Vyama na mfumo",
       "capital": "Mtaji na usimamizi"
     },
@@ -51,7 +51,7 @@
       "cooperativesDesc": "Vikundi vya AMCOS na vya wachimbaji wadogo.",
       "buyers": "Wanunuzi na wauzaji nje",
       "buyersDesc": "Wanunuzi wa madini waliothibitishwa, daraja la LBMA.",
-      "smelters": "Off-takers na warekebishaji",
+      "smelters": "Wanunuzi wa jumla na visafishaji",
       "smeltersDesc": "Wachakataji walioleseniwa na warekebishaji wa dore.",
       "investors": "Wawekezaji na mifuko",
       "investorsDesc": "Mtaji wa madini ukiwa na taarifa za kila siku.",
@@ -1031,17 +1031,17 @@
         },
         {
           "label": "Q2 2026",
-          "title": "Radar ya leseni: pre-fill ya siku 47",
+          "title": "Radar ya leseni: ujazaji wa awali wa siku 47",
           "tone": "next"
         },
         {
           "label": "Q3 2026",
-          "title": "Vendor wallet: M-Pesa · Tigo · Airtel",
+          "title": "Pochi ya wachuuzi: M-Pesa · Tigo · Airtel",
           "tone": "later"
         },
         {
           "label": "Q4 2026",
-          "title": "Buyer soko: public beta",
+          "title": "Soko la wanunuzi: beta ya umma",
           "tone": "later"
         }
       ],
@@ -1257,11 +1257,11 @@
     "ctaPricing": "Ona bei"
   },
   "buyersPage": {
-    "kicker": "Kwa wanunuzi wa madini na off-takers",
+    "kicker": "Kwa wanunuzi wa madini na wanunuzi wa jumla",
     "heading": "Pata madini ya Tanzania yaliyothibitishwa. Mwanzo hadi mwisho.",
     "sub": "Wauzaji wa KYC, vipimo vya mnyororo wa ushahidi, saini za alama ya kidole. Nunua kwa uhakika.",
     "ctaSignup": "Jisajili kushiriki",
-    "ctaTalk": "Ongea na timu ya sourcing",
+    "ctaTalk": "Ongea na timu ya ununuzi",
     "ctaSignUpBuy": "Jisajili kununua",
     "ctaPricingFees": "Bei na ada",
     "regionsHeading": "Mikoa ya uchimbaji",
@@ -1320,7 +1320,7 @@
     "builtFor": {
       "kicker": "02 · Imejengwa kwa wanunuzi waliothibitishwa",
       "heading": "Imejengwa kwa wanunuzi waliothibitishwa.",
-      "sub": "Borjie inaingiza kundi lake la kwanza la refineries, nyumba za vito na off-takers. Kila muuzaji amethibitishwa kwa KYB, kila bidhaa ina njia ya mnyororo wa ulinzi, na kila mkataba unasainiwa kwa biometriki. Omba kujiunga na buyer pilot.",
+      "sub": "Borjie inaingiza kundi lake la kwanza la visafishaji, nyumba za vito na wanunuzi wa jumla. Kila muuzaji amethibitishwa kwa KYB, kila bidhaa ina njia ya mnyororo wa ulinzi, na kila mkataba unasainiwa kwa alama za kibiolojia. Omba kujiunga na majaribio ya wanunuzi.",
       "cards": [
         {
           "title": "Wenzako waliothibitishwa kwa KYB",
@@ -1335,7 +1335,7 @@
           "body": "Mikataba ya off-take inasainiwa kwa saini za alama za vidole zisizokataliwa na inarekodiwa kwenye audit chain kwa kila tenant, inayotekelezeka mahakamani."
         }
       ],
-      "cta": "Omba kujiunga na buyer pilot"
+      "cta": "Omba kujiunga na majaribio ya wanunuzi"
     },
     "pricing": {
       "kicker": "03 · Bei",
@@ -1352,9 +1352,9 @@
     },
     "downloadCta": {
       "heading": "Jisajili kushiriki.",
-      "sub": "Buyer mobile app iko katika upimaji wa kibinafsi pamoja na wanunuzi kumi na sita wa Tanzania na Afrika Mashariki. Jiunge na waitlist kwa toleo la umma la Septemba 2026.",
-      "primary": "Jiunge na buyer waitlist",
-      "secondary": "Ongea na timu ya sourcing"
+      "sub": "Programu ya simu ya wanunuzi iko katika upimaji wa kibinafsi pamoja na wanunuzi kumi na sita wa Tanzania na Afrika Mashariki. Jiunge na orodha ya kusubiri kwa toleo la umma la Septemba 2026.",
+      "primary": "Jiunge na orodha ya kusubiri ya wanunuzi",
+      "secondary": "Ongea na timu ya ununuzi"
     },
     "ctaAlreadyBuyer": "Una akaunti tayari? Ingia"
   },

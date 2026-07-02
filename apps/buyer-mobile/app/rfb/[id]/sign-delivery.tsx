@@ -103,11 +103,22 @@ async function signDelivery(
   return res.data
 }
 
-function formatTzs(amount: number, lang: LanguageCode): string {
+// Launch jurisdiction currency — settlement figures (`*Tzs`) are
+// TZS-denominated by schema; the ISO code is passed as data (defaulting
+// here) rather than a hardcoded `'TZS'` suffix, per the multi-currency
+// canon (CLAUDE.md "Multi-currency, TZS at launch · expandable").
+const SIGN_DELIVERY_LAUNCH_CURRENCY = 'TZS'
+
+function formatTzs(
+  amount: number,
+  lang: LanguageCode,
+  currencyCode: string = SIGN_DELIVERY_LAUNCH_CURRENCY,
+): string {
+  const code = currencyCode.trim().toUpperCase() || SIGN_DELIVERY_LAUNCH_CURRENCY
   const fmt = new Intl.NumberFormat(bcp47For(lang), {
     maximumFractionDigits: 0,
   })
-  return `${fmt.format(amount)} TZS`
+  return `${fmt.format(amount)} ${code}`
 }
 
 /**
