@@ -4258,8 +4258,21 @@ const proactiveIntelWorker = serviceRegistry.db
       // populates it, so this honest-degrades to the prior neutral posture on a
       // cold worker — never throws, no DB dependency.
       affectReader: {
-        read: (tenantId: string, userId: string, nowMs?: number) =>
-          getAffectAccumulator(tenantId).read(tenantId, userId, nowMs),
+        // HYDRATE-THEN-READ (migration 0372 continuity). The accumulator is an
+        // in-memory cache in front of the durable `affective_profiles` store;
+        // on a cold worker / fresh replica the cache is empty, so a memory-only
+        // `.read()` would always return null and the earned-trust resolver
+        // would stay conservative-neutral forever — the "survives restart /
+        // replica" promise unrealized. We warm the cache from the durable row
+        // first (`hydrate`), then read. `hydrate` swallows any store fault
+        // internally and returns the (possibly null) profile, so this
+        // honest-degrades to a memory-only read on a DB fault — never throws
+        // into the worker tick.
+        read: async (tenantId: string, userId: string, nowMs?: number) => {
+          const acc = getAffectAccumulator(tenantId);
+          await acc.hydrate(tenantId, userId, nowMs);
+          return acc.read(tenantId, userId, nowMs);
+        },
       },
       ...(getProactiveBehaviorSignalSource()
         ? { behaviorSignalSource: getProactiveBehaviorSignalSource()! }

@@ -9,11 +9,13 @@
 
 export {
   scanRisks,
+  scanRisksReport,
   evaluateRisks,
   buildScannerState,
   listRules,
   countRulesByKind,
   type RiskScannerDeps,
+  type RiskScanReport,
 } from './scanner';
 export { RISK_RULES } from './scan-rules';
 export {

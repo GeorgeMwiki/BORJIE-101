@@ -45,7 +45,7 @@ import { withTenantContext } from '@borjie/database';
 import {
   ALL_SCAN_RULES,
   OPPORTUNITY_KINDS,
-  resolveScanState,
+  resolveScanStateReport,
   scanOpportunities,
   type ScanStateResolverDb,
 } from '../../services/opportunity-scanner';
@@ -105,6 +105,13 @@ const ScanOutput = z.object({
   generatedAt: z.string(),
   opportunities: z.array(OpportunityRow),
   ruleCount: z.number().int(),
+  // Degraded-read self-report — TRUE when one or more backing relations could
+  // NOT be read (undefined-table / undefined-column, e.g. a deploy/wiring
+  // drift or the 0370-excluded lbma_fix_summary / fx_rates_intraday). The
+  // persona MUST render an explicit "some data could not be read" note and
+  // never present the empty `opportunities` list as an implicit all-clear.
+  unavailable: z.boolean(),
+  degradedRelations: z.array(z.string()),
 });
 
 export const opportunityScanTool: PersonaToolDescriptor<
@@ -131,15 +138,16 @@ export const opportunityScanTool: PersonaToolDescriptor<
     // context around the resolver reads inside a pinned transaction —
     // same idiom as `data-analysis-tools.ts`. The `as unknown as` cast
     // sidesteps the TS2709 namespace-vs-type drift on `@borjie/database`.
-    const state = await withTenantContext(
+    const report = await withTenantContext(
       db as unknown as Parameters<typeof withTenantContext>[0],
       ctx.tenantId,
       (tx) =>
-        resolveScanState(
+        resolveScanStateReport(
           tx as unknown as ScanStateResolverDb,
           ctx.tenantId,
         ),
     );
+    const state = report.state;
     const options: Parameters<typeof scanOpportunities>[1] = {
       maxResults: input.maxResults,
     };
@@ -185,6 +193,11 @@ export const opportunityScanTool: PersonaToolDescriptor<
         citations: [...o.citations],
       })),
       ruleCount: ALL_SCAN_RULES.length,
+      // Surface the degraded-read signal so the persona renders an explicit
+      // "some data could not be read" note instead of an implicit all-clear
+      // over unreadable backing tables.
+      unavailable: report.unavailable,
+      degradedRelations: [...report.degradedRelations],
     };
   },
 };

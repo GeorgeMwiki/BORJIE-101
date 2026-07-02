@@ -45,5 +45,7 @@ export {
 
 export {
   resolveScanState,
+  resolveScanStateReport,
   type ScanStateResolverDb,
+  type ScanStateReport,
 } from './resolver';

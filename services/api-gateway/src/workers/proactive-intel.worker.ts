@@ -172,11 +172,19 @@ export interface ProactiveAffectiveProfile {
  * past the static map).
  */
 export interface ProactiveAffectReader {
+  /**
+   * Read the per-(tenant,user) trust posterior. MAY return a Promise: the
+   * production binding (index.ts) HYDRATES the durable `affective_profiles`
+   * row into the shared accumulator's cache BEFORE reading, so a fresh replica
+   * / cold worker reads the persisted posterior instead of an always-empty
+   * in-memory cache (migration 0372 continuity). Fail-safe: the binding
+   * degrades to a memory-only read (honest null) on any store fault.
+   */
   read(
     tenantId: string,
     userId: string,
     nowMs?: number,
-  ): ProactiveAffectiveProfile | null;
+  ): ProactiveAffectiveProfile | null | Promise<ProactiveAffectiveProfile | null>;
 }
 
 /** Owner decision/risk posture, the owner-style `posture` dimension. */
@@ -710,11 +718,14 @@ export function createProactiveIntelWorker(
       }
     }
 
-    // Trust posterior — ToM accumulator read (synchronous, in-memory).
+    // Trust posterior — ToM accumulator read. The production binding hydrates
+    // the durable `affective_profiles` row into the shared accumulator's cache
+    // before reading (may return a Promise), so a cold worker reads the
+    // persisted posterior rather than an always-empty in-memory cache.
     let trust = AFFECT_NEUTRAL_TRUST;
     if (affectReader) {
       try {
-        const profile = affectReader.read(tenantId, ownerId, nowMs);
+        const profile = await affectReader.read(tenantId, ownerId, nowMs);
         if (profile && profile.turns >= 1) trust = profile.state.trust;
       } catch (err) {
         options.logger.debug(

@@ -1395,7 +1395,7 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
       // wired. Falls back to per-turn directive when the accumulator is
       // missing or the (tenant, user) tuple is incomplete.
       const mindState = inferMindState(req.userMessage);
-      const affectiveProfile = observeAffective(
+      const affectiveProfile = await observeAffective(
         deps.affectiveAccumulator,
         memTenantIdEarly,
         memUserId,
@@ -2589,7 +2589,7 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
       ]);
 
       const mindState = inferMindState(req.userMessage);
-      const affectiveProfile = observeAffective(
+      const affectiveProfile = await observeAffective(
         deps.affectiveAccumulator,
         memTenantId,
         memUserId,
@@ -3762,18 +3762,29 @@ function observeCognitiveLoad(
   }
 }
 
-function observeAffective(
+async function observeAffective(
   acc: AffectiveAccumulator | undefined,
   tenantId: string | null,
   userId: string,
   mindState: ReturnType<typeof inferMindState>,
   clock: () => Date,
-): ReturnType<AffectiveAccumulator['read']> | null {
+): Promise<ReturnType<AffectiveAccumulator['read']> | null> {
   if (!acc || !tenantId || !userId) return null;
   try {
+    // COLD-CACHE HYDRATE (migration 0372 durability). The accumulator is an
+    // in-memory cache in front of a durable store; on a fresh replica / after
+    // a restart the cache is empty, so `observe()` alone would fold this turn
+    // onto AFFECTIVE_DEFAULT and lose the persisted posterior. Warm the cache
+    // from the durable row FIRST so `observe()` decays/merges onto the real
+    // prior — realizing the "survives restart / replica" promise. `hydrate`
+    // is a no-op (returns the cached profile) when the cache is already warm
+    // and swallows any store fault internally (honest in-memory degrade), so
+    // it never throws onto the turn.
+    const now = clock().toISOString();
+    await acc.hydrate(tenantId, userId, Date.parse(now));
     return acc.observe(tenantId, userId, {
       mindState,
-      capturedAt: clock().toISOString(),
+      capturedAt: now,
     });
   } catch {
     return null;

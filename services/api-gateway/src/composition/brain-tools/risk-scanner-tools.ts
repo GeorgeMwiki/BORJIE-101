@@ -42,7 +42,7 @@ import { withTenantContext } from '@borjie/database';
 import {
   countRulesByKind,
   listRules,
-  scanRisks,
+  scanRisksReport,
   type RiskScannerDeps,
 } from '../../services/risk-scanner';
 import { publishCockpitEvent } from '../../services/cockpit-events';
@@ -133,6 +133,13 @@ const ScanOutput = z.object({
   generatedAt: z.string(),
   risks: z.array(RiskRow),
   totalRules: z.number().int(),
+  // Degraded-read self-report — TRUE when one or more backing relations could
+  // NOT be read (undefined-table / undefined-column, e.g. a deploy/wiring
+  // drift or the 0370-excluded lbma_fix_summary / fx_rates_intraday). The
+  // persona MUST render an explicit "some risk data could not be read" note
+  // and never present the empty `risks` list as an implicit all-clear.
+  unavailable: z.boolean(),
+  degradedRelations: z.array(z.string()),
 });
 
 export const riskScanTool: PersonaToolDescriptor<
@@ -155,7 +162,7 @@ export const riskScanTool: PersonaToolDescriptor<
     const deps = requireDeps();
     // `ScanRisksOptions` uses `limit` for the result-cap field — the
     // brain-tool input is named `maxResults` for user-facing clarity.
-    const options: Parameters<typeof scanRisks>[2] = {
+    const options: Parameters<typeof scanRisksReport>[2] = {
       limit: input.maxResults,
       minSeverity: input.minSeverity,
     };
@@ -178,12 +185,12 @@ export const riskScanTool: PersonaToolDescriptor<
     // isolation contract. When `deps.db` is null (unit tests / no-db
     // composition) fall back to the raw resolver — the scanner already
     // degrades every field to null in that case.
-    const risks = deps.db
+    const report = deps.db
       ? await withTenantContext(
           deps.db as unknown as Parameters<typeof withTenantContext>[0],
           ctx.tenantId,
           async (tx) =>
-            scanRisks(
+            scanRisksReport(
               ctx.tenantId,
               {
                 ...deps,
@@ -192,7 +199,8 @@ export const riskScanTool: PersonaToolDescriptor<
               options,
             ),
         )
-      : await scanRisks(ctx.tenantId, deps, options);
+      : await scanRisksReport(ctx.tenantId, deps, options);
+    const risks = report.risks;
     const nowIso = (deps.now?.() ?? new Date()).toISOString();
 
     // R6 — cockpit SSE notify. Push only the highest-severity new
@@ -226,6 +234,11 @@ export const riskScanTool: PersonaToolDescriptor<
         citations: [...r.citations],
       })),
       totalRules: listRules().length,
+      // Surface the degraded-read signal so the persona renders an explicit
+      // "some risk data could not be read" note instead of an implicit
+      // all-clear over unreadable backing tables.
+      unavailable: report.unavailable,
+      degradedRelations: [...report.degradedRelations],
     };
   },
 };
