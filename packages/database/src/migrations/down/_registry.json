@@ -676,6 +676,16 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0371_benchmark_market_reference.sql",
+      "down": "down/0371_down_benchmark_market_reference.sql",
+      "reverses": "Drops the three GLOBAL market-reference tables 0371 creates (bot_gold_windows / lbma_fix_summary / fx_rates_intraday — tables + indexes + service-role-write RLS fall with them). Dev/staging only — DATA LOSS on those tables: the risk/opportunity scanners re-dark their FX/market/BoT-window slices (degrade to null). The additive external_benchmarks / peer_cohort_aggregates scanner-metric_id seed rows (owned by 0095) are NOT reversed — they are harmless extra reference rows and re-apply is idempotent. No money/licence/ledger records; no tenant data touched.",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }

@@ -1787,3 +1787,12 @@ export * from './self-healing-proposals.schema.js';
 // task_assigned→awaiting_owner_approval→delivered). Tenant-scoped (FORCE RLS);
 // flow_runs adds a service-role bypass for the membership-bounded buyer read.
 export * from './business-flows.schema.js';
+
+// Scanner backing tables — the opportunity (0369) + risk (0370) + benchmark/
+// market reference (0371) substrate that makes the 66 scanner rules fire on
+// REAL data. Tenant-scoped tables carry FORCE RLS + tenant-isolation on
+// app.current_tenant_id + service-role bypass; shared reference/market tables
+// use public-read + service-role-write.
+export * from './opportunity-scanner-backing.schema.js';
+export * from './risk-scanner-backing.schema.js';
+export * from './benchmark-market-reference.schema.js';

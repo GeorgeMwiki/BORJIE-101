@@ -147,13 +147,20 @@ async function resolveFxSlice(
     `);
     const open = Boolean(rowsOf(windowResult)[0]?.open ?? false);
 
+    // Saleable stockpile → troy ounces. The real ore_parcels table carries
+    // `mass_kg` (numeric) and a `status` whose saleable/in-store value is
+    // 'in_stockpile' (the terminal states are 'in_stockpile' → 'sold'); the
+    // legacy 'ready' status + `ozt` column never shipped. Convert kilograms to
+    // troy ounces (1 troy oz = 0.0311034768 kg).
+    const KG_PER_TROY_OZ = 0.0311034768;
     const parcelResult = await db.execute(sql`
-      SELECT COALESCE(SUM(ozt)::numeric, 0) AS oz
+      SELECT COALESCE(SUM(mass_kg)::numeric, 0) AS kg
         FROM ore_parcels
        WHERE tenant_id = ${tenantId}
-         AND status = 'ready'
+         AND status = 'in_stockpile'
     `);
-    const oz = Number(rowsOf(parcelResult)[0]?.oz ?? 0);
+    const kg = Number(rowsOf(parcelResult)[0]?.kg ?? 0);
+    const oz = kg > 0 ? kg / KG_PER_TROY_OZ : 0;
 
     return {
       lbmaFixUsdPerOz: current,
@@ -238,10 +245,16 @@ async function resolveEstateSlice(
   tenantId: string,
 ): Promise<ScanState['estate']> {
   try {
+    // estate_entities is a tree: a subsidiary is any active entity that sits
+    // UNDER a parent (`parent_entity_id IS NOT NULL`); a holding company is an
+    // entity of kind 'subsidiary_holding'; forestry is kind 'forestry'. The
+    // legacy `relation` column ('subsidiary'/'holding') never shipped — the
+    // real schema (migration 0094) models the hierarchy via `kind` +
+    // `parent_entity_id`.
     const entityResult = await db.execute(sql`
       SELECT
-        COUNT(*) FILTER (WHERE relation = 'subsidiary')::int AS subs,
-        BOOL_OR(relation = 'holding')::bool AS has_holding,
+        COUNT(*) FILTER (WHERE parent_entity_id IS NOT NULL)::int AS subs,
+        BOOL_OR(kind = 'subsidiary_holding')::bool AS has_holding,
         COUNT(*) FILTER (WHERE kind = 'forestry')::int AS forestry
         FROM estate_entities
        WHERE tenant_id = ${tenantId}
@@ -252,13 +265,18 @@ async function resolveEstateSlice(
     const hasHolding = Boolean(entityRow.has_holding ?? false);
     const forestry = Number(entityRow.forestry ?? 0);
 
+    // Intercompany surplus = TZS capital moved BETWEEN estate entities in the
+    // last 30 days (kind 'transfer' or 'dividend' — the two intercompany-cash
+    // sweep kinds in the ecm_kind_chk of migration 0094). This is the real
+    // idle capital circulating in the group that a sweep could optimise. The
+    // legacy `flow_direction = 'surplus_pending'` column never shipped.
     const surplusResult = await db.execute(sql`
       SELECT COALESCE(SUM(amount)::numeric, 0) AS surplus
         FROM estate_capital_movements
        WHERE tenant_id = ${tenantId}
          AND currency = 'TZS'
          AND happened_at > NOW() - INTERVAL '30 days'
-         AND flow_direction = 'surplus_pending'
+         AND kind IN ('transfer', 'dividend')
     `);
     const surplus = Number(rowsOf(surplusResult)[0]?.surplus ?? 0);
 
@@ -390,12 +408,16 @@ async function resolveInsuranceSlice(
       expiresAt && (expiresAt.getTime() - Date.now()) / 86_400_000 <= 60,
     );
 
+    // insurance_quotes (migration 0106) stamps arrival on `created_at` (the
+    // legacy `issued_at` column never shipped) and its status set is
+    // ('open','bound','expired','declined'); an 'open' or recently-'expired'
+    // quote is a real market comparator for the renewal decision.
     const quoteResult = await db.execute(sql`
       SELECT MIN(premium_tzs)::numeric AS best_quote
         FROM insurance_quotes
        WHERE tenant_id = ${tenantId}
          AND status IN ('open', 'expired')
-         AND issued_at >= NOW() - INTERVAL '30 days'
+         AND created_at >= NOW() - INTERVAL '30 days'
     `);
     const bestQuote = num(rowsOf(quoteResult)[0]?.best_quote);
 
