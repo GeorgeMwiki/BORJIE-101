@@ -1036,6 +1036,7 @@ import {
 // defensive `if (!client) return { fake }` fallback. See
 // `Docs/AUDIT/REALITY_CHECK_2026-05-29.md` G-A.
 import { createLoopbackHttpClient } from './composition/brain-tools/loopback-http-client';
+import { resolvePersonaSlugFromActor } from './composition/brain-tools/persona-slug-gate';
 // Persona-tool audit sink — closes G-D in REALITY_CHECK_2026-05-29.md.
 // Without this, every WRITE persona-tool call skipped the audit-chain
 // append. The Pino-backed sink emits `tool.persona_audit` events so
@@ -2164,21 +2165,18 @@ try {
     const personaAuditSink = createPinoAuditSink(logger);
     const personaGate: PersonaToolGate = {
       killSwitchOpen,
-      // The persona slug is resolved from `ToolExecutionContext.actor`
-      // by the orchestrator at dispatch time. Fallback to T1 owner
-      // strategist when the actor metadata is missing so the brain's
-      // default surface stays usable in degraded mode.
+      // The persona slug is resolved from the AUTH-derived role SET carried on
+      // `ToolExecutionContext.actor.roles` (the canonical `AIActor.roles`
+      // string[]) via `resolvePersonaSlugFromActor`. A caller whose role cannot
+      // be resolved gets the LEAST-privileged persona (T5 customer concierge) —
+      // NEVER the owner strategist. Failing OPEN to T1 would hand any role-less
+      // caller the owner-tier tool ceiling (vertical BFLA); the helper fails
+      // CLOSED and reads the real `roles` array (with `actor.role` folded in for
+      // back-compat callers like the persona-kernel-bridge).
       resolvePersonaSlug(ctx): string | undefined {
-        const role = (ctx as { actor?: { role?: string } }).actor?.role;
-        if (role === 'OWNER') return 'T1_owner_strategist';
-        if (role === 'TENANT_ADMIN' || role === 'PLATFORM_ADMIN')
-          return 'T2_admin_strategist';
-        if (role === 'MANAGER') return 'T3_module_manager';
-        if (role === 'WORKER' || role === 'EMPLOYEE')
-          return 'T4_field_employee';
-        if (role === 'CUSTOMER' || role === 'BUYER')
-          return 'T5_customer_concierge';
-        return 'T1_owner_strategist';
+        return resolvePersonaSlugFromActor(
+          (ctx as { actor?: { roles?: unknown; role?: unknown } }).actor,
+        );
       },
       auditSink: personaAuditSink,
       ...(personaLoopbackClient && { httpClient: personaLoopbackClient }),

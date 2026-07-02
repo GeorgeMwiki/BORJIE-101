@@ -50,7 +50,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import type { Brain } from '@borjie/ai-copilot';
+import { PERSONA_IDS, type Brain } from '@borjie/ai-copilot';
 import type {
   BrainDecision,
   SovereignBrain,
@@ -191,6 +191,83 @@ export interface OrchestratorTurnPayload {
 const DEFAULT_BRAIN_PERSONA_ID = 'mr-mwikila-head';
 
 /**
+ * Management/owner-tier personas whose `allowedTools` reach into owner-scoped
+ * portfolio, negotiation, or estate-management surfaces. A caller MUST hold a
+ * management-tier role (owner / admin / manager) to bind one of these via a
+ * client-supplied `forcePersonaId`; otherwise the client value is IGNORED and
+ * the turn falls back to the safe default (never widened by a client string).
+ *
+ * The default head persona and the counterparty/customer assistant are open to
+ * any authenticated caller (they carry the baseline, non-privileged catalog).
+ */
+const MANAGEMENT_TIER_PERSONA_IDS: ReadonlySet<string> = new Set<string>([
+  PERSONA_IDS.OWNER_ADVISOR,
+  PERSONA_IDS.ESTATE_MANAGER,
+  PERSONA_IDS.PRICE_NEGOTIATOR,
+  PERSONA_IDS.TENDER_NEGOTIATOR,
+  PERSONA_IDS.COWORKER_FAMILY,
+  PERSONA_IDS.JUNIOR_OFFTAKE,
+  PERSONA_IDS.JUNIOR_MAINTENANCE,
+  PERSONA_IDS.JUNIOR_FINANCE,
+  PERSONA_IDS.JUNIOR_COMPLIANCE,
+  PERSONA_IDS.JUNIOR_COMMUNICATIONS,
+  PERSONA_IDS.MIGRATION_WIZARD,
+]);
+
+/** Auth-derived role tokens that authorize a management-tier persona bind. */
+const MANAGEMENT_TIER_ROLES: ReadonlySet<string> = new Set<string>([
+  'OWNER',
+  'TENANT_ADMIN',
+  'PLATFORM_ADMIN',
+  'ADMIN',
+  'SUPER_ADMIN',
+  'MANAGER',
+]);
+
+/**
+ * True when the AUTH-derived role set carries at least one management-tier
+ * role. Case-insensitive; empty / role-less callers are NOT management.
+ */
+function callerHasManagementRole(roles: ReadonlyArray<string>): boolean {
+  for (const raw of roles) {
+    if (typeof raw === 'string' && MANAGEMENT_TIER_ROLES.has(raw.toUpperCase()))
+      return true;
+  }
+  return false;
+}
+
+/**
+ * Resolve the persona id to bind for a turn from a CLIENT-supplied
+ * `forcePersonaId`, VALIDATED against the caller's AUTH-derived role set. A
+ * client value can never WIDEN the tool ceiling:
+ *
+ *   - undefined / empty     -> the supplied fallback (default or thread persona)
+ *   - a management-tier id   -> honored ONLY when the caller holds a
+ *                               management-tier role; otherwise IGNORED
+ *   - any other (baseline) id -> honored (baseline catalog, no escalation)
+ *
+ * We IGNORE (never 403) an unauthorized force so a legitimate turn still
+ * generates on the safe default — the client simply cannot pick a
+ * higher-privileged persona than its role allows.
+ */
+export function resolveAuthorizedPersonaId(args: {
+  readonly forcePersonaId?: string;
+  readonly roles: ReadonlyArray<string>;
+  readonly fallbackPersonaId: string;
+}): string {
+  const forced = args.forcePersonaId?.trim();
+  if (!forced) return args.fallbackPersonaId;
+  if (
+    MANAGEMENT_TIER_PERSONA_IDS.has(forced) &&
+    !callerHasManagementRole(args.roles)
+  ) {
+    // Client tried to escalate to a management-tier persona without the role.
+    return args.fallbackPersonaId;
+  }
+  return forced;
+}
+
+/**
  * Pure projection of a kernel `BrainDecision` onto the turn payload. The
  * `personaId` is supplied by the caller (the thread's bound persona) since
  * the `BrainDecision` does not carry one. `timeMs` is read from provenance.
@@ -314,8 +391,17 @@ export async function generateBrainTurnViaOrchestrator(
     ...(args.stakesHint ? { hint: args.stakesHint } : {}),
   });
 
-  // 1. Resolve / create the thread.
-  const personaIdForNew = args.forcePersonaId ?? DEFAULT_BRAIN_PERSONA_ID;
+  // 1. Resolve / create the thread. `forcePersonaId` is CLIENT-supplied, so it
+  // is validated against the caller's AUTH-derived role set — a client value
+  // can never widen the persona tool ceiling beyond what the caller's role
+  // authorizes (an unauthorized force is ignored, not honored).
+  const personaIdForNew = resolveAuthorizedPersonaId({
+    ...(args.forcePersonaId !== undefined
+      ? { forcePersonaId: args.forcePersonaId }
+      : {}),
+    roles: ctx.roles,
+    fallbackPersonaId: DEFAULT_BRAIN_PERSONA_ID,
+  });
   let threadId = args.threadId;
   let personaId: string;
   if (!threadId) {
@@ -341,7 +427,15 @@ export async function generateBrainTurnViaOrchestrator(
       // Defence-in-depth — never let a cross-tenant thread id leak.
       throw new Error(`Thread ${threadId} not found`);
     }
-    personaId = args.forcePersonaId ?? existing.primaryPersonaId;
+    // Same client-force validation on an existing thread — the caller cannot
+    // re-bind the thread to a higher-privileged persona than its role allows.
+    personaId = resolveAuthorizedPersonaId({
+      ...(args.forcePersonaId !== undefined
+        ? { forcePersonaId: args.forcePersonaId }
+        : {}),
+      roles: ctx.roles,
+      fallbackPersonaId: existing.primaryPersonaId,
+    });
   }
 
   // 2. Append the user message.

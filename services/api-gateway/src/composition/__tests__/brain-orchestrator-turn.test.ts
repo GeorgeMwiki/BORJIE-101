@@ -15,9 +15,11 @@
 
 import { describe, it, expect } from 'vitest';
 import type { BrainDecision } from '@borjie/central-intelligence';
+import { PERSONA_IDS } from '@borjie/ai-copilot';
 import {
   deriveStakes,
   mapDecisionToTurnPayload,
+  resolveAuthorizedPersonaId,
   resolveBrainOrchestratorRoutingEnabled,
 } from '../brain-orchestrator-turn';
 
@@ -136,6 +138,84 @@ describe('mapDecisionToTurnPayload (BrainDecision → turn payload)', () => {
     expect(p.refused).toBe(true);
     expect(p.refusalGate).toBe('policy');
     expect(p.proposedAction?.riskLevel).toBe('high');
+  });
+});
+
+describe('resolveAuthorizedPersonaId (client forcePersonaId cannot escalate)', () => {
+  const DEFAULT = 'mr-mwikila-head';
+
+  it('returns the fallback when no forcePersonaId is supplied', () => {
+    expect(
+      resolveAuthorizedPersonaId({
+        roles: ['OWNER'],
+        fallbackPersonaId: DEFAULT,
+      }),
+    ).toBe(DEFAULT);
+  });
+
+  it('IGNORES a management-tier force from a non-management caller (BFLA barrier)', () => {
+    // A buyer / customer / role-less caller MUST NOT be able to bind the
+    // owner-advisor (owner-scoped portfolio tools) via a client string.
+    for (const roles of [[], ['CUSTOMER'], ['BUYER'], ['EMPLOYEE'], ['WORKER']]) {
+      expect(
+        resolveAuthorizedPersonaId({
+          forcePersonaId: PERSONA_IDS.OWNER_ADVISOR,
+          roles,
+          fallbackPersonaId: DEFAULT,
+        }),
+      ).toBe(DEFAULT);
+      expect(
+        resolveAuthorizedPersonaId({
+          forcePersonaId: PERSONA_IDS.ESTATE_MANAGER,
+          roles,
+          fallbackPersonaId: DEFAULT,
+        }),
+      ).toBe(DEFAULT);
+      expect(
+        resolveAuthorizedPersonaId({
+          forcePersonaId: PERSONA_IDS.PRICE_NEGOTIATOR,
+          roles,
+          fallbackPersonaId: DEFAULT,
+        }),
+      ).toBe(DEFAULT);
+    }
+  });
+
+  it('HONORS a management-tier force for a management-tier caller (legit owner still works)', () => {
+    expect(
+      resolveAuthorizedPersonaId({
+        forcePersonaId: PERSONA_IDS.OWNER_ADVISOR,
+        roles: ['OWNER'],
+        fallbackPersonaId: DEFAULT,
+      }),
+    ).toBe(PERSONA_IDS.OWNER_ADVISOR);
+    expect(
+      resolveAuthorizedPersonaId({
+        forcePersonaId: PERSONA_IDS.ESTATE_MANAGER,
+        roles: ['MANAGER'],
+        fallbackPersonaId: DEFAULT,
+      }),
+    ).toBe(PERSONA_IDS.ESTATE_MANAGER);
+    // Case-insensitive role match — admin token vocabulary variations.
+    expect(
+      resolveAuthorizedPersonaId({
+        forcePersonaId: PERSONA_IDS.OWNER_ADVISOR,
+        roles: ['tenant_admin'],
+        fallbackPersonaId: DEFAULT,
+      }),
+    ).toBe(PERSONA_IDS.OWNER_ADVISOR);
+  });
+
+  it('honors a baseline (non-management) force for any authenticated caller', () => {
+    // The counterparty/customer assistant carries the baseline catalog — a
+    // customer forcing it is not an escalation.
+    expect(
+      resolveAuthorizedPersonaId({
+        forcePersonaId: PERSONA_IDS.TENANT_ASSISTANT,
+        roles: ['CUSTOMER'],
+        fallbackPersonaId: DEFAULT,
+      }),
+    ).toBe(PERSONA_IDS.TENANT_ASSISTANT);
   });
 });
 
