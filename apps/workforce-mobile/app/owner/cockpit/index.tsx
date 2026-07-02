@@ -33,6 +33,7 @@ import {
 } from '../../../src/i18n/enumLabels'
 import { colors } from '../../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../../src/theme/spacing'
+import { formatDateTime, formatInteger } from '../../../src/home/owner/format'
 import {
   useCockpitHub,
   isEmptyCockpit,
@@ -155,6 +156,7 @@ function CockpitHubView(): JSX.Element {
             <OpportunityRow
               key={opportunity.id}
               opportunity={opportunity}
+              lang={lang}
               t={t}
             />
           ))
@@ -208,7 +210,7 @@ function DecisionRow({
       </View>
       <Text style={styles.muted}>
         {pickStrings(lang).cockpit.raised}{' '}
-        {new Date(decision.raisedAt).toLocaleString()}
+        {formatDateTime(decision.raisedAt, lang)}
       </Text>
     </Pressable>
   )
@@ -216,16 +218,18 @@ function DecisionRow({
 
 function OpportunityRow({
   opportunity,
+  lang,
   t,
 }: {
   readonly opportunity: CockpitOpportunity
+  readonly lang: 'sw' | 'en'
   readonly t: StringDict
 }): JSX.Element {
   return (
     <Pressable style={styles.row}>
       <Text style={styles.rowTitle}>{opportunity.summary}</Text>
       <Text style={styles.muted}>
-        ~TZS {Math.round(opportunity.expectedValueTzs).toLocaleString()} ·{' '}
+        ~TZS {formatInteger(Math.round(opportunity.expectedValueTzs), lang)} ·{' '}
         {opportunityKindLabel(opportunity.kind, t)}
       </Text>
     </Pressable>
@@ -262,7 +266,7 @@ function ReminderRow({
       <Text style={styles.rowTitle}>{reminder.text}</Text>
       <Text style={styles.muted}>
         {pickStrings(lang).cockpit.due}{' '}
-        {new Date(reminder.dueAt).toLocaleString()}
+        {formatDateTime(reminder.dueAt, lang)}
       </Text>
     </Pressable>
   )

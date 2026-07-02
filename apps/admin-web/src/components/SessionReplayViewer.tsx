@@ -27,6 +27,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { pickByLocale, useLocale, type Locale } from '@/lib/locale';
+import { formatNumber } from '@/lib/format';
 import { localizeApiError } from '@borjie/error-catalog';
 import { toCatalogError } from '@/lib/api-client';
 
@@ -268,7 +269,7 @@ export function SessionReplayViewer({
             {pickByLocale(locale, { en: 'Events / bytes', sw: 'Matukio / baiti' })}
           </div>
           <div>
-            {totalEvents.toLocaleString()}{' '}
+            {formatNumber(totalEvents, locale)}{' '}
             {pickByLocale(locale, { en: 'events', sw: 'matukio' })} ·{' '}
             {formatBytes(totalBytes)}
           </div>

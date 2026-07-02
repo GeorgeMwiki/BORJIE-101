@@ -237,6 +237,10 @@ import {
   ORG_LOOP_CRON_NAME,
 } from './composition/org-loop/org-loop-orchestrator';
 import { createTaskCommitmentBinder } from './composition/org-loop/task-commitment-binder';
+// DUE-SWEEP fast-path caller — scans `listDueByTime` per tenant and threads
+// each just-DUE commitment through `orchestrator.onCommitmentDue(...)`, giving
+// the real-time delegation lane a production caller (previously zero callers).
+import { createOrgLoopDueSweep } from './composition/org-loop/org-loop-due-sweep';
 import { createDrizzleOrgLoopRunRepository } from '@borjie/database';
 import { withServiceRoleContext, withTenantContext } from '@borjie/database';
 import { tapCockpitEvents } from './services/cockpit-events';
@@ -298,6 +302,11 @@ let livingMd: LivingMdOrgan | null = null;
 // its .start() site; stopped on shutdown. Null when no db handle is present.
 let orgLoopOrchestrator: ReturnType<typeof createOrgLoopOrchestrator> | null =
   null;
+// The org-loop DUE-SWEEP — the fast-path caller that invokes
+// `orgLoopOrchestrator.onCommitmentDue(...)` for each just-DUE commitment
+// (listDueByTime). Composed beside the orchestrator; leader-gated at its
+// .start() site; stopped on shutdown. Null when the orchestrator is absent.
+let orgLoopDueSweep: ReturnType<typeof createOrgLoopDueSweep> | null = null;
 // Wave-C C3 WIN-3 — the graded-corrective ladder ceiling. Resolve the tenant
 // delegation cap for the md_commitments homeostatic controller from the env at
 // bootstrap (the only place process.env is read). It is CLAMPED — it can be set
@@ -954,6 +963,9 @@ const CLUSTER_LEADER_CRON_NAMES = [
   'loop-economy',
   'someday-review',
   'org-loop',
+  // The org-loop DUE-SWEEP fast-path poll (listDueByTime → onCommitmentDue).
+  // Distinct lock from 'org-loop' so the two polls run independently.
+  'org-loop-due-sweep',
   // KI-010 — governed, propose-only self-extension cron. Listed so
   // gracefulShutdown releases its lock; only .start()ed behind the
   // default-OFF BORJIE_SELF_EXTENSION_CRON_ENABLED flag (see listen block).
@@ -2105,9 +2117,20 @@ try {
           // resumes a parked HIGH/sovereign run through the dispatch leg;
           // dismiss closes it. Until this registration the route 503s.
           registerOrgLoopApprovalActions(orgLoopOrchestrator);
+          // DUE-SWEEP fast-path caller — gives `onCommitmentDue` a production
+          // caller: it scans `listDueByTime(tenant, now)` per active tenant and
+          // threads each just-DUE, delegatable commitment through the real-time
+          // delegation lane (idempotent via the durable run; tenant-scoped via
+          // the repo's per-tenant service-role context — no RLS-darkness).
+          orgLoopDueSweep = createOrgLoopDueSweep({
+            commitmentRepo: mdCommitmentBundle.repository,
+            orchestrator: orgLoopOrchestrator,
+            listActiveTenantIds: listActiveTenantIdsForMd,
+            logger: createPinoLikeLogger('org-loop-due-sweep'),
+          });
           orgLoopLogger.info(
             { wiring: 'org-loop', killSwitchEnv: 'BORJIE_ORG_LOOP' },
-            'org-loop: spine composed (strategize+match+dispatch+brief+binder+approval-consumer) — assignTask write-path LIVE, propose-only/HITL',
+            'org-loop: spine composed (strategize+match+dispatch+brief+binder+approval-consumer+due-sweep) — assignTask write-path LIVE, onCommitmentDue fast-path WIRED, propose-only/HITL',
           );
         }
         mdLogger.info(
@@ -4724,6 +4747,12 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: org-loop spine stop failed');
   }
   try {
+    orgLoopDueSweep?.stop();
+    logger.info('shutdown: org-loop due-sweep stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: org-loop due-sweep stop failed');
+  }
+  try {
     geofenceWatcher.stop();
     logger.info('shutdown: geofence watcher stopped');
   } catch (err) {
@@ -5073,6 +5102,16 @@ if (require.main === module) {
     withClusterLeader(
       orgLoopOrchestrator,
       lockIdFor(ORG_LOOP_CRON_NAME),
+    ).start();
+  }
+  // ORG-LOOP DUE-SWEEP — leader-gated fast-path poll: scans listDueByTime per
+  // tenant and threads each just-DUE commitment through onCommitmentDue (the
+  // real-time delegation lane). Distinct lock from the generic org-loop sweep;
+  // inert under NODE_ENV=test; kill-switch BORJIE_ORG_LOOP.
+  if (orgLoopDueSweep) {
+    withClusterLeader(
+      orgLoopDueSweep,
+      lockIdFor('org-loop-due-sweep'),
     ).start();
   }
   // Geo SOTA 2026-05-29 — start the geofence watcher (no-op when DB

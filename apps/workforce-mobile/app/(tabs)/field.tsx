@@ -6,6 +6,10 @@ import { useI18n } from '../../src/i18n/useI18n'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
+// W-M-17 is intentionally OMITTED: it is a PhotoSlot/empty-PlaceholderList
+// stub with no real data source (a reachable stub is a bug). It re-enters
+// this list once a real photo/marks query backs it. W-M-21 (upload queue)
+// is kept — it now renders the real offline write queue.
 const FIELD_LINKS: ReadonlyArray<string> = [
   'W-M-02',
   'W-M-04',
@@ -17,7 +21,6 @@ const FIELD_LINKS: ReadonlyArray<string> = [
   'W-M-11',
   'W-M-12',
   'W-M-14',
-  'W-M-17',
   'W-M-19',
   'W-M-21'
 ]

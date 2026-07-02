@@ -2,6 +2,7 @@
 
 import { Sparkles } from 'lucide-react';
 import { pickByLocale, type Locale } from '@/lib/locale-shared';
+import { bcp47For } from '@/lib/format';
 
 /**
  * PersonaGreeting — the welcome shown above the composer when the admin
@@ -93,7 +94,7 @@ export function pickTimeGreeting(
   now: Date = new Date(),
 ): string {
   const hourInTz = Number(
-    new Intl.DateTimeFormat('en-GB', {
+    new Intl.DateTimeFormat(bcp47For(locale), {
       hour: 'numeric',
       hour12: false,
       timeZone: 'Africa/Dar_es_Salaam',

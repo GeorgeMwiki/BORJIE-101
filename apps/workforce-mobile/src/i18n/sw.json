@@ -779,6 +779,35 @@
     "step2Pml": "2. Leseni za PML",
     "step3Sites": "3. Migodi na timu"
   },
+  "workerScreens": {
+    "syncQueueTitle": "Foleni ya kupakia",
+    "syncQueuePending": "Inasubiri",
+    "syncQueueOnline": "Mtandaoni",
+    "syncQueueOffline": "Nje ya mtandao",
+    "syncQueueEmpty": "Hakuna kinachosubiri kupakiwa",
+    "syncQueueQueuedAt": "Iliwekwa foleni",
+    "syncQueueAttempts": "Majaribio: {{count}}",
+    "syncQueueLastError": "Hitilafu ya mwisho: {{error}}",
+    "entityType": {
+      "shift_report": "Ripoti ya zamu",
+      "incident": "Tukio",
+      "attendance": "Mahudhurio",
+      "fingerprint_sign": "Saini ya alama ya kidole",
+      "sample": "Sampuli",
+      "fuel_log": "Kumbukumbu ya mafuta",
+      "machine_hour": "Saa za mashine",
+      "photo_upload": "Upakiaji wa picha",
+      "inventory_move": "Uhamishaji wa bidhaa",
+      "sic_ping": "Kuingia kwenye eneo",
+      "voice_query": "Swali la sauti",
+      "driver_letter_ack": "Uthibitisho wa barua ya dereva",
+      "toolbox_ack": "Uthibitisho wa mazungumzo ya usalama",
+      "ppe_receipt": "Risiti ya vifaa vya kujikinga",
+      "excavator_count": "Hesabu ya vichimbaji",
+      "drill_hole": "Shimo la kuchimba",
+      "weighbridge_capture": "Rekodi ya mizani"
+    }
+  },
   "cockpit": {
     "ownerOnly": "Cockpit ni kwa mmiliki tu",
     "loading": "Inapakia…",

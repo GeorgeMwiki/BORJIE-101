@@ -129,20 +129,42 @@ describe('normaliseDebateBadge', () => {
 });
 
 describe('normaliseBrainStateBadge', () => {
-  it('surfaces the degraded pill with its label', () => {
+  it('surfaces the degraded signal with its label + shared DegradedMarker', () => {
     expect(
       normaliseBrainStateBadge({
         degraded: true,
         consecutiveFailures: 2,
         label: 'Brain operating in degraded mode',
+        reason:
+          'A fallback provider is serving this answer while we restore the primary service.',
+        affected_capabilities: ['live_debate', 'primary_provider'],
+        since: '2026-07-02T10:00:00.000Z',
       }),
     ).toEqual({
       label: 'Brain operating in degraded mode',
       consecutiveFailures: 2,
+      marker: {
+        reason:
+          'A fallback provider is serving this answer while we restore the primary service.',
+        affected_capabilities: ['live_debate', 'primary_provider'],
+        since: '2026-07-02T10:00:00.000Z',
+      },
     });
   });
 
-  it('returns null when not degraded (healthy turns carry no pill)', () => {
+  it('defends a wire drift: reason falls back to label, capabilities to empty', () => {
+    const badge = normaliseBrainStateBadge({
+      degraded: true,
+      consecutiveFailures: 2,
+      label: 'Brain operating in degraded mode',
+    });
+    expect(badge).not.toBeNull();
+    expect(badge!.marker.reason).toBe('Brain operating in degraded mode');
+    expect(badge!.marker.affected_capabilities).toEqual([]);
+    expect(badge!.marker.since).toBeUndefined();
+  });
+
+  it('returns null when not degraded (healthy turns carry no signal)', () => {
     expect(
       normaliseBrainStateBadge({ degraded: false, consecutiveFailures: 0 }),
     ).toBeNull();

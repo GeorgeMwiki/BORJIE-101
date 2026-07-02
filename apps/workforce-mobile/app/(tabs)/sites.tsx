@@ -111,7 +111,11 @@ export default function SitesTab(): JSX.Element {
       </Section>
       <Section title={COPY[lang].sectionRelated}>
         <View style={styles.grid}>
-          {['O-M-05', 'O-M-06', 'W-M-02', 'W-M-19'].map((id) => (
+          {/* O-M-05 is intentionally NOT linked: it is a PlaceholderList/PhotoSlot
+              stub with no real owner recent-shift data source. Routing a stub is a
+              reachable-stub bug; it re-enters the nav once a real recent-shifts
+              query lands. */}
+          {['O-M-06', 'W-M-02', 'W-M-19'].map((id) => (
             <Link key={id} href={hrefFor(id)} asChild>
               <Pressable style={({ pressed }) => [styles.chip, pressed ? styles.chipPressed : null]}>
                 <Text style={styles.chipCode}>{id}</Text>

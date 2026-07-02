@@ -31,6 +31,7 @@ import {
 } from '@borjie/design-system';
 import { api } from '@/lib/api';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { formatDateTime } from '@/lib/format';
 
 interface DlqEntry {
   readonly id: string;
@@ -173,7 +174,7 @@ export function WebhookDLQClient({ initialLocale }: { readonly initialLocale?: L
                     {e.lastError}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
-                    {new Date(e.createdAt).toLocaleString()}
+                    {formatDateTime(e.createdAt, locale)}
                   </TableCell>
                   <TableCell className="space-x-2 text-right">
                     <Button

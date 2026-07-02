@@ -1796,3 +1796,8 @@ export * from './business-flows.schema.js';
 export * from './opportunity-scanner-backing.schema.js';
 export * from './risk-scanner-backing.schema.js';
 export * from './benchmark-market-reference.schema.js';
+
+// affective_profiles (migration 0372) — durable per-(tenant,user,dimension)
+// affective state so the kernel's theory-of-mind accumulator survives restart
+// + is multi-replica-safe. FORCE RLS + tenant-isolation + service-role bypass.
+export * from './affective-profiles.schema.js';

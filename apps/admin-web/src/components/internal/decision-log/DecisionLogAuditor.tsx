@@ -10,6 +10,7 @@ import { useDecisionLogQuery } from '@/lib/internal/queries/decision-log';
 import { useTenantsQuery } from '@/lib/internal/queries/tenants';
 import type { DecisionLogRow } from '@/lib/internal/types';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { formatNumber } from '@/lib/format';
 import { localizeApiError } from '@borjie/error-catalog';
 
 const INITIAL: DecisionFiltersState = { tenantId: '', juniorId: '', from: '', to: '' };
@@ -92,7 +93,7 @@ export function DecisionLogAuditor({
 
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>
-          {filtered.length.toLocaleString()} {pickByLocale(locale, S.inRange)}
+          {formatNumber(filtered.length, locale)} {pickByLocale(locale, S.inRange)}
         </span>
         <DataSourceBadge source={query.data?.source ?? 'live'} locale={locale} />
       </div>

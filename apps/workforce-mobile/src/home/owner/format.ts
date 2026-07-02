@@ -27,6 +27,61 @@ export function formatCurrency(amount: number, currencyCode: string = 'TZS'): st
   return `${sign}${abs.toFixed(0)} ${currencyCode}`
 }
 
+/**
+ * Resolve the Intl BCP-47 tag from the active app locale — the
+ * locale-follows-the-user canon (CLAUDE.md "English default · bilingual
+ * sw/en"). NEVER hardcode `'en-TZ'`/`'en-GB'` in a component and NEVER let
+ * a bare `.toLocaleString()` fall through to the host device locale, which
+ * would render one screen in a language the user never chose. This mirrors
+ * the owner-web `bcp47For` single-resolver pattern.
+ */
+const BCP47_BY_LANG: Readonly<Record<'sw' | 'en', string>> = {
+  sw: 'sw-TZ',
+  en: 'en-GB'
+}
+
+export function bcp47For(lang: 'sw' | 'en'): string {
+  // Map lookup (not a locale ternary): these are Intl BCP-47 TAGS, not
+  // user-facing copy, and English is the structural default for any
+  // unexpected value.
+  return BCP47_BY_LANG[lang] ?? BCP47_BY_LANG.en
+}
+
+/**
+ * Locale-aware date+time render for the active app locale. Replaces bare
+ * `new Date(iso).toLocaleString()` calls that silently pick up the host
+ * device locale (a zero-mix violation — one surface can drift to another
+ * language). A non-parseable ISO string degrades to an em-dash rather than
+ * painting `Invalid Date`.
+ */
+export function formatDateTime(iso: string, lang: 'sw' | 'en'): string {
+  const ts = Date.parse(iso)
+  if (!Number.isFinite(ts)) {
+    return '—'
+  }
+  return new Intl.DateTimeFormat(bcp47For(lang), {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date(ts))
+}
+
+/**
+ * Locale-aware integer render for the active app locale. Replaces bare
+ * `n.toLocaleString()` calls that fall through to the host locale's digit
+ * grouping. A non-finite value degrades to an em-dash.
+ */
+export function formatInteger(value: number, lang: 'sw' | 'en'): string {
+  if (!Number.isFinite(value)) {
+    return '—'
+  }
+  return new Intl.NumberFormat(bcp47For(lang), {
+    maximumFractionDigits: 0
+  }).format(value)
+}
+
 export function formatTonnes(tonnes: number): string {
   if (!Number.isFinite(tonnes)) {
     return '— t'

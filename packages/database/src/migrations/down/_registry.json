@@ -686,6 +686,16 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0372_affective_profiles.sql",
+      "down": "down/0372_down_affective_profiles.sql",
+      "reverses": "Drops the affective_profiles durable theory-of-mind store 0372 creates (table + index + tenant-isolation + service-role-bypass RLS policies fall with the table). Dev/staging only — DATA LOSS on affective_profiles: the kernel's cross-turn affective accumulator re-darks to the process-local in-memory Map (restart/deploy loses every profile; no cross-replica continuity). No money/licence/ledger records; no other tenant data touched.",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }

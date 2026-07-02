@@ -281,6 +281,8 @@ export const sw = {
     "trustVerified": "Imethibitishwa · Mjadala wa miundo {count}",
     "trustDebate": "Mjadala wa miundo {count}",
     "autoAuthorized": "Imeidhinishwa kiotomatiki",
+    "degradedHeadline": "Ubongo wa AI unafanya kazi kwa hali ya akiba. Baadhi ya vipengele vya kina vinaweza kuwa na mipaka.",
+    "degradedAffected": "Uwezo ulioathiriwa",
     "hintHandoff": "Niunganishe na mshauri wa kibinadamu.",
     "hintSimpler": "Eleza hivyo kwa urahisi zaidi.",
     "hintCmdk": "Nionyeshe ninachoweza kufanya kutoka hapa.",

@@ -8,6 +8,7 @@ import { useAuditLogQuery } from '@/lib/internal/queries/audit-log';
 import { useTenantsQuery } from '@/lib/internal/queries/tenants';
 import type { AuditEvent } from '@/lib/internal/types';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { formatNumber } from '@/lib/format';
 import { localizeApiError } from '@borjie/error-catalog';
 
 const SELECT_CLASS =
@@ -110,7 +111,7 @@ export function AuditLogViewer({
 
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span>
-          {filtered.length.toLocaleString()} {pickByLocale(locale, S.events)}
+          {formatNumber(filtered.length, locale)} {pickByLocale(locale, S.events)}
         </span>
         <DataSourceBadge source={query.data?.source ?? 'live'} locale={locale} />
       </div>

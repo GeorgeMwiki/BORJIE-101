@@ -42,6 +42,7 @@ import {
 } from '@borjie/design-system';
 import { api } from '@/lib/api';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { formatNumber, formatDateTime } from '@/lib/format';
 import { localizeApiError } from '@borjie/error-catalog';
 import { toCatalogError } from '@/lib/api-client';
 
@@ -178,7 +179,7 @@ export function MissionEvalScenarioDrillDown({
               ? pickByLocale(locale, S.sampleCaptured)
               : pickByLocale(locale, S.samplesCaptured)}
             <span className="ml-2 text-muted-foreground">
-              ({pickByLocale(locale, S.total)}: {total.toLocaleString()})
+              ({pickByLocale(locale, S.total)}: {formatNumber(total, locale)})
             </span>
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -245,7 +246,7 @@ export function MissionEvalScenarioDrillDown({
                   data-testid={`sample-row-${s.thoughtId}`}
                 >
                   <TableCell className="text-muted-foreground">
-                    {new Date(s.capturedAt).toLocaleString()}
+                    {formatDateTime(s.capturedAt, locale)}
                   </TableCell>
                   <TableCell>{s.stakes}</TableCell>
                   <TableCell>

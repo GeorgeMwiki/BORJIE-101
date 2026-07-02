@@ -5,6 +5,7 @@ import { Button, Skeleton, ConfirmationModal } from '@borjie/design-system';
 import { getCsrfHeaders } from '@/lib/csrf';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { bcp47For } from '@/lib/format';
 import { localizeError } from '@/lib/api-client';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
 import { Toast } from '@/components/shared/Toast';
@@ -234,7 +235,7 @@ export function ConnectedAgentsList({
                   <>
                     <dt>{pickByLocale(locale, S.connectedAgentsList.expires)}</dt>
                     <dd className="text-muted-foreground">
-                      {new Date(token.expiresAt).toLocaleString()}
+                      {new Date(token.expiresAt).toLocaleString(bcp47For(locale))}
                     </dd>
                   </>
                 )}

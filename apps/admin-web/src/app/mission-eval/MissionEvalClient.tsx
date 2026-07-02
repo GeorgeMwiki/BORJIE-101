@@ -46,6 +46,7 @@ import {
 } from '@borjie/design-system';
 import { api } from '@/lib/api';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { formatDateTime } from '@/lib/format';
 
 // NOTE: `id` values are the wire contract consumed by the gateway's
 // parity-capability-dashboard factory (services/api-gateway/src/routes/
@@ -559,7 +560,7 @@ export function MissionEvalClient({ initialLocale }: { readonly initialLocale?: 
                     </Badge>
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
-                    {new Date(r.producedAt).toLocaleString()}
+                    {formatDateTime(r.producedAt, locale)}
                   </TableCell>
                 </TableRow>
               ))}

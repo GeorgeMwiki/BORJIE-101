@@ -33,6 +33,7 @@ import { Button, Card, Alert, FormField } from '@borjie/design-system';
 import { ConfirmModal } from '@/components/internal/ConfirmModal';
 import { api } from '@/lib/api';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { formatNumber } from '@/lib/format';
 
 interface ExtractedBundle {
   readonly properties: ReadonlyArray<unknown>;
@@ -217,7 +218,7 @@ export function LegacyMigrationClient({ initialLocale }: { readonly initialLocal
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground">
             {file
-              ? `${file.name} (${file.size.toLocaleString()} ${pickByLocale(locale, S.bytes)})`
+              ? `${file.name} (${formatNumber(file.size, locale)} ${pickByLocale(locale, S.bytes)})`
               : pickByLocale(locale, S.noFile)}
           </span>
           {runId ? (

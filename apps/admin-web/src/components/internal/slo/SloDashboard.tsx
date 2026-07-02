@@ -5,6 +5,7 @@ import { Skeleton, Alert, Empty } from '@borjie/design-system';
 import { DataSourceBadge } from '../DataSourceBadge';
 import { SloCard } from './SloCard';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { formatNumber } from '@/lib/format';
 import { useSloQuery } from '@/lib/internal/queries/slo';
 import { localizeApiError } from '@borjie/error-catalog';
 
@@ -86,7 +87,7 @@ export function SloDashboard({
               tone={errorTone(row.errorRatePct)}
             />
             <SloCard label={pickByLocale(locale, S.spend)} value={`$${row.spendUsd.toFixed(2)}`} />
-            <SloCard label={pickByLocale(locale, S.requests)} value={row.requestVolume24h.toLocaleString()} />
+            <SloCard label={pickByLocale(locale, S.requests)} value={formatNumber(row.requestVolume24h, locale)} />
           </div>
         </section>
       ))}

@@ -3,16 +3,8 @@
 import { Card } from '@borjie/design-system';
 
 import { useDashboardAuditIntegrity } from '@/lib/internal/queries/dashboard';
-import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
-
-/**
- * Resolve the Intl BCP-47 tag from the active locale — the
- * locale-follows-the-user canon. NEVER hardcode `'en-GB'` in a date
- * formatter; the operator's chosen language drives digit/date grouping.
- */
-function bcp47For(locale: Locale): string {
-  return locale === 'sw' ? 'sw-TZ' : 'en-GB';
-}
+import { useLocale, pickByLocale } from '@/lib/locale';
+import { bcp47For } from '@/lib/format';
 
 // Every rendered string in BOTH locales — one language per active locale,
 // never English-under-sw. The wire carries machine state tokens

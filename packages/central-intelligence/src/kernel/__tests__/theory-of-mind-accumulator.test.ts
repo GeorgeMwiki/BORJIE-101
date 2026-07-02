@@ -13,7 +13,32 @@ import {
   AFFECTIVE_DEFAULT,
   createAffectiveAccumulator,
   renderMindStateDirectiveWithProfile,
+  type AffectiveStore,
+  type AffectiveStoreRecord,
 } from '../theory-of-mind.js';
+
+const TTL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * In-process fake of the durable AffectiveStore. Mirrors what the DB-backed
+ * store does (upsert on save, load-or-null with TTL) so the round-trip can be
+ * proven without a live Postgres — the same contract the pg store honors.
+ */
+function fakeStore(): AffectiveStore & { rows: Map<string, AffectiveStoreRecord>; loadCalls: number } {
+  const rows = new Map<string, AffectiveStoreRecord>();
+  const k = (t: string, u: string) => `${t}:${u}`;
+  return {
+    rows,
+    loadCalls: 0,
+    async load(t, u) {
+      this.loadCalls += 1;
+      return rows.get(k(t, u)) ?? null;
+    },
+    async save(t, u, record) {
+      rows.set(k(t, u), record);
+    },
+  };
+}
 
 const BASE = Date.now();
 const ISO = (offset: number): string => new Date(BASE + offset).toISOString();
@@ -240,5 +265,143 @@ describe('renderMindStateDirectiveWithProfile', () => {
       updatedAt: ISO(1),
     });
     expect(directive).toMatch(/Sustained urgency/);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────
+// Pluggable durable store — restart / multi-replica continuity.
+// ────────────────────────────────────────────────────────────────────
+
+describe('createAffectiveAccumulator with a durable store', () => {
+  it('write-throughs each observe() to the store', async () => {
+    const store = fakeStore();
+    const acc = createAffectiveAccumulator({ store });
+    acc.observe('t1', 'u1', {
+      mindState: inferMindState('I am furious!!!'),
+      capturedAt: ISO(1),
+    });
+    // write-through is fire-and-forget; let the microtask flush.
+    await Promise.resolve();
+    await Promise.resolve();
+    const row = store.rows.get('t1:u1');
+    expect(row).toBeDefined();
+    expect(row!.turns).toBe(1);
+    expect(row!.state.frustration).toBeGreaterThan(0.1);
+    expect(row!.expiresAtMs).toBe(row!.updatedAtMs + TTL_MS);
+  });
+
+  it('observe()->store->hydrate() round-trips through a FRESH accumulator (restart)', async () => {
+    const store = fakeStore();
+    // Replica A observes a frustrated streak and writes through.
+    const accA = createAffectiveAccumulator({ store });
+    accA.observe('t1', 'u1', {
+      mindState: inferMindState('I am furious!!!'),
+      capturedAt: ISO(1),
+    });
+    const p1 = accA.observe('t1', 'u1', {
+      mindState: inferMindState('this is so frustrating!!!'),
+      capturedAt: ISO(2),
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // Replica B (or A after restart): empty cache, hydrates from the store.
+    const accB = createAffectiveAccumulator({ store });
+    expect(accB.read('t1', 'u1', AT(3))).toBeNull(); // nothing cached yet
+    const hydrated = await accB.hydrate('t1', 'u1', AT(3));
+    expect(hydrated).not.toBeNull();
+    expect(hydrated!.turns).toBe(p1.turns);
+    expect(hydrated!.state.frustration).toBeCloseTo(p1.state.frustration, 3);
+    // Now it is in B's cache and reads synchronously.
+    expect(accB.read('t1', 'u1', AT(3))!.state.frustration).toBeCloseTo(
+      p1.state.frustration,
+      3,
+    );
+  });
+
+  it('hydrate() honors TTL — an expired durable row reads as absent', async () => {
+    const store = fakeStore();
+    const acc = createAffectiveAccumulator({ store });
+    acc.observe('t1', 'u1', {
+      mindState: inferMindState('I am furious'),
+      capturedAt: ISO(0),
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const fresh = createAffectiveAccumulator({ store });
+    const past25h = AT(0) + 25 * 60 * 60 * 1000;
+    const hydrated = await fresh.hydrate('t1', 'u1', past25h);
+    expect(hydrated).toBeNull();
+    expect(fresh.size()).toBe(0); // nothing cached from an expired row
+  });
+
+  it('hydrate() prefers a live cache entry over a store round-trip', async () => {
+    const store = fakeStore();
+    const acc = createAffectiveAccumulator({ store });
+    acc.observe('t1', 'u1', {
+      mindState: inferMindState('ok'),
+      capturedAt: ISO(1),
+    });
+    await Promise.resolve();
+    const before = store.loadCalls;
+    const hydrated = await acc.hydrate('t1', 'u1', AT(2));
+    expect(hydrated).not.toBeNull();
+    expect(store.loadCalls).toBe(before); // cache hit → no load call
+  });
+
+  it('degrades to in-memory when the store save() throws (turn never breaks)', () => {
+    const throwingStore: AffectiveStore = {
+      load: async () => {
+        throw new Error('db down');
+      },
+      save: async () => {
+        throw new Error('db down');
+      },
+    };
+    const acc = createAffectiveAccumulator({ store: throwingStore });
+    // observe() must return the computed profile synchronously despite save() throwing.
+    const p = acc.observe('t1', 'u1', {
+      mindState: inferMindState('I am furious!!!'),
+      capturedAt: ISO(1),
+    });
+    expect(p.turns).toBe(1);
+    expect(p.state.frustration).toBeGreaterThan(0.1);
+    // in-memory read still works.
+    expect(acc.read('t1', 'u1')!.state.frustration).toBeGreaterThan(0.1);
+  });
+
+  it('hydrate() degrades to cache (or null) when the store load() rejects', async () => {
+    const rejectingLoad: AffectiveStore = {
+      load: async () => Promise.reject(new Error('db timeout')),
+      save: async () => {},
+    };
+    const acc = createAffectiveAccumulator({ store: rejectingLoad });
+    // Nothing cached, load rejects → null, no throw.
+    await expect(acc.hydrate('t1', 'u1', AT(1))).resolves.toBeNull();
+  });
+
+  it('with NO store, hydrate() is a no-op that returns the cached profile', async () => {
+    const acc = createAffectiveAccumulator();
+    acc.observe('t1', 'u1', {
+      mindState: inferMindState('I am furious'),
+      capturedAt: ISO(1),
+    });
+    const hydrated = await acc.hydrate('t1', 'u1', AT(2));
+    expect(hydrated).not.toBeNull();
+    expect(hydrated!.turns).toBe(1);
+    // A cold (tenant,user) with no store and no cache → null.
+    expect(await acc.hydrate('t1', 'cold', AT(2))).toBeNull();
+  });
+
+  it('the pure in-memory path still behaves identically (no store attached)', () => {
+    const acc = createAffectiveAccumulator();
+    acc.observe('t1', 'u1', {
+      mindState: inferMindState('I am furious'),
+      capturedAt: ISO(1),
+    });
+    expect(acc.read('t1', 'u1')!.state.frustration).toBeGreaterThan(0.1);
+    expect(acc.read('t1', 'u1', AT(1) + 25 * 60 * 60 * 1000)).toBeNull();
+    expect(acc.size()).toBe(0); // TTL read evicted it
   });
 });

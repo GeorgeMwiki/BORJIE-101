@@ -35,7 +35,12 @@ import { Button, Skeleton, Alert, Input, Badge } from '@borjie/design-system';
 import { localizeApiError } from '@borjie/error-catalog';
 import { apiRequest, ApiError } from '@/lib/api-client';
 import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
-import { formatMoney, fmtMonthYearForLocale, LAUNCH_CURRENCY } from '@/lib/format';
+import {
+  formatMoney,
+  fmtMonthYearForLocale,
+  bcp47For,
+  LAUNCH_CURRENCY,
+} from '@/lib/format';
 import { useLocale, type Locale } from '@/lib/locale';
 import { pickByLocale } from '@/lib/locale-shared';
 import { royaltySignPageStrings as SP } from '@/i18n/strings/royalty-sign-page';
@@ -495,7 +500,7 @@ export function RoyaltySignSurface({
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {fmtPeriod(draft.periodStart, draft.periodEnd, locale)}
                         {draft.quantity !== null && draft.unit
-                          ? ` · ${draft.quantity.toLocaleString()} ${draft.unit}`
+                          ? ` · ${draft.quantity.toLocaleString(bcp47For(locale))} ${draft.unit}`
                           : ''}
                       </p>
                     </div>

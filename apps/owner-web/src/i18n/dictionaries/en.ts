@@ -309,6 +309,11 @@ export const en = {
     trustVerified: 'Verified · {count}-model debate',
     trustDebate: '{count}-model debate',
     autoAuthorized: 'Auto-authorized',
+    // Degraded-brain banner (shared chat-ui DegradedBanner) — single-locale
+    // overrides so the fallback signal never mixes languages.
+    degradedHeadline:
+      'AI brain operating in fallback mode. Some advanced features may be limited.',
+    degradedAffected: 'Affected capabilities',
     hintHandoff: 'Connect me with a human advisor.',
     hintSimpler: 'Explain that more simply.',
     hintCmdk: 'Show me what I can do from here.',

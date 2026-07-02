@@ -789,12 +789,29 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
     const degradedStreak = ladderFailureStreaks.get(ladderKey) ?? 0;
     const degradedBrain = degradedStreak >= 2;
     if (degradedBrain) {
+      // Surface the degraded marker in the SHARED `DegradedMarker` shape the
+      // chat-ui `DegradedBanner` consumes ({ reason, affected_capabilities,
+      // since }) so the owner sees the fallback signal in the same banner every
+      // Borjie surface uses — not a bespoke per-surface pill. Single-language
+      // per the active locale: the `reason` string is user-visible copy (the
+      // banner headline/body are i18n-overridden client-side) so it must never
+      // mix languages. `affected_capabilities` are STABLE machine tokens
+      // (rendered as monospace pills, locale-agnostic), never prose.
       await stream.writeSSE({
         event: 'brain_state',
         data: JSON.stringify({
           degraded: true,
           consecutiveFailures: degradedStreak,
-          label: language === 'sw' ? 'Ubongo umepungua nguvu' : 'Brain operating in degraded mode',
+          label:
+            language === 'sw'
+              ? 'Ubongo umepungua nguvu'
+              : 'Brain operating in degraded mode',
+          reason:
+            language === 'sw'
+              ? 'Mtoa-huduma mbadala anahudumia jibu hili wakati tunarejesha huduma kuu.'
+              : 'A fallback provider is serving this answer while we restore the primary service.',
+          affected_capabilities: ['live_debate', 'primary_provider'],
+          since: turnAtIso,
           at: turnAtIso,
         }),
       });

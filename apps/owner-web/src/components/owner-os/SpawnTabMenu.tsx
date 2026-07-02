@@ -39,6 +39,7 @@ import {
   type OwnerOSTabType,
 } from '@borjie/owner-os-tabs';
 import { resolveIcon } from './panels/icon-map';
+import { fmtDateForLocale } from '@/lib/format';
 import {
   useRecentlySpawnedTabTypes,
   type RecentTabType,
@@ -404,7 +405,7 @@ export function SpawnTabMenu({
                     </span>
                     {row.lastOpenedAt ? (
                       <span className="ml-2 self-center text-tiny text-neutral-500 tabular-nums">
-                        {new Date(row.lastOpenedAt).toLocaleDateString()}
+                        {fmtDateForLocale(row.lastOpenedAt, languagePreference)}
                       </span>
                     ) : null}
                   </button>

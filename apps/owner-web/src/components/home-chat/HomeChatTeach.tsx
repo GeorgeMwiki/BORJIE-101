@@ -43,6 +43,7 @@ import {
   AskEmptyState,
   type AskEmptyKind,
 } from '@/components/ask/AskEmptyState';
+import { DegradedBanner } from '@borjie/chat-ui';
 import { PersonaGreeting } from './PersonaGreeting';
 import {
   UiBlockRenderer,
@@ -1431,7 +1432,7 @@ function TeachBubble({
         </ul>
       ) : null}
 
-      {!isOwner && (message.debate || message.brainState || groundingWarn) ? (
+      {!isOwner && (message.debate || groundingWarn) ? (
         <div
           data-testid="teach-trust-badges"
           className="flex flex-wrap items-center gap-1.5 pl-10"
@@ -1451,15 +1452,6 @@ function TeachBubble({
                   })}
             </span>
           ) : null}
-          {message.brainState ? (
-            <span
-              data-testid="teach-badge-degraded"
-              className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-tiny font-medium text-warning"
-            >
-              <AlertTriangle aria-hidden="true" className="h-3 w-3" />
-              {message.brainState.label}
-            </span>
-          ) : null}
           {groundingWarn ? (
             <span
               data-testid="teach-badge-grounding"
@@ -1469,6 +1461,24 @@ function TeachBubble({
               {groundingWarn}
             </span>
           ) : null}
+        </div>
+      ) : null}
+
+      {/* Degraded-brain fallback signal — the SHARED chat-ui DegradedBanner so
+          the owner sees the same banner every Borjie surface renders, not a
+          bespoke per-surface pill. Single-locale: headline + affected aria are
+          i18n-overridden; the body copy is the gateway's active-locale `reason`
+          string. Compact hides the machine-token pill row. Renders null when no
+          degraded marker is present. */}
+      {!isOwner && message.brainState ? (
+        <div data-testid="teach-degraded-banner" className="pl-10">
+          <DegradedBanner
+            degraded={message.brainState.marker}
+            compact
+            headline={t('teach.degradedHeadline')}
+            body={message.brainState.marker.reason}
+            affectedAriaLabel={t('teach.degradedAffected')}
+          />
         </div>
       ) : null}
 

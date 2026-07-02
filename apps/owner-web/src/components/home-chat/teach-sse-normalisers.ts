@@ -11,6 +11,7 @@
  * never crash the renderer or surface a partial trust signal.
  */
 
+import type { DegradedMarker } from '@borjie/chat-ui';
 import type { BorjieAffectiveProfile } from './BorjieDynamicHints';
 import type { ChatGroundingSignal } from '@/lib/types/chat';
 
@@ -24,12 +25,17 @@ export interface DebateBadge {
 }
 
 /**
- * Degraded-brain pill — emitted (`brain_state`) only when the provider
- * ladder failed on the last 2+ consecutive turns for this owner.
+ * Degraded-brain signal — emitted (`brain_state`) only when the provider
+ * ladder failed on the last 2+ consecutive turns for this owner. Rendered
+ * through the SHARED `DegradedBanner` (chat-ui) via the `marker`, so the
+ * fallback signal looks identical on every Borjie surface. `label` is kept
+ * for the compact aria/summary line; `marker` is the `DegradedMarker` the
+ * banner consumes.
  */
 export interface BrainStateBadge {
   readonly label: string;
   readonly consecutiveFailures: number;
+  readonly marker: DegradedMarker;
 }
 
 /**
@@ -108,15 +114,32 @@ export function normaliseBrainStateBadge(
 ): BrainStateBadge | null {
   if (!isRecord(value)) return null;
   if (value.degraded !== true) return null;
+  const label =
+    typeof value.label === 'string'
+      ? value.label
+      : 'Brain operating in degraded mode';
+  // Build the shared `DegradedMarker` the chat-ui banner consumes. The
+  // gateway ships { reason, affected_capabilities, since } in the SAME shape;
+  // defend every field so a wire drift can never crash the banner. `reason`
+  // falls back to the (single-language) label; capabilities default to an
+  // empty list (banner hides the pill row); `since` is optional.
+  const capabilities = Array.isArray(value.affected_capabilities)
+    ? value.affected_capabilities.filter(
+        (c): c is string => typeof c === 'string',
+      )
+    : [];
+  const marker: DegradedMarker = {
+    reason: typeof value.reason === 'string' ? value.reason : label,
+    affected_capabilities: capabilities,
+    since: typeof value.since === 'string' ? value.since : undefined,
+  };
   return {
-    label:
-      typeof value.label === 'string'
-        ? value.label
-        : 'Brain operating in degraded mode',
+    label,
     consecutiveFailures:
       typeof value.consecutiveFailures === 'number'
         ? value.consecutiveFailures
         : 0,
+    marker,
   };
 }
 

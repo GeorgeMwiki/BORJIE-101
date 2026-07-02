@@ -32,6 +32,7 @@ import {
 } from '@borjie/design-system';
 import { api } from '@/lib/api';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { formatDateTime } from '@/lib/format';
 
 interface Certification {
   readonly id: string;
@@ -238,7 +239,7 @@ export function IntegrationsClient({ initialLocale }: { readonly initialLocale?:
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {pickByLocale(locale, S.expires)}{' '}
-                    {new Date(c.expiresAt).toLocaleString()}
+                    {formatDateTime(c.expiresAt, locale)}
                   </p>
                 </div>
                 {!c.revokedAt && (
@@ -321,7 +322,7 @@ export function IntegrationsClient({ initialLocale }: { readonly initialLocale?:
                   <code className="text-xs">{r.certId}</code> — {r.reason}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {new Date(r.revokedAt).toLocaleString()}
+                  {formatDateTime(r.revokedAt, locale)}
                 </p>
               </li>
             ))}

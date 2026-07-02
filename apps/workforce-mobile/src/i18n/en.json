@@ -779,6 +779,35 @@
     "step2Pml": "2. PML licences",
     "step3Sites": "3. Sites and team"
   },
+  "workerScreens": {
+    "syncQueueTitle": "Upload queue",
+    "syncQueuePending": "Pending",
+    "syncQueueOnline": "Online",
+    "syncQueueOffline": "Offline",
+    "syncQueueEmpty": "Nothing waiting to upload",
+    "syncQueueQueuedAt": "Queued",
+    "syncQueueAttempts": "Attempts: {{count}}",
+    "syncQueueLastError": "Last error: {{error}}",
+    "entityType": {
+      "shift_report": "Shift report",
+      "incident": "Incident",
+      "attendance": "Attendance",
+      "fingerprint_sign": "Fingerprint sign",
+      "sample": "Sample",
+      "fuel_log": "Fuel log",
+      "machine_hour": "Machine hours",
+      "photo_upload": "Photo upload",
+      "inventory_move": "Inventory move",
+      "sic_ping": "Site check-in",
+      "voice_query": "Voice query",
+      "driver_letter_ack": "Driver letter acknowledgement",
+      "toolbox_ack": "Toolbox talk acknowledgement",
+      "ppe_receipt": "PPE receipt",
+      "excavator_count": "Excavator count",
+      "drill_hole": "Drill hole",
+      "weighbridge_capture": "Weighbridge capture"
+    }
+  },
   "cockpit": {
     "ownerOnly": "Cockpit hub is owner-only",
     "loading": "Loading cockpit…",

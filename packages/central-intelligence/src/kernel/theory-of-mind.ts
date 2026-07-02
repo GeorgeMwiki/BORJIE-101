@@ -187,8 +187,46 @@ const DECAY_PER_TURN = 0.05; // gentle decay back toward defaults each turn
 export interface AffectiveAccumulator {
   observe(tenantId: string, userId: string, obs: AffectiveObservation): AffectiveProfile;
   read(tenantId: string, userId: string, nowMs?: number): AffectiveProfile | null;
+  /**
+   * Warm the in-memory cache for one (tenant, user) from the durable store
+   * (multi-replica / post-restart continuity). Best-effort: a store fault or a
+   * missing/expired row resolves to `null` and leaves the cache untouched — it
+   * NEVER throws into the caller. Optional; when no durable store is attached
+   * this is a no-op that resolves to whatever is already cached.
+   */
+  hydrate(tenantId: string, userId: string, nowMs?: number): Promise<AffectiveProfile | null>;
   reset(): void;
   size(): number;
+}
+
+// ── Pluggable durable store ────────────────────────────────────────────
+// The in-memory Map stays the hot cache + fail-safe fallback. An optional
+// DB-backed store makes each profile survive restart and be shared across
+// replicas: observe() write-throughs (fire-and-forget), and hydrate() warms
+// the cache on a miss. EVERY store method is best-effort — a rejection or a
+// throw is swallowed and the accumulator degrades to in-memory, so a store
+// fault can never break the turn.
+
+/** Snapshot handed to / returned by the durable store. */
+export interface AffectiveStoreRecord {
+  readonly state: AffectiveState;
+  readonly turns: number;
+  /** Epoch-ms the profile was last written. */
+  readonly updatedAtMs: number;
+  /** Epoch-ms the profile expires (updatedAtMs + TTL). */
+  readonly expiresAtMs: number;
+}
+
+export interface AffectiveStore {
+  /** Read the durable profile for a (tenant, user), or null if absent/expired. */
+  load(tenantId: string, userId: string): Promise<AffectiveStoreRecord | null>;
+  /** Upsert the durable profile for a (tenant, user). */
+  save(tenantId: string, userId: string, record: AffectiveStoreRecord): Promise<void>;
+}
+
+export interface AffectiveAccumulatorOptions {
+  /** Optional durable backing store. When omitted the accumulator is pure in-memory. */
+  readonly store?: AffectiveStore;
 }
 
 interface InternalEntry {
@@ -198,8 +236,11 @@ interface InternalEntry {
   touchOrder: number;
 }
 
-export function createAffectiveAccumulator(): AffectiveAccumulator {
+export function createAffectiveAccumulator(
+  options: AffectiveAccumulatorOptions = {},
+): AffectiveAccumulator {
   const store = new Map<string, InternalEntry>();
+  const durable = options.store;
   let touchCounter = 0;
 
   const key = (tenantId: string, userId: string): string =>
@@ -220,6 +261,22 @@ export function createAffectiveAccumulator(): AffectiveAccumulator {
     }
   };
 
+  // Fire-and-forget durable write-through. Never rejects into the caller.
+  const writeThrough = (tenantId: string, userId: string, e: InternalEntry): void => {
+    if (!durable) return;
+    const record: AffectiveStoreRecord = {
+      state: e.state,
+      turns: e.turns,
+      updatedAtMs: e.updatedAtMs,
+      expiresAtMs: e.updatedAtMs + TOM_TTL_MS,
+    };
+    Promise.resolve()
+      .then(() => durable.save(tenantId, userId, record))
+      .catch(() => {
+        /* degrade to in-memory; a store fault never breaks the turn */
+      });
+  };
+
   return {
     observe(tenantId, userId, obs) {
       const nowMs = Date.parse(obs.capturedAt);
@@ -237,6 +294,7 @@ export function createAffectiveAccumulator(): AffectiveAccumulator {
       };
       store.set(k, next);
       evict(nowMs);
+      writeThrough(tenantId, userId, next);
       return toProfile(next);
     },
     read(tenantId, userId, nowMs) {
@@ -249,6 +307,37 @@ export function createAffectiveAccumulator(): AffectiveAccumulator {
         return null;
       }
       entry.touchOrder = ++touchCounter;
+      return toProfile(entry);
+    },
+    async hydrate(tenantId, userId, nowMs) {
+      const k = key(tenantId, userId);
+      const at = nowMs ?? Date.now();
+      // A live cache entry wins — it is at least as fresh as the durable row.
+      const cached = store.get(k);
+      if (cached && at - cached.updatedAtMs <= TOM_TTL_MS) {
+        cached.touchOrder = ++touchCounter;
+        return toProfile(cached);
+      }
+      if (!durable) return null;
+      let record: AffectiveStoreRecord | null = null;
+      try {
+        record = await durable.load(tenantId, userId);
+      } catch {
+        // Store fault → fall back to whatever (if anything) is cached.
+        return cached ? toProfile(cached) : null;
+      }
+      if (!record) return null;
+      if (at - record.updatedAtMs > TOM_TTL_MS || at > record.expiresAtMs) {
+        return null; // durable row is expired → treat as absent (TTL honored)
+      }
+      const entry: InternalEntry = {
+        state: record.state,
+        turns: record.turns,
+        updatedAtMs: record.updatedAtMs,
+        touchOrder: ++touchCounter,
+      };
+      store.set(k, entry);
+      evict(at);
       return toProfile(entry);
     },
     reset() {

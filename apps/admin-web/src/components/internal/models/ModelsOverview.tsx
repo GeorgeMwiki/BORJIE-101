@@ -25,15 +25,16 @@ import {
 import { StubBadge } from '@/components/internal/StubBadge';
 import { useModelsOverviewQuery } from '@/lib/internal/queries/models';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { formatNumber, formatDate } from '@/lib/format';
 import { localizeApiError } from '@borjie/error-catalog';
 
-const fmtUsd = (n: number): string =>
-  `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fmtUsd = (n: number, locale: Locale): string =>
+  `$${formatNumber(n, locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const fmtInt = (n: number): string => n.toLocaleString();
+const fmtInt = (n: number, locale: Locale): string => formatNumber(n, locale);
 
-const fmtWhen = (iso: string | null): string =>
-  iso ? new Date(iso).toLocaleDateString() : '—';
+const fmtWhen = (iso: string | null, locale: Locale): string =>
+  iso ? formatDate(iso, locale) : '—';
 
 const S = {
   loading: { en: 'Loading model spend…', sw: 'Inapakia matumizi ya modeli…' },
@@ -107,19 +108,19 @@ export function ModelsOverview({
                 {row.model}
               </TableCell>
               <TableCell className="text-right tabular-nums text-muted-foreground">
-                {fmtInt(row.calls)}
+                {fmtInt(row.calls, locale)}
               </TableCell>
               <TableCell className="text-right tabular-nums text-muted-foreground">
-                {fmtInt(row.inputTokens)}
+                {fmtInt(row.inputTokens, locale)}
               </TableCell>
               <TableCell className="text-right tabular-nums text-muted-foreground">
-                {fmtInt(row.outputTokens)}
+                {fmtInt(row.outputTokens, locale)}
               </TableCell>
               <TableCell className="text-right tabular-nums text-muted-foreground">
-                {fmtUsd(row.costUsd)}
+                {fmtUsd(row.costUsd, locale)}
               </TableCell>
               <TableCell className="text-right text-xs text-muted-foreground">
-                {fmtWhen(row.lastUsedAt)}
+                {fmtWhen(row.lastUsedAt, locale)}
               </TableCell>
             </TableRow>
           ))}

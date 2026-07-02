@@ -2,16 +2,8 @@
 
 import { Card } from '@borjie/design-system';
 import { useDashboardPilotErrors } from '@/lib/internal/queries/dashboard';
-import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
-
-/**
- * Resolve the Intl BCP-47 tag from the active locale — the
- * locale-follows-the-user canon. NEVER hardcode `'en-GB'` in a time
- * formatter; the operator's chosen language drives the rendered format.
- */
-function bcp47For(locale: Locale): string {
-  return locale === 'sw' ? 'sw-TZ' : 'en-GB';
-}
+import { useLocale, pickByLocale } from '@/lib/locale';
+import { bcp47For } from '@/lib/format';
 
 // Every rendered string in BOTH locales — one language per active locale,
 // never English-under-sw. The PanelError message is passed in as a

@@ -3,6 +3,7 @@
 import { Building2, Users, Activity, AlertOctagon, type LucideIcon } from 'lucide-react';
 import { useTenantsQuery } from '@/lib/internal/queries/tenants';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { formatNumber } from '@/lib/format';
 
 /**
  * DashboardMetricStrip — four-up KPI row at the top of the admin cockpit.
@@ -62,16 +63,15 @@ export function DashboardMetricStrip({
   const total = rows.length;
   const active = rows.filter((r) => r.status === 'Active').length;
   // Numeric formatting follows the active locale, never a hardcoded tag.
-  const numberLocale = locale === 'sw' ? 'sw-TZ' : 'en-US';
-  const activeStr = active.toLocaleString(numberLocale);
-  const otherStr = (total - active).toLocaleString(numberLocale);
+  const activeStr = formatNumber(active, locale);
+  const otherStr = formatNumber(total - active, locale);
 
   const metrics: ReadonlyArray<Metric> = [
     {
       icon: Building2,
       label: 'Total tenants',
       labelSw: 'Wateja jumla',
-      value: total.toLocaleString(numberLocale),
+      value: formatNumber(total, locale),
       footer: `${activeStr} active · ${otherStr} other`,
       footerSw: `${activeStr} hai · ${otherStr} wengine`,
       tone: 'neutral',

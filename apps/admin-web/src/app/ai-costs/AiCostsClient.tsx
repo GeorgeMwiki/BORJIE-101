@@ -39,6 +39,7 @@ import {
 } from '@borjie/design-system';
 import { api } from '@/lib/api';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { formatNumber, formatDateTime } from '@/lib/format';
 
 interface ModelBreakdownRow {
   readonly model: string;
@@ -232,7 +233,7 @@ export function AiCostsClient({ initialLocale }: { readonly initialLocale?: Loca
             />
             <StatCard
               label={pickByLocale(locale, S.calls)}
-              value={summary.summary.totalCalls.toLocaleString()}
+              value={formatNumber(summary.summary.totalCalls, locale)}
             />
             <StatCard
               label={pickByLocale(locale, S.cap)}
@@ -265,9 +266,9 @@ export function AiCostsClient({ initialLocale }: { readonly initialLocale?: Loca
                       {row.model}
                     </TableCell>
                     <TableCell>{row.calls}</TableCell>
-                    <TableCell>{row.promptTokens.toLocaleString()}</TableCell>
+                    <TableCell>{formatNumber(row.promptTokens, locale)}</TableCell>
                     <TableCell>
-                      {row.completionTokens.toLocaleString()}
+                      {formatNumber(row.completionTokens, locale)}
                     </TableCell>
                     <TableCell className="text-right">
                       {dollars(row.costUsdMicro)}
@@ -345,7 +346,7 @@ export function AiCostsClient({ initialLocale }: { readonly initialLocale?: Loca
                     </span>
                     <span className="text-xs text-muted-foreground">
                       {dollars(e.costUsdMicro)} ·{' '}
-                      {new Date(e.createdAt).toLocaleString()}
+                      {formatDateTime(e.createdAt, locale)}
                     </span>
                   </li>
                 ))}
