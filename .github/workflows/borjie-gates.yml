@@ -1,0 +1,67 @@
+# =============================================================================
+# Borjie enforcement gates — REQUIRED, blocking
+# =============================================================================
+# The consent-sw coverage auditor, the money/audit/kill-switch mutation
+# barrier sentinel, and the service-role tenant-scope (RLS-darkness) scanner
+# are all invoked here as a required status check. Previously these were
+# defined in package.json (`check:consent-sw`, `check:barriers`) and as
+# standalone scripts, but NO workflow invoked them and `scripts/` is not a
+# pnpm workspace package, so the per-package CI never touched them — a
+# false-green "CI enforcement". This workflow makes the enforcement REAL:
+# each gate exits non-zero on a violation and fails the build.
+#
+# The three gates run both individually (for legible, independently-failing
+# steps) and via the single aggregate `check:audit-gate` runner, which is the
+# canonical one-command entry point (`scripts/ci/run-audit-gate.mjs`).
+# =============================================================================
+
+name: Borjie Gates
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: borjie-gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  enforcement-gates:
+    name: Enforcement gates (consent-sw · barriers · service-role scope)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # --- Gate 1: consent-sw coverage (zero-mix / sw parity) ---
+      - name: Consent-SW coverage gate
+        run: pnpm check:consent-sw
+
+      # --- Gate 2: money/audit/kill-switch mutation barriers ---
+      - name: Mutation barrier sentinel
+        run: pnpm check:barriers
+
+      # --- Gate 3: service-role tenant-scope (RLS-darkness) ---
+      - name: Service-role tenant-scope scanner
+        run: node scripts/ci/audit-service-role-tenant-scope.mjs
+
+      # --- Aggregate: the canonical one-command gate (belt-and-braces) ---
+      - name: Aggregate audit gate
+        run: pnpm check:audit-gate
+
+  borjie-gates-success:
+    name: Borjie Gates
+    runs-on: ubuntu-latest
+    needs: [enforcement-gates]
+    steps:
+      - run: echo "All Borjie enforcement gates passed"
