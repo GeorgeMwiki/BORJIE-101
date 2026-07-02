@@ -131,3 +131,28 @@ describe('KI-016 — audience pages are reachable (no orphan landing pages)', ()
     expect(sitemap).not.toContain("'/for-buyer'");
   });
 });
+
+describe('StatusBoard timestamp threads the active locale (no host-default leak)', () => {
+  const src = read('components/StatusBoard.tsx');
+
+  it('never renders a bare host-default toLocaleString() on the bilingual surface', () => {
+    // A bare `.toLocaleString()` call with no BCP-47 argument formats the
+    // timestamp with the VISITOR host default — an English-by-omission
+    // render under the `sw` surface (zero-mix canon violation). Strip
+    // comments first so the doc-block reference does not false-positive;
+    // only an actual method call `).toLocaleString()` is the offender.
+    const code = src
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/.*$/gm, '');
+    expect(code).not.toMatch(/\)\.toLocaleString\(\s*\)/);
+  });
+
+  it('passes the resolved BCP-47 tag into the timestamp render', () => {
+    expect(src).toContain('toLocaleString(props.bcp47)');
+  });
+
+  it('maps both launch locales to Tanzania-region tags (mirrors genui/format)', () => {
+    expect(src).toContain("en: 'en-TZ'");
+    expect(src).toContain("sw: 'sw-TZ'");
+  });
+});

@@ -60,7 +60,7 @@ export function OfftakeContractCard({
   isError,
   error,
 }: OfftakeContractCardProps): JSX.Element {
-  const { t } = useTranslation()
+  const { t, lang } = useTranslation()
 
   if (isLoading) {
     return (
@@ -129,13 +129,13 @@ export function OfftakeContractCard({
         {contract.createdAt ? (
           <KeyValueRow
             label={t('bids.offtake.created')}
-            value={formatDate(contract.createdAt)}
+            value={formatDate(contract.createdAt, lang)}
           />
         ) : null}
         {contract.signedAt ? (
           <KeyValueRow
             label={t('bids.offtake.signed_at')}
-            value={formatDate(contract.signedAt)}
+            value={formatDate(contract.signedAt, lang)}
           />
         ) : null}
       </View>

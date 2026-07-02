@@ -95,6 +95,7 @@ function degradedBannerCopy(
   body: string;
   learnMoreLabel: string;
   affectedAriaLabel: string;
+  sinceLabel: string;
 } {
   const hasReason = typeof reason === 'string' && reason.length > 0;
   if (lang === 'sw') {
@@ -106,6 +107,7 @@ function degradedBannerCopy(
         : 'Mtoa huduma wa akiba anahudumia jibu hili wakati tunarejesha huduma kuu.',
       learnMoreLabel: 'Jifunze zaidi',
       affectedAriaLabel: 'Uwezo ulioathiriwa',
+      sinceLabel: 'Tangu',
     };
   }
   return {
@@ -116,6 +118,7 @@ function degradedBannerCopy(
       : 'A fallback provider is serving this answer while we restore the primary service.',
     learnMoreLabel: 'Learn more',
     affectedAriaLabel: 'Affected capabilities',
+    sinceLabel: 'Since',
   };
 }
 
@@ -157,6 +160,7 @@ export function MessageBubble({
           body={degradedCopy.body}
           learnMoreLabel={degradedCopy.learnMoreLabel}
           affectedAriaLabel={degradedCopy.affectedAriaLabel}
+          sinceLabel={degradedCopy.sinceLabel}
         />
       ) : null}
       <div

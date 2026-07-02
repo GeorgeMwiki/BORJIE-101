@@ -15,7 +15,7 @@ import { spacing, typography } from '@/theme/spacing'
 
 export default function DocumentsIndex() {
   const router = useRouter()
-  const { t } = useTranslation()
+  const { t, lang } = useTranslation()
   const query = useQuery({ queryKey: queryKeys.documents(), queryFn: fetchDocuments })
 
   if (query.isLoading) {
@@ -48,7 +48,7 @@ export default function DocumentsIndex() {
               <Pill label={t('documents.pending')} tone="warning" />
             </View>
             <Text style={styles.meta}>
-              {doc.counterparty} · {formatDate(doc.issuedAt)}
+              {doc.counterparty} · {formatDate(doc.issuedAt, lang)}
             </Text>
             <Text style={styles.amount}>{formatTzs(doc.totalTzs)}</Text>
           </Card>
@@ -66,7 +66,7 @@ export default function DocumentsIndex() {
               <Pill label={t('documents.signed')} tone="success" />
             </View>
             <Text style={styles.meta}>
-              {doc.counterparty} · {t('documents.signed_at')} {doc.signedAt ? formatDate(doc.signedAt) : ''}
+              {doc.counterparty} · {t('documents.signed_at')} {doc.signedAt ? formatDate(doc.signedAt, lang) : ''}
             </Text>
           </Card>
         ))

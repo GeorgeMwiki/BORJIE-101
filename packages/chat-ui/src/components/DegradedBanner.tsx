@@ -77,6 +77,13 @@ export interface DegradedBannerProps {
    */
   readonly learnMoreLabel?: string;
   /**
+   * Optional override label for the "Since" prefix on the timestamp line
+   * (i18n). Defaults to the English 'Since' for backward compatibility —
+   * consumer apps on a bilingual surface MUST pass a localised string so no
+   * English token leaks into a non-English active locale (zero-mix).
+   */
+  readonly sinceLabel?: string;
+  /**
    * Optional className for outer container — picked up only when the
    * consuming app uses a styled-components / Tailwind layer that wants
    * to override positioning. Inline styles still apply.
@@ -201,6 +208,7 @@ export function DegradedBanner({
   body,
   affectedAriaLabel = 'Affected capabilities',
   learnMoreLabel = 'Learn more',
+  sinceLabel = 'Since',
   className,
   style,
 }: DegradedBannerProps): JSX.Element | null {
@@ -229,7 +237,7 @@ export function DegradedBanner({
           <p style={styles.body}>{body ?? defaultBody(degraded.reason)}</p>
           {degraded.since ? (
             <p style={styles.since} data-testid="degraded-since">
-              Since {degraded.since}
+              {sinceLabel} {degraded.since}
             </p>
           ) : null}
         </div>

@@ -340,7 +340,7 @@ export function SubscriptionsClient({ initialLocale }: { readonly initialLocale?
                     {formatCurrency(sub.mrr, sub.currency, bcp47)}
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                    {formatDate(sub.currentPeriodEnd)}
+                    {formatDate(sub.currentPeriodEnd, bcp47)}
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-right">
                     {/*

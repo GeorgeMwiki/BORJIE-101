@@ -20,7 +20,7 @@ import { spacing, typography } from '@/theme/spacing'
 
 export default function DocumentDetail() {
   const { id } = useLocalSearchParams<{ id: string }>()
-  const { t } = useTranslation()
+  const { t, lang } = useTranslation()
   const toast = useToast()
   const queryClient = useQueryClient()
   const docId = String(id)
@@ -109,8 +109,8 @@ export default function DocumentDetail() {
 
       <Card>
         <KeyValueRow label={t('documents.total')} value={formatTzs(doc.totalTzs)} />
-        <KeyValueRow label="Issued" value={formatDate(doc.issuedAt)} />
-        {doc.signedAt ? <KeyValueRow label={t('documents.signed_at')} value={formatDate(doc.signedAt)} /> : null}
+        <KeyValueRow label={t('documents.issued_at')} value={formatDate(doc.issuedAt, lang)} />
+        {doc.signedAt ? <KeyValueRow label={t('documents.signed_at')} value={formatDate(doc.signedAt, lang)} /> : null}
         <View style={{ marginTop: spacing.sm }}>
           <Pill
             label={isPending ? t('documents.pending') : t('documents.signed')}

@@ -168,6 +168,7 @@
     "view_pdf": "Fungua PDF",
     "sign_biometric": "Saini kwa kidole",
     "signed_at": "Ilisainiwa",
+    "issued_at": "Ilitolewa",
     "total": "Jumla",
     "loading": "Inapakia mikataba",
     "load_failed": "Imeshindwa kupakia mkataba",

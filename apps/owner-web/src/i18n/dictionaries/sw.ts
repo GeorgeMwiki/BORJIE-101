@@ -284,6 +284,7 @@ export const sw = {
     "degradedHeadline": "Ubongo wa AI unafanya kazi kwa hali ya akiba. Baadhi ya vipengele vya kina vinaweza kuwa na mipaka.",
     "degradedAffected": "Uwezo ulioathiriwa",
     "degradedLearnMore": "Jifunze zaidi",
+    "degradedSince": "Tangu",
     "hintHandoff": "Niunganishe na mshauri wa kibinadamu.",
     "hintSimpler": "Eleza hivyo kwa urahisi zaidi.",
     "hintCmdk": "Nionyeshe ninachoweza kufanya kutoka hapa.",

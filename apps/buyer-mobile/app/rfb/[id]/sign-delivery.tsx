@@ -27,6 +27,8 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, View, Pressable } from
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { useTranslation } from '@/hooks/useTranslation'
+import { bcp47For } from '@/lib/locale'
+import type { LanguageCode } from '@/types/auth'
 // All UI strings are in i18n/en.json + sw.json under the "sign_delivery" namespace.
 import { Card } from '@/components/Card'
 import { tokens } from '@/ui-litfin'
@@ -101,8 +103,8 @@ async function signDelivery(
   return res.data
 }
 
-function formatTzs(amount: number): string {
-  const fmt = new Intl.NumberFormat('en-US', {
+function formatTzs(amount: number, lang: LanguageCode): string {
+  const fmt = new Intl.NumberFormat(bcp47For(lang), {
     maximumFractionDigits: 0,
   })
   return `${fmt.format(amount)} TZS`
@@ -186,7 +188,7 @@ export default function SignDeliveryScreen(): JSX.Element {
   // it (e.g. a stale deep link).
   const responseId = params.responseId ? String(params.responseId) : ''
   const router = useRouter()
-  const { t } = useTranslation()
+  const { t, lang } = useTranslation()
 
   // Fetch chain-of-custody for this fulfilled response.
   // The endpoint GET /api/v1/marketplace/rfb-responses/:responseId/chain-of-custody
@@ -300,19 +302,19 @@ export default function SignDeliveryScreen(): JSX.Element {
             <View style={styles.row}>
               <Text style={styles.label}>{t('sign_delivery.gross')}</Text>
               <Text style={styles.value}>
-                {formatTzs(mutation.data.grossTzs)}
+                {formatTzs(mutation.data.grossTzs, lang)}
               </Text>
             </View>
             <View style={styles.row}>
               <Text style={styles.label}>{t('sign_delivery.royalty')}</Text>
               <Text style={styles.value}>
-                {formatTzs(mutation.data.royaltyTzs)}
+                {formatTzs(mutation.data.royaltyTzs, lang)}
               </Text>
             </View>
             <View style={styles.row}>
               <Text style={styles.label}>{t('sign_delivery.platform_fee')}</Text>
               <Text style={styles.value}>
-                {formatTzs(mutation.data.feeTzs)}
+                {formatTzs(mutation.data.feeTzs, lang)}
               </Text>
             </View>
             <View style={[styles.row, styles.rowEmphasis]}>
@@ -320,7 +322,7 @@ export default function SignDeliveryScreen(): JSX.Element {
                 {t('sign_delivery.seller_receives')}
               </Text>
               <Text style={styles.valueEmphasis}>
-                {formatTzs(mutation.data.netTzs)}
+                {formatTzs(mutation.data.netTzs, lang)}
               </Text>
             </View>
             {mutation.data.ledgerTxnId ? (

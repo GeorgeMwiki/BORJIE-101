@@ -188,6 +188,7 @@
     "view_pdf": "Open PDF",
     "sign_biometric": "Sign with biometrics",
     "signed_at": "Signed on",
+    "issued_at": "Issued on",
     "total": "Total",
     "loading": "Loading contracts",
     "load_failed": "Could not load contract",

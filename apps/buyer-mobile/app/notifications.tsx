@@ -33,6 +33,7 @@ import { SectionHeader } from '@/components/SectionHeader'
 import { Card } from '@/components/Card'
 import { EmptyState } from '@/components/EmptyState'
 import { useTranslation } from '@/hooks/useTranslation'
+import { bcp47For } from '@/lib/locale'
 import { tokens } from '@/ui-litfin'
 import {
   listBuyerNotifications,
@@ -205,9 +206,7 @@ function NotificationCard({
         </View>
         <Text style={styles.cardBody}>{body}</Text>
         <Text style={styles.cardTimestamp}>
-          {new Date(row.created_at).toLocaleString(
-            isSw ? 'sw-TZ' : 'en-US',
-          )}
+          {new Date(row.created_at).toLocaleString(bcp47For(isSw ? 'sw' : 'en'))}
         </Text>
       </Card>
     </Pressable>

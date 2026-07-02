@@ -1479,6 +1479,8 @@ function TeachBubble({
             body={message.brainState.marker.reason}
             affectedAriaLabel={t('teach.degradedAffected')}
             learnMoreLabel={t('teach.degradedLearnMore')}
+            sinceLabel={t('teach.degradedSince')}
+            learnMoreHref="/settings/connected-agents"
           />
         </div>
       ) : null}

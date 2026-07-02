@@ -79,6 +79,31 @@ describe('DegradedBanner', () => {
     );
   });
 
+  it('defaults the since prefix to English "Since"', () => {
+    const degraded: DegradedMarker = {
+      reason: 'primary down',
+      affected_capabilities: ['sensor:primary'],
+      since: '2026-05-21T10:42:00Z',
+    };
+    render(<DegradedBanner degraded={degraded} />);
+    expect(screen.getByTestId('degraded-since')).toHaveTextContent(
+      'Since 2026-05-21T10:42:00Z',
+    );
+  });
+
+  it('honours the sinceLabel i18n override (zero-mix)', () => {
+    const degraded: DegradedMarker = {
+      reason: 'primary down',
+      affected_capabilities: ['sensor:primary'],
+      since: '2026-05-21T10:42:00Z',
+    };
+    render(<DegradedBanner degraded={degraded} sinceLabel="Tangu" />);
+    const since = screen.getByTestId('degraded-since');
+    expect(since).toHaveTextContent('Tangu 2026-05-21T10:42:00Z');
+    // no English token leaks when a localised label is supplied
+    expect(since.textContent).not.toContain('Since');
+  });
+
   it('omits the since line when no timestamp is provided', () => {
     const degraded: DegradedMarker = {
       reason: 'primary down',

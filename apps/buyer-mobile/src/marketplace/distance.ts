@@ -1,6 +1,9 @@
 // Deterministic mock distance so cards remain stable across renders.
 // Real distance will come from gateway once geocoding is wired.
 
+import { bcp47For } from '@/lib/locale'
+import type { LanguageCode } from '@/types/auth'
+
 const regionDistanceKm: Readonly<Record<string, number>> = {
   Geita: 1085,
   Manyara: 420,
@@ -24,6 +27,6 @@ export function mockDistanceKm(originRegion: string): number {
   return 200 + (hash % 1200)
 }
 
-export function formatKm(km: number): string {
-  return `${km.toLocaleString('en-GB')} km`
+export function formatKm(km: number, lang: LanguageCode): string {
+  return `${km.toLocaleString(bcp47For(lang))} km`
 }

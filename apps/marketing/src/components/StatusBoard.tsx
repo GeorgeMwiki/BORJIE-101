@@ -93,12 +93,26 @@ async function fetchStatus(signal: AbortSignal): Promise<StatusResponse> {
 
 const POLL_INTERVAL_MS = 30_000;
 
+/**
+ * Resolve the Intl BCP-47 tag for the active marketing locale
+ * (locale-follows-the-user). A bare `toLocaleString()` renders the
+ * timestamp with the visitor's HOST default — an English-by-omission
+ * format under the `sw` surface (the zero-mix canon forbids that). Both
+ * launch tags are Tanzania-region so the date/time reads in the operator
+ * jurisdiction, mirroring packages/genui/src/format.ts (`TZS: sw-TZ`).
+ */
+const BCP47_FOR_LOCALE: Readonly<Record<Locale, string>> = Object.freeze({
+  en: 'en-TZ',
+  sw: 'sw-TZ',
+});
+
 export function StatusBoard({
   locale,
 }: {
   readonly locale: Locale;
 }) {
   const copy = getMessages(locale).status;
+  const bcp47 = BCP47_FOR_LOCALE[locale];
   const [data, setData] = useState<StatusResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
@@ -170,7 +184,7 @@ export function StatusBoard({
             key={comp.component}
             className="rounded-lg border border-border bg-surface p-5"
           >
-            <ComponentRow comp={comp} copy={copy} />
+            <ComponentRow comp={comp} copy={copy} bcp47={bcp47} />
           </li>
         ))}
       </ul>
@@ -206,6 +220,7 @@ function OverallBanner(props: {
 function ComponentRow(props: {
   readonly comp: ComponentSummary;
   readonly copy: StatusCopy;
+  readonly bcp47: string;
 }) {
   const c = props.comp;
   return (
@@ -239,7 +254,7 @@ function ComponentRow(props: {
       </div>
       {c.lastChangedAt && (
         <p className="mt-3 text-caption-lg uppercase tracking-widest text-foreground/60">
-          {props.copy.lastChangeLabel}: {new Date(c.lastChangedAt).toLocaleString()}
+          {props.copy.lastChangeLabel}: {new Date(c.lastChangedAt).toLocaleString(props.bcp47)}
         </p>
       )}
     </div>

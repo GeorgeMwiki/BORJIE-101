@@ -26,6 +26,7 @@ import { Pill } from '@/components/Pill'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { tokens } from '@/ui-litfin'
 import { useTranslation } from '@/hooks/useTranslation'
+import { bcp47For } from '@/lib/locale'
 import type { LanguageCode } from '@/types/auth'
 import {
   recommendMines,
@@ -54,9 +55,8 @@ const COMMODITIES: readonly AdvisorCommodity[] = [
 const DEFAULT_FX_TZS_PER_USD = 2600
 
 function formatUsdPerTonne(value: number, lang: LanguageCode): string {
-  const locale = lang === 'sw' ? 'sw-TZ' : 'en-US'
   try {
-    return `${new Intl.NumberFormat(locale, {
+    return `${new Intl.NumberFormat(bcp47For(lang), {
       style: 'currency',
       currency: 'USD',
       maximumFractionDigits: 0,
