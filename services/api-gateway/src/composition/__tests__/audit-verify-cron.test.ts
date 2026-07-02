@@ -299,4 +299,93 @@ describe('audit-verify-cron supervisor', () => {
     release();
     await first;
   });
+
+  // ── Observability integrity recorder wiring ──
+  // Regression: the @borjie/observability integrity metric/alert path had ZERO
+  // production consumers — only the offline CLI. It is now wired into THIS live
+  // cron so every verdict increments the OTel counters + fires the pager alert
+  // on tamper. These tests pin that the recorder is invoked per verdict.
+
+  it('records EVERY verdict (pass + fail) through the integrity recorder', async () => {
+    const recorded: Array<{ tenantId: string; valid: boolean }> = [];
+    const integrityRecorder = {
+      record: (v: { tenantId: string; valid: boolean }) => {
+        recorded.push({ tenantId: v.tenantId, valid: v.valid });
+        return v;
+      },
+    };
+    const verifier: AuditChainVerifierPort = {
+      async verifyRandomSample(tenantId) {
+        // t_bad fails, others pass.
+        return tenantId === 't_bad'
+          ? { valid: false, entriesChecked: 2, brokenAt: 2 }
+          : { valid: true, entriesChecked: 5 };
+      },
+      async verifyLedgerChain() {
+        return { valid: true, entriesChecked: 5 };
+      },
+    };
+    const sup = createAuditVerifyCronSupervisor({
+      verifier,
+      logger: makeLogger(),
+      listActiveTenantIds: async () => ['t_ok', 't_bad'],
+      integrityRecorder,
+    });
+
+    await sup.tickSample();
+
+    expect(recorded).toHaveLength(2);
+    expect(recorded).toEqual(
+      expect.arrayContaining([
+        { tenantId: 't_ok', valid: true },
+        { tenantId: 't_bad', valid: false },
+      ]),
+    );
+  });
+
+  it('records a verdict even when the verifier throws (visibility-first)', async () => {
+    const recorded: Array<{ tenantId: string; valid: boolean }> = [];
+    const integrityRecorder = {
+      record: (v: { tenantId: string; valid: boolean }) => {
+        recorded.push({ tenantId: v.tenantId, valid: v.valid });
+        return v;
+      },
+    };
+    const verifier: AuditChainVerifierPort = {
+      async verifyRandomSample() {
+        throw new Error('db down');
+      },
+      async verifyLedgerChain() {
+        return { valid: true, entriesChecked: 1 };
+      },
+    };
+    const sup = createAuditVerifyCronSupervisor({
+      verifier,
+      logger: makeLogger(),
+      listActiveTenantIds: async () => ['t1'],
+      integrityRecorder,
+    });
+
+    await sup.tickSample();
+
+    expect(recorded).toEqual([{ tenantId: 't1', valid: false }]);
+  });
+
+  it('does not throw when the integrity recorder itself throws', async () => {
+    const integrityRecorder = {
+      record: () => {
+        throw new Error('metric sink down');
+      },
+    };
+    const sup = createAuditVerifyCronSupervisor({
+      verifier: makeVerifier(),
+      logger: makeLogger(),
+      listActiveTenantIds: async () => ['t1'],
+      integrityRecorder,
+    });
+
+    const r = (await sup.tickSample()) as AuditVerifyCronTickResult;
+    // Verify loop completes; a recorder throw never masks the verdict.
+    expect(r.okCount).toBe(1);
+  });
 });

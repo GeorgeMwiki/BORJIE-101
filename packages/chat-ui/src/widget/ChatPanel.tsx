@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, ty
 import type { ReactNode } from 'react';
 import type { ChatAttachment, ChatMessage, UnifiedChat, WidgetStrings } from './types';
 import { MessageBubble } from './MessageBubble';
+import { MarkdownStyles } from './MarkdownStyles';
 import { ContextBadge } from './ContextBadge';
 import { SegmentHeader } from './SegmentHeader';
 import { VoiceOverlay } from './VoiceOverlay';
@@ -201,6 +202,10 @@ export function ChatPanel({ chat, strings, onClose, variant = 'floating', render
         aria-atomic="false"
         style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}
       >
+        {/* Single markdown stylesheet for the whole message list — hoisted out
+            of MessageBubble so N bubbles no longer each emit a duplicate
+            <style> tag. Sibling of the messages .map() below. */}
+        <MarkdownStyles />
         {chat.messages.length === 0 ? (
           <p data-testid="chat-empty-greet" style={{ color: '#64748b', fontSize: 13, margin: 0 }}>
             {strings.greet}

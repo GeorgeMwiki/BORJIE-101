@@ -153,6 +153,21 @@ export {
   AUDIT_CHAIN_INTEGRITY_FAILURES_TOTAL,
 } from './audit/integrity-metric.js';
 
+// Live integrity SWEEP — the production consumer that runs verify + record over
+// rows read from `audit_trail_entries` in a scheduled worker path (wired into
+// the consolidation-worker ledger-attestor cron). Turns the previously
+// CLI-only verifier into a live tamper detector.
+export type {
+  AuditTrailRow,
+  AuditChainSweepOptions,
+  AuditChainSweepSummary,
+} from './audit/integrity-sweep.js';
+
+export {
+  runAuditChainIntegritySweep,
+  groupRowsIntoExports,
+} from './audit/integrity-sweep.js';
+
 // ============================================================================
 // Audit - Simple API
 // ============================================================================

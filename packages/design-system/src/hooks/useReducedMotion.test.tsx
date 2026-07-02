@@ -86,4 +86,47 @@ describe('useReducedMotion', () => {
     const { result } = renderHook(() => useReducedMotion());
     expect(result.current).toBe(false);
   });
+
+  it('does NOT read matchMedia during the render phase (no hydration mismatch)', () => {
+    // Regression for the first-paint hydration mismatch: the state initialiser
+    // used to call matchMedia synchronously during render, so under
+    // prefers-reduced-motion the first client render disagreed with the server
+    // (which has no matchMedia) and flipped any motion-gated className.
+    // matchMedia must ONLY be read inside the post-mount effect (commit phase).
+    let inRenderPhase = false;
+    let readDuringRender = false;
+    const mql = {
+      matches: true,
+      media: '(prefers-reduced-motion: reduce)',
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+    };
+    const matchMedia = vi.fn(() => {
+      if (inRenderPhase) readDuringRender = true;
+      return mql as unknown as MediaQueryList;
+    });
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      configurable: true,
+      value: matchMedia,
+    });
+
+    const { result } = renderHook(() => {
+      // Any matchMedia call made synchronously inside this render body is a
+      // render-phase read (the initialiser bug). Effect callbacks run later.
+      inRenderPhase = true;
+      try {
+        return useReducedMotion();
+      } finally {
+        inRenderPhase = false;
+      }
+    });
+
+    // matchMedia was read in the effect, never during render.
+    expect(readDuringRender).toBe(false);
+    // And after the effect commit, the real preference is applied.
+    expect(result.current).toBe(true);
+  });
 });

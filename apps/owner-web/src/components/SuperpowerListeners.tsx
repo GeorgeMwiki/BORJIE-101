@@ -216,10 +216,16 @@ export function SuperpowerListeners({
       const rect = target.getBoundingClientRect();
       // ACTIVE locale only — never render both languages (zero-mix canon).
       const label = pickByLocale(languagePreference, detail.message);
+      // VIEWPORT coordinates only. The overlay container is `fixed inset-0`
+      // (viewport-anchored), so its absolutely-positioned children are laid
+      // out relative to the viewport — NOT the scrolled document. Adding
+      // window.scrollX/scrollY here double-counts the scroll offset and pushes
+      // the callout off the target once the page is scrolled. `rect.top` /
+      // `rect.left` from getBoundingClientRect are already viewport-relative.
       setHighlight({
         key: Date.now(),
-        top: rect.top + window.scrollY,
-        left: rect.left + window.scrollX,
+        top: rect.top,
+        left: rect.left,
         width: rect.width,
         height: rect.height,
         label,

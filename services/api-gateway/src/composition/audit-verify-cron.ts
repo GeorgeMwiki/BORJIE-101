@@ -79,6 +79,28 @@ interface EventBusLike {
   publish?: (env: unknown) => Promise<void> | void;
 }
 
+/**
+ * Observability integrity-recorder hook. Called once per tenant verdict so the
+ * OTel `audit_chain_verify_total{result}` / `audit_chain_integrity_failures_total`
+ * counters are incremented from THIS live cron — the metric + pager-alert path
+ * (`@borjie/observability` createAuditIntegrityRecorder) was otherwise
+ * CLI-only. Duck-typed so the cron stays decoupled from the observability
+ * package + trivially test-injectable. Errors are swallowed by the recorder
+ * itself; the cron never lets a metric write mask a verdict.
+ */
+export interface AuditIntegrityRecorderPort {
+  record(verdict: {
+    readonly tenantId: string;
+    readonly valid: boolean;
+    readonly entriesChecked: number;
+    readonly brokenAt?: number;
+    readonly reason?: string;
+    readonly detail?: string;
+    readonly recomputedHead: string;
+    readonly verifiedAt: string;
+  }): unknown;
+}
+
 export interface AuditVerifyCronLogger {
   info(obj: Record<string, unknown>, msg?: string): void;
   warn(obj: Record<string, unknown>, msg?: string): void;
@@ -100,6 +122,13 @@ export interface AuditVerifyCronDeps {
    *  emit observability events. */
   readonly eventBus?: EventBusLike | null;
   readonly logger: AuditVerifyCronLogger;
+  /**
+   * Optional observability integrity recorder. When supplied, EVERY verdict
+   * (pass + fail) is recorded so the OTel integrity metric + pager alert fire
+   * from this live scheduled path. Null/absent keeps the legacy log+event-only
+   * behaviour.
+   */
+  readonly integrityRecorder?: AuditIntegrityRecorderPort | null;
   /** Sample cadence in ms. Bounded to [60s, 7d]. */
   readonly sampleIntervalMs?: number;
   /** Full-chain cadence in ms. Bounded to [60s, 7d]. */
@@ -147,6 +176,38 @@ function clampInterval(
       ? candidate
       : fallback;
   return Math.min(MAX_INTERVAL_MS, Math.max(MIN_INTERVAL_MS, Math.floor(value)));
+}
+
+/**
+ * Record one verdict through the observability integrity recorder (OTel metric
+ * + pager alert). Best-effort: the recorder swallows sink errors, and this
+ * wrapper additionally guards so a recorder throw never breaks the verify loop.
+ * The cron's `AuditVerifyResult` lacks the recomputed head / timestamp the
+ * offline recorder carries, so we synthesise PII-free placeholders — the metric
+ * counters + tenant/reason labels are the load-bearing signal here.
+ */
+function recordVerdict(
+  recorder: AuditIntegrityRecorderPort | null | undefined,
+  tenantId: string,
+  result: AuditVerifyResult,
+): void {
+  if (!recorder) return;
+  try {
+    const brokenAt =
+      typeof result.brokenAt === 'number' ? result.brokenAt : undefined;
+    recorder.record({
+      tenantId,
+      valid: result.valid,
+      entriesChecked: result.entriesChecked,
+      ...(brokenAt !== undefined ? { brokenAt } : {}),
+      ...(result.valid ? {} : { reason: 'payload-mutated' }),
+      ...(result.error !== undefined ? { detail: result.error } : {}),
+      recomputedHead: '',
+      verifiedAt: new Date().toISOString(),
+    });
+  } catch {
+    // Never let a metric write break the verify loop.
+  }
 }
 
 function clampSampleP(candidate: number | undefined): number {
@@ -325,8 +386,14 @@ export function createAuditVerifyCronSupervisor(
             entriesChecked: 0,
             error: `verify-threw:${msg}`,
           });
+          recordVerdict(deps.integrityRecorder, tenantId, {
+            valid: false,
+            entriesChecked: 0,
+            error: `verify-threw:${msg}`,
+          });
           continue;
         }
+        recordVerdict(deps.integrityRecorder, tenantId, result);
         if (result.valid) {
           okCount += 1;
           verdicts.push({

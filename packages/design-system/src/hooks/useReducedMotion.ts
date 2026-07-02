@@ -6,9 +6,13 @@ import * as React from 'react';
  * Live subscription to the OS-level `prefers-reduced-motion: reduce` setting.
  *
  * Contract:
- *   - SSR-safe: returns `false` (motion allowed) when `window`/`matchMedia`
- *     is unavailable, so the server render and the first client paint agree
- *     (no hydration flip on the animation state).
+ *   - SSR-safe: the FIRST client render always returns `false` (motion
+ *     allowed) — the same value the server rendered — so hydration matches
+ *     byte-for-byte even under `prefers-reduced-motion: reduce`. Reading
+ *     `matchMedia` in the initializer would make the first client render
+ *     disagree with the server (which has no `matchMedia`), producing a
+ *     className hydration mismatch on any motion-gated element. The real
+ *     preference is applied in a post-mount effect instead.
  *   - Live: re-renders the consumer when the user changes the preference at
  *     the OS level mid-session, via a `change` listener (with legacy
  *     `addListener` fallback for older Safari).
@@ -22,18 +26,13 @@ import * as React from 'react';
 
 const QUERY = '(prefers-reduced-motion: reduce)';
 
-/** Read the current preference once, guarding SSR / unsupported environments. */
-function readPreference(): boolean {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-    return false;
-  }
-  return window.matchMedia(QUERY).matches;
-}
-
 export function useReducedMotion(): boolean {
-  // Lazy initialiser keeps SSR at `false` and hydrates the real value on the
-  // client's first render synchronously (no post-mount flash).
-  const [reduced, setReduced] = React.useState<boolean>(readPreference);
+  // SSR-safe seed: the first client render MUST match the server, which has no
+  // `matchMedia`. Seeding to the real preference here would flip the className
+  // on the first client render under `prefers-reduced-motion: reduce` and throw
+  // a hydration mismatch. We start at `false` and apply the real preference in
+  // the post-mount effect below (one extra commit, zero hydration mismatch).
+  const [reduced, setReduced] = React.useState<boolean>(false);
 
   React.useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -42,8 +41,8 @@ export function useReducedMotion(): boolean {
 
     const mql = window.matchMedia(QUERY);
 
-    // Reconcile in case the preference changed between the initial render and
-    // effect commit.
+    // Apply the real preference now that we are past hydration (and reconcile
+    // in case it changed between the initial render and this effect commit).
     setReduced(mql.matches);
 
     const onChange = (event: MediaQueryListEvent): void => {

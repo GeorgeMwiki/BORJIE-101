@@ -355,6 +355,7 @@ import {
   type AuditVerifyCronSupervisor,
 } from './audit-verify-cron.js';
 import { createDrizzleAiAuditChainRepo } from './ai-audit-chain-repo.js';
+import { createAuditIntegrityRecorder } from '@borjie/observability';
 import {
   createSecuritySuite,
   type SecuritySuite,
@@ -3428,6 +3429,48 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
       const repo = createDrizzleAiAuditChainRepo(db);
       if (!repo) return null;
       const suite: SecuritySuite = createSecuritySuite({ auditRepo: repo });
+      // Observability integrity recorder — every verdict (pass + fail) from
+      // this live cron now increments the OTel audit-chain integrity counters
+      // and fires the pager alert on tamper. Previously this metric/alert path
+      // (@borjie/observability) had ZERO production consumers — only the
+      // offline CLI called it — so dashboards + alert rules built on
+      // `audit_chain_integrity_failures_total` were dark. This closes that gap.
+      const observabilityRecorder = createAuditIntegrityRecorder({
+        onIntegrityFailure: (alert) => {
+          logger.error('audit-chain-integrity-failure', {
+            tenantId: alert.tenantId,
+            reason: alert.reason,
+            brokenAt: alert.brokenAt ?? null,
+            verifiedAt: alert.verifiedAt,
+          });
+        },
+      });
+      // Adapter to the cron's duck-typed port (its `reason` is a plain string;
+      // the observability verdict wants the `ChainBreakReason` union).
+      const integrityRecorder = {
+        record: (verdict: {
+          readonly tenantId: string;
+          readonly valid: boolean;
+          readonly entriesChecked: number;
+          readonly brokenAt?: number;
+          readonly reason?: string;
+          readonly detail?: string;
+          readonly recomputedHead: string;
+          readonly verifiedAt: string;
+        }): unknown =>
+          observabilityRecorder.record({
+            tenantId: verdict.tenantId,
+            valid: verdict.valid,
+            entriesChecked: verdict.entriesChecked,
+            ...(verdict.brokenAt !== undefined
+              ? { brokenAt: verdict.brokenAt }
+              : {}),
+            ...(verdict.reason ? { reason: 'payload-mutated' as const } : {}),
+            ...(verdict.detail !== undefined ? { detail: verdict.detail } : {}),
+            recomputedHead: verdict.recomputedHead,
+            verifiedAt: verdict.verifiedAt,
+          }),
+      };
       return createAuditVerifyCronSupervisor({
         verifier: {
           verifyRandomSample: (tenantId: string, p: number) =>
@@ -3439,6 +3482,7 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
         eventBus: eventBus as unknown as NonNullable<
           Parameters<typeof createAuditVerifyCronSupervisor>[0]['eventBus']
         >,
+        integrityRecorder,
         logger: createPinoLikeLogger('audit-verify-cron'),
       });
     })(),
