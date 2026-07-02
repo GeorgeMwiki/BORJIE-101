@@ -85,21 +85,33 @@ async function resolveCashFlow(
   db: DbLike,
   tenantId: string,
 ): Promise<Partial<RiskScannerState>> {
+  // Cash on hand = sum of the LATEST balance per account (not the sum of
+  // the whole append-only history). `cash_balances` is keyed
+  // (tenant_id, account_id, recorded_at); DISTINCT ON picks the newest row
+  // per account.
   const cashRows = await safeExecute(
     db,
-    sql`SELECT
-      COALESCE(SUM(balance_tzs), 0)::bigint AS cash_total
-    FROM cash_balances
-    WHERE tenant_id = ${tenantId}`,
+    sql`SELECT COALESCE(SUM(latest.balance_tzs), 0)::numeric AS cash_total
+    FROM (
+      SELECT DISTINCT ON (account_id) balance_tzs
+      FROM cash_balances
+      WHERE tenant_id = ${tenantId}
+      ORDER BY account_id, recorded_at DESC
+    ) AS latest`,
   );
   const cashOnHandTzs = asNum(cashRows[0]?.cash_total) ?? null;
 
+  // Daily burn = average daily actual cost over the last 30 days. The
+  // `costs` table (category / amount_tzs / ts / state='actual') is the
+  // real spend ledger; `cash_flow_daily` never existed. SUM/30 gives a
+  // stable per-day burn even on sparse cost days.
   const burnRows = await safeExecute(
     db,
-    sql`SELECT COALESCE(AVG(amount_tzs), 0)::numeric AS daily_burn
-    FROM cash_flow_daily
+    sql`SELECT (COALESCE(SUM(amount_tzs), 0) / 30.0)::numeric AS daily_burn
+    FROM costs
     WHERE tenant_id = ${tenantId}
-      AND captured_at > NOW() - INTERVAL '30 days'`,
+      AND state = 'actual'
+      AND ts > NOW() - INTERVAL '30 days'`,
   );
   const dailyBurn = asNum(burnRows[0]?.daily_burn) ?? null;
   let cashRunwayDays: number | null = null;
@@ -145,15 +157,16 @@ async function resolveRegulatory(
   db: DbLike,
   tenantId: string,
 ): Promise<Partial<RiskScannerState>> {
+  // `licences` uses `expiry_date` (not `expires_at`).
   const nemcRows = await safeExecute(
     db,
     sql`SELECT
-      EXTRACT(DAY FROM (expires_at - NOW()))::int AS days_left
+      EXTRACT(DAY FROM (expiry_date - NOW()))::int AS days_left
     FROM licences
     WHERE tenant_id = ${tenantId}
       AND kind = 'nemc_eia'
       AND status = 'active'
-    ORDER BY expires_at ASC
+    ORDER BY expiry_date ASC
     LIMIT 1`,
   );
   const nemcEiaDaysToExpiry = asNum(nemcRows[0]?.days_left);
@@ -161,30 +174,36 @@ async function resolveRegulatory(
   const botRows = await safeExecute(
     db,
     sql`SELECT
-      EXTRACT(DAY FROM (expires_at - NOW()))::int AS days_left
+      EXTRACT(DAY FROM (expiry_date - NOW()))::int AS days_left
     FROM licences
     WHERE tenant_id = ${tenantId}
       AND kind = 'bot_export'
       AND status = 'active'
-    ORDER BY expires_at ASC
+    ORDER BY expiry_date ASC
     LIMIT 1`,
   );
   const botExportLicenceDaysToExpiry = asNum(botRows[0]?.days_left);
 
+  // `regulatory_filings` uses `filing_type` (not `filing_kind`) and has no
+  // `penalty_accrual_tzs` column — `fee_paid_tzs` is the only money column,
+  // and it is a PAID amount, not an accrued penalty, so the penalty field
+  // stays null (no fabricated number). An overdue filing = due_at in the
+  // past and not yet submitted.
   const traRows = await safeExecute(
     db,
     sql`SELECT
-      EXTRACT(DAY FROM (NOW() - due_at))::int AS days_overdue,
-      COALESCE(penalty_accrual_tzs, 0)::numeric AS penalty
+      EXTRACT(DAY FROM (NOW() - due_at))::int AS days_overdue
     FROM regulatory_filings
     WHERE tenant_id = ${tenantId}
-      AND filing_kind = 'royalty'
-      AND status = 'overdue'
+      AND filing_type = 'royalty'
+      AND status <> 'filed'
+      AND submitted_at IS NULL
+      AND due_at < NOW()
     ORDER BY due_at ASC
     LIMIT 1`,
   );
   const traFilingDaysOverdue = asNum(traRows[0]?.days_overdue);
-  const traPenaltyAccrualTzs = asNum(traRows[0]?.penalty);
+  const traPenaltyAccrualTzs = null;
 
   return {
     nemcEiaDaysToExpiry,
@@ -273,14 +292,18 @@ async function resolveHrAndCompliance(
   );
   const supervisorAttrition90d = asNum(attRows[0]?.attrition_count) ?? 0;
 
+  // `workforce_certifications` uses `cert_code` (e.g. ICA-BLASTING-A) and a
+  // `status` enum, not `cert_kind` / a boolean `active`. An operator on
+  // active duty with an expired ICA cert = status still 'active' but the
+  // expiry has passed.
   const icaRows = await safeExecute(
     db,
     sql`SELECT COUNT(*)::int AS expired_active
     FROM workforce_certifications
     WHERE tenant_id = ${tenantId}
-      AND cert_kind = 'ica'
+      AND cert_code ILIKE 'ICA%'
       AND expires_at < NOW()
-      AND active = TRUE`,
+      AND status = 'active'`,
   );
   const operatorsWithExpiredIcaActive = asNum(icaRows[0]?.expired_active) ?? 0;
 
@@ -387,13 +410,17 @@ async function resolveCounterpartyAndMarket(
   );
   const fxUsdTzsVolatilityPctIntraday = asNum(fxRows[0]?.vol_pct);
 
+  // Monthly revenue proxy = net TZS sales booked in the last 30 days. The
+  // `sales` table (mining domain) is the real revenue ledger; the
+  // property-era `ledger_entries.entry_kind = 'revenue'` never existed
+  // (that enum has no revenue member and stores minor units, not
+  // amount_tzs). `sales` carries `net_tzs` and `ts`.
   const revRows = await safeExecute(
     db,
-    sql`SELECT COALESCE(SUM(amount_tzs), 0)::bigint AS monthly_revenue
-    FROM ledger_entries
+    sql`SELECT COALESCE(SUM(net_tzs), 0)::numeric AS monthly_revenue
+    FROM sales
     WHERE tenant_id = ${tenantId}
-      AND entry_kind = 'revenue'
-      AND posted_at > NOW() - INTERVAL '30 days'`,
+      AND ts > NOW() - INTERVAL '30 days'`,
   );
   const monthlyRevenueTzs = asNum(revRows[0]?.monthly_revenue);
 
@@ -410,27 +437,33 @@ async function resolveEstateAndSecurity(
   db: DbLike,
   tenantId: string,
 ): Promise<Partial<RiskScannerState>> {
+  // `succession_plans` uses `last_review_at` (not `last_reviewed_at`) and
+  // carries no principal age column — the age field stays null (no
+  // fabricated value). Overdue = days since the last review, surfaced
+  // oldest-first.
   const sucRows = await safeExecute(
     db,
     sql`SELECT
-      EXTRACT(DAY FROM (NOW() - last_reviewed_at))::int AS days_overdue,
-      principal_owner_age_years::int AS age
+      EXTRACT(DAY FROM (NOW() - last_review_at))::int AS days_overdue
     FROM succession_plans
     WHERE tenant_id = ${tenantId}
-    ORDER BY last_reviewed_at ASC
+    ORDER BY last_review_at ASC
     LIMIT 1`,
   );
   const successionReviewOverdueDays = asNum(sucRows[0]?.days_overdue);
-  const principalOwnerAgeYears = asNum(sucRows[0]?.age);
+  const principalOwnerAgeYears = null;
 
+  // `insurance_policies` uses `coverage_type` (not `policy_kind`) and only
+  // surfaces live cover — a cancelled policy is not an expiry risk.
   const insRows = await safeExecute(
     db,
     sql`SELECT
       id,
-      policy_kind,
+      coverage_type,
       EXTRACT(DAY FROM (expires_at - NOW()))::int AS days_left
     FROM insurance_policies
     WHERE tenant_id = ${tenantId}
+      AND status = 'active'
       AND expires_at < NOW() + INTERVAL '60 days'
     ORDER BY expires_at ASC
     LIMIT 20`,
@@ -438,7 +471,7 @@ async function resolveEstateAndSecurity(
   const insurancePoliciesExpiring30d = insRows
     .map((r) => ({
       policyId: String(r.id ?? 'unknown'),
-      policyKind: String(r.policy_kind ?? 'unknown'),
+      policyKind: String(r.coverage_type ?? 'unknown'),
       daysToExpiry: asNum(r.days_left) ?? 999,
     }))
     .filter((p) => p.daysToExpiry <= 60);
@@ -479,13 +512,15 @@ async function resolveReputationalAndTax(
   db: DbLike,
   tenantId: string,
 ): Promise<Partial<RiskScannerState>> {
+  // `grievances` uses `raised_by_kind` (not `party_type`) and `raised_at`
+  // (not `created_at`).
   const csrRows = await safeExecute(
     db,
     sql`SELECT COUNT(*)::int AS grievance_count
     FROM grievances
     WHERE tenant_id = ${tenantId}
-      AND party_type = 'community'
-      AND created_at > NOW() - INTERVAL '60 days'`,
+      AND raised_by_kind = 'community'
+      AND raised_at > NOW() - INTERVAL '60 days'`,
   );
   const csrGrievances60d = asNum(csrRows[0]?.grievance_count) ?? 0;
 

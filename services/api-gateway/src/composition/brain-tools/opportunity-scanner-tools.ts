@@ -31,12 +31,16 @@
  * `requiresPolicyRuleLiteral: false`. The scanner has no side effects.
  *
  * Tenant isolation: handlers resolve `tenantId` from the persona
- * context; the api-gateway middleware binds `app.tenant_id` so every
- * resolver SELECT scopes to the calling tenant via RLS. No tool
- * reaches across tenants.
+ * context. Brain tools run OUTSIDE the api-gateway databaseMiddleware, so
+ * the scan handler binds the canonical `app.current_tenant_id` GUC itself
+ * via `withTenantContext(...)` around the resolver reads — otherwise every
+ * tenant-scoped SELECT returns 0 rows under FORCE-RLS. No tool reaches
+ * across tenants.
  */
 
 import { z } from 'zod';
+
+import { withTenantContext } from '@borjie/database';
 
 import {
   ALL_SCAN_RULES,
@@ -121,7 +125,21 @@ export const opportunityScanTool: PersonaToolDescriptor<
   requiresPolicyRuleLiteral: false,
   async handler(input, ctx) {
     const db = requireDb();
-    const state = await resolveScanState(db, ctx.tenantId);
+    // Brain tools run OUTSIDE the api-gateway databaseMiddleware, so the
+    // raw pool carries no `app.current_tenant_id` GUC. Under FORCE-RLS
+    // every tenant-scoped SELECT would return 0 rows. Bind the tenant
+    // context around the resolver reads inside a pinned transaction —
+    // same idiom as `data-analysis-tools.ts`. The `as unknown as` cast
+    // sidesteps the TS2709 namespace-vs-type drift on `@borjie/database`.
+    const state = await withTenantContext(
+      db as unknown as Parameters<typeof withTenantContext>[0],
+      ctx.tenantId,
+      (tx) =>
+        resolveScanState(
+          tx as unknown as ScanStateResolverDb,
+          ctx.tenantId,
+        ),
+    );
     const options: Parameters<typeof scanOpportunities>[1] = {
       maxResults: input.maxResults,
     };

@@ -4,9 +4,10 @@
  * Builds a `ScanState` snapshot for a tenant by reading the underlying
  * tables via RLS-bound Drizzle queries. Every slice is best-effort —
  * a failed slice degrades to `null` and the scanner simply skips any
- * rule that depends on it. No tenant data ever crosses tenants:
- * every read uses the `app.current_tenant_id` GUC that the api-gateway
- * middleware binds.
+ * rule that depends on it. No tenant data ever crosses tenants: every
+ * read runs under the `app.current_tenant_id` GUC that the CALLER binds
+ * (the brain tool wraps this resolver in `withTenantContext(...)`, since
+ * brain tools run outside the api-gateway databaseMiddleware).
  *
  * The resolver does NOT fabricate numbers. When a metric isn't
  * computable from real data the corresponding field stays `null` and
@@ -72,20 +73,33 @@ async function resolveFuelSlice(
     const dieselResult = await db.execute(sql`
       SELECT value::numeric AS price
         FROM external_benchmarks
-       WHERE benchmark_id = 'diesel_tzs_per_litre'
+       WHERE metric_id = 'diesel_tzs_per_litre'
        ORDER BY as_of DESC
        LIMIT 1
     `);
     const diesel = num(rowsOf(dieselResult)[0]?.price);
 
-    const supplierResult = await db.execute(sql`
-      SELECT COUNT(DISTINCT vendor_id)::int AS supplier_count
-        FROM purchase_orders
-       WHERE tenant_id = ${tenantId}
-         AND category = 'diesel'
-         AND created_at >= NOW() - INTERVAL '180 days'
-    `);
-    const supplierCount = Number(rowsOf(supplierResult)[0]?.supplier_count ?? 0);
+    // Diesel supplier count. The real table is `procurement_purchase_orders`
+    // (the flat `purchase_orders` table never shipped) and it carries no
+    // `category` column — diesel is expressed on the vendor's `categories`
+    // jsonb array in `procurement_vendors`. This sub-query is isolated in
+    // its own try/catch so a schema drift here degrades supplierCount to 0
+    // WITHOUT nulling the whole fuel slice, which carries the real
+    // litres/tonnes/peer data.
+    let supplierCount = 0;
+    try {
+      const supplierResult = await db.execute(sql`
+        SELECT COUNT(DISTINCT po.vendor_id)::int AS supplier_count
+          FROM procurement_purchase_orders po
+          JOIN procurement_vendors v ON v.id = po.vendor_id
+         WHERE po.tenant_id = ${tenantId}
+           AND v.categories ? 'diesel'
+           AND po.created_at >= NOW() - INTERVAL '180 days'
+      `);
+      supplierCount = Number(rowsOf(supplierResult)[0]?.supplier_count ?? 0);
+    } catch {
+      supplierCount = 0;
+    }
 
     return {
       litresPerTonneRolling30d: litresPerTonne,
@@ -109,7 +123,7 @@ async function resolveFxSlice(
     const fixResult = await db.execute(sql`
       SELECT value::numeric AS fix
         FROM external_benchmarks
-       WHERE benchmark_id = 'lbma_am_usd_per_oz'
+       WHERE metric_id = 'lbma_am_usd_per_oz'
        ORDER BY as_of DESC
        LIMIT 30
     `);
@@ -317,7 +331,7 @@ async function resolveWorkforceSlice(
     const vetaResult = await db.execute(sql`
       SELECT value::numeric AS subsidy
         FROM external_benchmarks
-       WHERE benchmark_id = 'veta_apprenticeship_subsidy_tzs'
+       WHERE metric_id = 'veta_apprenticeship_subsidy_tzs'
        ORDER BY as_of DESC
        LIMIT 1
     `);
@@ -335,7 +349,7 @@ async function resolveWorkforceSlice(
     const feeResult = await db.execute(sql`
       SELECT value::numeric AS fee
         FROM external_benchmarks
-       WHERE benchmark_id = 'ica_cert_per_cert_fee_tzs'
+       WHERE metric_id = 'ica_cert_per_cert_fee_tzs'
        ORDER BY as_of DESC
        LIMIT 1
     `);
@@ -487,7 +501,7 @@ async function resolveCapitalSlice(
     const tibResult = await db.execute(sql`
       SELECT value::numeric AS rate
         FROM external_benchmarks
-       WHERE benchmark_id = 'tib_borrower_rate_tier_b_pct'
+       WHERE metric_id = 'tib_borrower_rate_tier_b_pct'
        ORDER BY as_of DESC
        LIMIT 1
     `);
@@ -505,7 +519,7 @@ async function resolveCapitalSlice(
     const yieldResult = await db.execute(sql`
       SELECT value::numeric AS y
         FROM external_benchmarks
-       WHERE benchmark_id = 'bot_91d_tbill_yield_pct'
+       WHERE metric_id = 'bot_91d_tbill_yield_pct'
        ORDER BY as_of DESC
        LIMIT 1
     `);
@@ -577,7 +591,7 @@ async function resolveCarbonSlice(
     const rateResult = await db.execute(sql`
       SELECT value::numeric AS rate
         FROM external_benchmarks
-       WHERE benchmark_id = 'carbon_credit_tzs_per_hectare_per_year'
+       WHERE metric_id = 'carbon_credit_tzs_per_hectare_per_year'
        ORDER BY as_of DESC
        LIMIT 1
     `);

@@ -37,6 +37,7 @@
  */
 
 import { z } from 'zod';
+import { withTenantContext } from '@borjie/database';
 
 import {
   countRulesByKind,
@@ -168,7 +169,30 @@ export const riskScanTool: PersonaToolDescriptor<
     if (input.scopeIds && input.scopeIds.length > 0) {
       (options as { scopeIds?: ReadonlyArray<string> }).scopeIds = input.scopeIds;
     }
-    const risks = await scanRisks(ctx.tenantId, deps, options);
+    // RLS-DARKNESS FIX — the injected `deps.db` is the SHARED api-gateway
+    // pool with NO tenant GUC bound. Under FORCE-RLS every resolver SELECT
+    // returns zero rows unless `app.current_tenant_id` is set on the SAME
+    // connection the reads run on. Bind it via the canonical
+    // `withTenantContext` helper (a per-tx `SET LOCAL`) so `scanRisks`
+    // reads the calling tenant's real state. Mirrors the sibling scanners'
+    // isolation contract. When `deps.db` is null (unit tests / no-db
+    // composition) fall back to the raw resolver — the scanner already
+    // degrades every field to null in that case.
+    const risks = deps.db
+      ? await withTenantContext(
+          deps.db as unknown as Parameters<typeof withTenantContext>[0],
+          ctx.tenantId,
+          async (tx) =>
+            scanRisks(
+              ctx.tenantId,
+              {
+                ...deps,
+                db: tx as unknown as RiskScannerDeps['db'],
+              },
+              options,
+            ),
+        )
+      : await scanRisks(ctx.tenantId, deps, options);
     const nowIso = (deps.now?.() ?? new Date()).toISOString();
 
     // R6 — cockpit SSE notify. Push only the highest-severity new
