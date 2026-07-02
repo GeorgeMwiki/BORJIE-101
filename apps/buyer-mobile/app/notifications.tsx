@@ -51,7 +51,7 @@ function readPayloadBidId(payload: Record<string, unknown>): string | null {
 export default function NotificationsScreen(): JSX.Element {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const { lang } = useTranslation()
+  const { lang, t } = useTranslation()
   const isSw = lang === 'sw'
 
   const query = useQuery({
@@ -121,17 +121,13 @@ export default function NotificationsScreen(): JSX.Element {
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
       <View style={styles.padded}>
         <SectionHeader
-          title={isSw ? 'Arifa' : 'Notifications'}
-          subtitle={
-            isSw
-              ? 'Mabadiliko ya hivi karibuni katika manunuzi yako'
-              : 'Recent activity on your purchases'
-          }
+          title={t('notifications.title')}
+          subtitle={t('notifications.subtitle')}
         />
         {unreadCount > 0 ? (
           <UnreadBar
             unreadCount={unreadCount}
-            isSw={isSw}
+            t={t}
             disabled={markAllRead.isPending}
             onMarkAllRead={onMarkAllRead}
           />
@@ -150,23 +146,11 @@ export default function NotificationsScreen(): JSX.Element {
         }
         ListEmptyComponent={
           query.isPending ? (
-            <Text style={styles.muted}>
-              {isSw ? 'Inapakia arifa…' : 'Loading notifications…'}
-            </Text>
+            <Text style={styles.muted}>{t('notifications.loading')}</Text>
           ) : query.isError ? (
-            <Text style={styles.error}>
-              {isSw
-                ? 'Imeshindwa kupakia arifa.'
-                : 'Failed to load notifications.'}
-            </Text>
+            <Text style={styles.error}>{t('notifications.error')}</Text>
           ) : (
-            <EmptyState
-              message={
-                isSw
-                  ? 'Hakuna arifa. Tutakujulisha hapa muuzaji akimaliza RFB yako.'
-                  : "No notifications. We'll alert you here when a seller fulfils your RFB."
-              }
-            />
+            <EmptyState message={t('notifications.empty')} />
           )
         }
         renderItem={({ item }) => (
@@ -215,7 +199,7 @@ function NotificationCard({
 
 interface UnreadBarProps {
   readonly unreadCount: number
-  readonly isSw: boolean
+  readonly t: (path: string, vars?: Readonly<Record<string, string | number>>) => string
   readonly disabled: boolean
   readonly onMarkAllRead: () => void
 }
@@ -229,16 +213,14 @@ interface UnreadBarProps {
  */
 function UnreadBar({
   unreadCount,
-  isSw,
+  t,
   disabled,
   onMarkAllRead,
 }: UnreadBarProps): JSX.Element {
   return (
     <View style={styles.unreadBar}>
       <Text style={styles.unreadBarTitle}>
-        {isSw
-          ? `Arifa mpya (${unreadCount})`
-          : `New notifications (${unreadCount})`}
+        {t('notifications.unread_title', { count: unreadCount })}
       </Text>
       <Pressable
         accessibilityRole="button"
@@ -248,7 +230,7 @@ function UnreadBar({
         <Text
           style={[styles.unreadBarLink, disabled && styles.unreadBarLinkDisabled]}
         >
-          {isSw ? 'Soma zote' : 'Mark all read'}
+          {t('notifications.mark_all_read')}
         </Text>
       </Pressable>
     </View>

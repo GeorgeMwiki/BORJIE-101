@@ -122,6 +122,18 @@ function degradedBannerCopy(
   };
 }
 
+/**
+ * Single-locale label for the user's own message row. The widget knows the
+ * active language (`resolvedLanguage`) but carries no i18n dictionary, so it
+ * holds this one-word copy inline — mirroring the `degradedBannerCopy`
+ * pattern above. Rendering an unconditional English 'You' under the `sw`
+ * locale is a zero-mix violation (a Swahili surface with an English author
+ * tag), so the label follows the active locale.
+ */
+function userLabel(lang: Language): string {
+  return lang === 'sw' ? 'Wewe' : 'You';
+}
+
 export function MessageBubble({
   message,
   personaName,
@@ -151,7 +163,9 @@ export function MessageBubble({
         listStyle: 'none',
       }}
     >
-      <span style={{ fontSize: 11, color: '#64748b' }}>{isUser ? 'You' : personaName}</span>
+      <span style={{ fontSize: 11, color: '#64748b' }}>
+        {isUser ? userLabel(resolvedLanguage) : personaName}
+      </span>
       {degraded && degradedCopy ? (
         <DegradedBanner
           degraded={degraded}

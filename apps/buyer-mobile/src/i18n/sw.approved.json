@@ -465,5 +465,14 @@
   "brand": {
     "marketplace_eyebrow": "BORJIE · SOKO",
     "mwikila_eyebrow": "BW. MWIKILA · MKURUGENZI WA SOKO"
+  },
+  "notifications": {
+    "title": "Arifa",
+    "subtitle": "Mabadiliko ya hivi karibuni katika manunuzi yako",
+    "loading": "Inapakia arifa…",
+    "error": "Imeshindwa kupakia arifa.",
+    "empty": "Hakuna arifa. Tutakujulisha hapa muuzaji akimaliza RFB yako.",
+    "unread_title": "Arifa mpya ({{count}})",
+    "mark_all_read": "Soma zote"
   }
 }

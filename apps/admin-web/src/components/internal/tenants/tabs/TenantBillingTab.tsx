@@ -11,6 +11,7 @@ import {
   Alert,
 } from '@borjie/design-system';
 import { formatCurrency } from '@/lib/api';
+import { bcp47For } from '@/lib/format';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import {
   useTenantInvoicesQuery,
@@ -71,7 +72,7 @@ export function TenantBillingTab({
               {pickByLocale(locale, S.runRate)}
             </p>
             <p className="text-3xl font-display text-foreground tabular-nums">
-              {formatCurrency(tenant.arr, tenant.currency)}
+              {formatCurrency(tenant.arr, tenant.currency, bcp47For(locale))}
             </p>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -118,7 +119,7 @@ export function TenantBillingTab({
                     {inv.issuedAt.slice(0, 10)}
                   </TableCell>
                   <TableCell className="text-right text-muted-foreground tabular-nums">
-                    {formatCurrency(inv.amount, inv.currency)}
+                    {formatCurrency(inv.amount, inv.currency, bcp47For(locale))}
                   </TableCell>
                   <TableCell className={`${statusTone(inv.status)} text-xs`}>
                     {statusLabel(inv.status, locale)}

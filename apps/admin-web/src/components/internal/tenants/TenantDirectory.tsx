@@ -13,6 +13,7 @@ import { TenantStatusBadge } from './TenantStatusBadge';
 import { TenantActions } from './TenantActions';
 import { useTenantsQuery } from '@/lib/internal/queries/tenants';
 import { formatCurrency } from '@/lib/api';
+import { bcp47For } from '@/lib/format';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import type { Tenant, TenantPlan, TenantStatus } from '@/lib/internal/types';
 import { localizeApiError } from '@borjie/error-catalog';
@@ -114,7 +115,7 @@ export function TenantDirectory({
         header: pickByLocale(locale, { en: 'ARR', sw: 'Mapato ya mwaka' }),
         cell: (ctx) => (
           <span className="tabular-nums">
-            {formatCurrency(ctx.row.original.arr, ctx.row.original.currency)}
+            {formatCurrency(ctx.row.original.arr, ctx.row.original.currency, bcp47For(locale))}
           </span>
         ),
       },

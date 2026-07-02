@@ -485,5 +485,14 @@
   "brand": {
     "marketplace_eyebrow": "BORJIE · MARKETPLACE",
     "mwikila_eyebrow": "MR. MWIKILA · MARKETPLACE DIRECTOR"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "subtitle": "Recent activity on your purchases",
+    "loading": "Loading notifications…",
+    "error": "Failed to load notifications.",
+    "empty": "No notifications. We'll alert you here when a seller fulfils your RFB.",
+    "unread_title": "New notifications ({{count}})",
+    "mark_all_read": "Mark all read"
   }
 }

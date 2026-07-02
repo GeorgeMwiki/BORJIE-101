@@ -2,6 +2,7 @@
 
 import { Card, Skeleton, Alert } from '@borjie/design-system';
 import { formatCurrency } from '@/lib/api';
+import { bcp47For } from '@/lib/format';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import { useTenantOperatorSummaryQuery } from '@/lib/internal/queries/tenant-detail';
 import type { Tenant } from '@/lib/internal/types';
@@ -46,7 +47,7 @@ export function TenantOverviewTab({
 
   const arrPanel: Panel = {
     title: pickByLocale(locale, S.arr),
-    value: formatCurrency(tenant.arr, tenant.currency),
+    value: formatCurrency(tenant.arr, tenant.currency, bcp47For(locale)),
     hint: `${tenant.plan} ${pickByLocale(locale, S.planSuffix)}`,
   };
 
