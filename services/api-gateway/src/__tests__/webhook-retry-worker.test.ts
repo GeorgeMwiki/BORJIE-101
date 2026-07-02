@@ -265,6 +265,80 @@ describe('webhook retry worker', () => {
     expect(repo.dlq).toHaveLength(1);
   });
 
+  it('SSRF-blocks a redirect to an internal host (redirect re-screen, permanent)', async () => {
+    // The initial target URL is a legit public host that passes screening,
+    // then 302-redirects to the cloud-metadata endpoint. A raw `redirect:
+    // "follow"` fetch would chase it; safeHttpFetch re-screens the Location
+    // and BLOCKS it. Delivery must dead-letter permanently, not retry, and no
+    // second hop is ever dispatched.
+    const repo = makeRepo();
+    const urls: string[] = [];
+    const fetchFn = (async (input: RequestInfo | URL) => {
+      urls.push(String(input));
+      // First (and only) hop 302s to an internal host.
+      return new Response(null, {
+        status: 302,
+        headers: { location: 'http://169.254.169.254/latest/meta-data/' },
+      });
+    }) as typeof fetch;
+    const worker = createWebhookRetryWorker({
+      repository: repo,
+      fetchFn,
+      logger: silentLogger,
+      backoffSecondsForAttempt: () => 0,
+    });
+
+    const result = await worker.processDelivery(
+      makeEvent({ targetUrl: 'https://example.test/webhook' })
+    );
+
+    expect(result.status).toBe('dead_lettered');
+    // Exactly one hop dispatched — the redirect target was re-screened and
+    // BLOCKED before a second fetch could reach the internal host.
+    expect(urls).toEqual(['https://example.test/webhook']);
+    // Permanent (SSRF) short-circuits BEFORE an attempt row is recorded — same
+    // as the initial-URL SSRF block — and never burns the retry ladder.
+    expect(repo.attempts).toHaveLength(0);
+    expect(repo.dlq).toHaveLength(1);
+    expect(repo.dlq[0].lastError).toMatch(/SSRF-blocked target URL/);
+  });
+
+  it('delivers when the redirect target is itself a legit public host', async () => {
+    // A 302 whose Location re-passes screening IS followed and delivered —
+    // the guard blocks only UNSAFE redirects, not all redirects.
+    const repo = makeRepo();
+    const urls: string[] = [];
+    let hop = 0;
+    const fetchFn = (async (input: RequestInfo | URL) => {
+      urls.push(String(input));
+      hop += 1;
+      if (hop === 1) {
+        return new Response(null, {
+          status: 302,
+          headers: { location: 'https://example.test/webhook-final' },
+        });
+      }
+      return new Response('{"ok":true}', { status: 200 });
+    }) as typeof fetch;
+    const worker = createWebhookRetryWorker({
+      repository: repo,
+      fetchFn,
+      logger: silentLogger,
+      backoffSecondsForAttempt: () => 0,
+    });
+
+    const result = await worker.processDelivery(
+      makeEvent({ targetUrl: 'https://example.test/webhook' })
+    );
+
+    expect(result.status).toBe('delivered');
+    expect(urls).toEqual([
+      'https://example.test/webhook',
+      'https://example.test/webhook-final',
+    ]);
+    expect(repo.dlq).toHaveLength(0);
+  });
+
   it('records statusCode and attemptNumber on each attempt', async () => {
     const repo = makeRepo();
     const responses = [503, 200];

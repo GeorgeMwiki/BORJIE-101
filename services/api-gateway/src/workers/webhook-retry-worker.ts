@@ -20,7 +20,11 @@
 
 import { createHmac } from 'node:crypto';
 import type pino from 'pino';
-import { pinnedSafeDispatcher } from '@borjie/enterprise-hardening';
+import {
+  safeHttpFetch,
+  SafeHttpFetchError,
+  type SafeHttpFetchResult,
+} from '@borjie/enterprise-hardening';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -108,7 +112,29 @@ export interface WebhookDeliveryRepository {
 
 export interface WebhookRetryWorkerDeps {
   repository: WebhookDeliveryRepository;
+  /**
+   * Low-level fetch used as the transport UNDER `safeHttpFetch`. The worker
+   * never calls this directly: egress is routed through `safeHttpFetch`, which
+   * screens the initial URL AND RE-SCREENS every redirect hop (scheme / port /
+   * internal-IP denylist / DNS-resolved IP) with `redirect: 'manual'` before
+   * following it — so a 3xx to an internal host can never be chased (the
+   * SSRF-via-redirect gap a raw `redirect: 'follow'` fetch left open). Inject
+   * in tests to drive redirect scenarios deterministically.
+   */
   fetchFn?: typeof fetch;
+  /**
+   * SSRF-safe egress. Defaults to `safeHttpFetch`. Injectable so a test can
+   * assert the redirect-rescreen policy is applied on this path.
+   */
+  safeFetch?: (
+    url: string,
+    init: {
+      readonly method: string;
+      readonly headers: Readonly<Record<string, string>>;
+      readonly body: string;
+      readonly fetchImpl?: typeof fetch;
+    },
+  ) => Promise<SafeHttpFetchResult>;
   logger: pino.Logger;
   /** Millisecond clock — swap for tests. Default `Date.now`. */
   now?: () => number;
@@ -211,6 +237,7 @@ export function createWebhookRetryWorker(
   if (typeof fetchFn !== 'function') {
     throw new Error('webhook-retry-worker: fetch is not available in this runtime');
   }
+  const httpFetch = deps.safeFetch ?? safeHttpFetch;
   const now = deps.now ?? Date.now;
   const backoff = deps.backoffSecondsForAttempt ?? backoffSecondsForAttempt;
 
@@ -233,33 +260,21 @@ export function createWebhookRetryWorker(
     const ts = Math.floor(now() / 1000);
     const signature = computeWebhookSignature(body, ts, secret);
 
-    // SSRF pre-flight — the retry/DLQ-replay path re-delivers the SAME
+    // SSRF-safe egress — the retry/DLQ-replay path re-delivers the SAME
     // operator-supplied URL the canonical first-delivery screened
     // (packages/agent-platform/src/webhook-delivery.ts), so it must apply the
-    // identical policy here. Re-screen PER ATTEMPT so a DNS rebind between
-    // attempts is also caught. A blocked URL can never succeed → permanent
+    // identical policy here. `safeHttpFetch` re-screens PER ATTEMPT (so a DNS
+    // rebind between attempts is caught), PINS the dispatch to the screened
+    // resolution (closing the within-attempt screen→connect TOCTOU), AND
+    // RE-SCREENS every redirect hop with `redirect: 'manual'` (closing the
+    // SSRF-via-redirect gap the old pin-then-raw-fetch left open: a raw
+    // `redirect: 'follow'` would chase a 3xx Location to an un-screened host).
+    // A policy rejection (SafeHttpFetchError) can never succeed → permanent
     // (the DLQ captures it; we do not retry an SSRF target forever).
-    // Screen AND pin to the screened resolution in one call: the returned
-    // undici dispatcher dials the exact IP we just screened, so a DNS rebind
-    // between screen and connect (the within-attempt TOCTOU the bare
-    // assertUrlSafe left open) can no longer land the POST on an internal IP.
-    // `undefined` ⇒ literal-IP host (already pinned) → plain dispatch.
-    let safeDispatcher: Awaited<ReturnType<typeof pinnedSafeDispatcher>>;
-    try {
-      safeDispatcher = await pinnedSafeDispatcher(event.targetUrl);
-    } catch (err) {
-      return {
-        kind: 'permanent',
-        errorMessage: `SSRF-blocked target URL: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      };
-    }
-
-    let response: Response | undefined;
+    let response: SafeHttpFetchResult | undefined;
     let thrown: unknown;
     try {
-      response = await fetchFn(event.targetUrl, {
+      response = await httpFetch(event.targetUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -268,12 +283,29 @@ export function createWebhookRetryWorker(
           'X-Borjie-Signature': buildSignatureHeader(signature, ts),
         },
         body,
-        // undici's fetch honours `dispatcher`; the key isn't on the DOM
-        // RequestInit type, so route through `unknown`. Omitted when there is
-        // nothing to pin (literal-IP host).
-        ...(safeDispatcher ? { dispatcher: safeDispatcher } : {}),
-      } as unknown as RequestInit);
+        // Route the low-level transport through the injected fetch (tests) or
+        // the platform fetch (prod). safeHttpFetch only IP-pins on the default
+        // platform fetch; a test-injected fetch drives redirect scenarios.
+        ...(deps.fetchFn ? { fetchImpl: deps.fetchFn } : {}),
+      });
     } catch (err) {
+      // A safeHttpFetch POLICY rejection (blocked internal IP, disallowed
+      // scheme/port, an unfollowable redirect, too many redirects) is a
+      // PERMANENT failure — retrying can never reach the blocked target, so
+      // the DLQ captures it and we do NOT burn the retry ladder on an SSRF
+      // target. A TRANSPORT fault (`network-error` / `timeout`), by contrast,
+      // is retryable exactly like a raw thrown fetch error was before — so we
+      // let it fall through to the classifier's retryable path.
+      if (
+        err instanceof SafeHttpFetchError &&
+        err.code !== 'network-error' &&
+        err.code !== 'timeout'
+      ) {
+        return {
+          kind: 'permanent',
+          errorMessage: `SSRF-blocked target URL: ${err.message}`,
+        };
+      }
       thrown = err;
     }
 
