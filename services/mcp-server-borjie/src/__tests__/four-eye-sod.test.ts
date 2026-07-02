@@ -21,10 +21,14 @@ import type { GatewayClient, GatewayCallInput } from '../gateway-client.js';
  * accepted.
  */
 
-function authFor(): BorjieMcpAuthContext {
+// The approver identity is now ALWAYS derived from the authenticated context
+// (client-supplied params.approver is ignored — SoD hardening). A distinct
+// second approver therefore AUTHENTICATES as a different owner (same agent
+// session / agentTokenId, different person).
+function authFor(ownerId = 'owner-initiator'): BorjieMcpAuthContext {
   return Object.freeze({
     tenantId: 't1',
-    ownerId: 'owner-initiator',
+    ownerId,
     agentName: 'fe-agent',
     agentTokenId: 'tok-fe',
     scopes: ['owner:write', 'admin:read'],
@@ -145,8 +149,13 @@ describe('four-eye separation-of-duties (dispatcher)', () => {
       async auditChainHash() {
         return 'h';
       },
-      async resolveAuthContext() {
-        return authFor();
+      // Bearer-keyed identity: the initiator ('tok' -> owner-initiator) and a
+      // DISTINCT second signer ('tok2' -> owner-second-signer) authenticate as
+      // different owners on the same agent session.
+      async resolveAuthContext(bearer: string | null) {
+        return bearer === 'tok2'
+          ? authFor('owner-second-signer')
+          : authFor('owner-initiator');
       },
       approvalStore: store,
     });
@@ -158,10 +167,11 @@ describe('four-eye separation-of-duties (dispatcher)', () => {
         jsonrpc: '2.0',
         id: 'ok',
         method: 'actions/approve',
-        // A second, distinct principal approves — two-person control.
-        params: { approvalId, approver: 'owner-second-signer' },
+        // A second, distinct principal approves — two-person control. The
+        // approver is derived from the AUTH context, not this params body.
+        params: { approvalId },
       },
-      bearerToken: 'tok',
+      bearerToken: 'tok2',
     });
     expect('result' in approved).toBe(true);
     if ('result' in approved) {

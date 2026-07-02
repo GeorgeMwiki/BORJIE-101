@@ -236,6 +236,113 @@ describe('dispatcher.tools/call', () => {
   });
 });
 
+describe('dispatcher.four-eye separation-of-duties', () => {
+  // Helper: initiate a sovereign tool to create a pending approval, then
+  // return its approvalId. Uses a shared approvalStore so the approve leg
+  // sees the same row.
+  async function initiateFourEye(
+    d: ReturnType<typeof createDispatcher>,
+    bearerToken = 'tok',
+  ): Promise<string> {
+    const r = await d.dispatch({
+      request: {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'kill_switch.open', arguments: {} },
+      },
+      bearerToken,
+    });
+    // Four-eye returns a JSON-RPC error (-32011 pending) whose data carries
+    // the approvalId.
+    if (!('error' in r)) throw new Error('expected pending-approval error');
+    expect(r.error.code).toBe(-32011);
+    const data = r.error.data as { approvalId: string };
+    return data.approvalId;
+  }
+
+  it('ignores a client-supplied approver — initiator cannot forge a distinct id', async () => {
+    // Shared store so initiate + approve hit the same row. The initiator is
+    // ownerId 'o1'. A malicious client passes params.approver = a forged
+    // distinct id to try to satisfy approver !== initiator. The fix must
+    // derive the approver from AUTH only (still 'o1'), so this self-approval
+    // is rejected with -32014.
+    const { createInMemoryApprovalStore } = await import('../four-eye.js');
+    const approvalStore = createInMemoryApprovalStore({ now: () => Date.now() });
+    const d = createDispatcher({ ...baseDeps, approvalStore });
+    const approvalId = await initiateFourEye(d);
+    const r = await d.dispatch({
+      request: {
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'actions/approve',
+        params: { approvalId, approver: 'attacker-forged-distinct-id' },
+      },
+      bearerToken: 'tok',
+    });
+    expect('error' in r).toBe(true);
+    if ('error' in r) expect(r.error.code).toBe(-32014); // JSON_RPC_APPROVAL_SELF
+  });
+
+  it('a distinct authenticated approver (real second signer) still approves', async () => {
+    const { createInMemoryApprovalStore } = await import('../four-eye.js');
+    const approvalStore = createInMemoryApprovalStore({ now: () => Date.now() });
+    // The initiator authenticates as owner 'o1'; the approver authenticates
+    // as a DIFFERENT owner 'o2' (same token-id so token-isolation passes,
+    // distinct principal so SoD is satisfied).
+    let asApprover = false;
+    const d = createDispatcher({
+      ...baseDeps,
+      approvalStore,
+      async resolveAuthContext() {
+        const base = authFor([
+          'owner:read',
+          'owner:write',
+          'owner:draft',
+          'owner:reminders',
+          'owner:share',
+        ]);
+        return asApprover ? { ...base, ownerId: 'o2' } : base;
+      },
+    });
+    const approvalId = await initiateFourEye(d);
+    asApprover = true;
+    const r = await d.dispatch({
+      request: {
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'actions/approve',
+        // Even with NO approver param, auth-derived 'o2' ≠ initiator 'o1'.
+        params: { approvalId },
+      },
+      bearerToken: 'tok',
+    });
+    expect('result' in r).toBe(true);
+    if ('result' in r) {
+      const result = r.result as { status: string };
+      expect(result.status).toBe('approved');
+    }
+  });
+
+  it('self-approval by the same owner is rejected (-32014)', async () => {
+    const { createInMemoryApprovalStore } = await import('../four-eye.js');
+    const approvalStore = createInMemoryApprovalStore({ now: () => Date.now() });
+    const d = createDispatcher({ ...baseDeps, approvalStore });
+    const approvalId = await initiateFourEye(d);
+    const r = await d.dispatch({
+      request: {
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'actions/approve',
+        params: { approvalId },
+      },
+      bearerToken: 'tok',
+    });
+    expect('error' in r).toBe(true);
+    if ('error' in r) expect(r.error.code).toBe(-32014);
+  });
+});
+
 describe('dispatcher.killSwitch', () => {
   it('rejects every call when kill-switch is open', async () => {
     const d = createDispatcher({

@@ -522,9 +522,11 @@ export function createDispatcher(deps: DispatcherDeps) {
     // touching the row, and four-eye SEPARATION-OF-DUTIES additionally
     // requires the approver to be a DIFFERENT principal than the initiator
     // — a gate whose approver can be the initiator is not two-person
-    // control. Both identities resolve through `resolveApproverIdentity`
-    // (canonical: the owner id), and an explicit distinct `approver` param
-    // lets a co-owner / second signer approve; self-approval is rejected
+    // control. The approver is ALWAYS derived from the AUTHENTICATED
+    // context (`resolveApproverIdentity(auth)`), never from the request
+    // body: a client-supplied `approver` would let an initiator forge a
+    // distinct id and defeat separation-of-duties. A genuine second signer
+    // approves by authenticating as themselves; self-approval is rejected
     // with JSON_RPC_APPROVAL_SELF.
     if (method === 'actions/approve') {
       const auth = await deps.resolveAuthContext(bearerToken);
@@ -534,9 +536,8 @@ export function createDispatcher(deps: DispatcherDeps) {
       if (typeof approvalId !== 'string') {
         return buildError(id, JSON_RPC_INVALID_PARAMS, 'approvalId required');
       }
-      const approver = typeof params['approver'] === 'string'
-        ? (params['approver'] as string)
-        : resolveApproverIdentity(auth);
+      // Never trust a client-supplied approver — derive from auth only.
+      const approver = resolveApproverIdentity(auth);
       const existing = await approvalStore.get(approvalId);
       if (!existing) return buildError(id, JSON_RPC_METHOD_NOT_FOUND, `unknown approval: ${approvalId}`);
       if (existing.tokenId !== auth.agentTokenId) {

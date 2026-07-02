@@ -321,134 +321,152 @@ const DEFAULT_TIMEOUT_MS = 10_000;
 const DEFAULT_ALLOWED_PORTS: ReadonlyArray<number> = Object.freeze([80, 443]);
 const DEFAULT_ALLOWED_SCHEMES: ReadonlyArray<string> = Object.freeze(['http:', 'https:']);
 
+const DEFAULT_MAX_REDIRECTS = 5;
+const REDIRECT_STATUSES: ReadonlySet<number> = new Set([301, 302, 303, 307, 308]);
+
+/**
+ * Screen `url` against the full policy (scheme, port, internal-host string
+ * gate, DNS-resolved IP gate, allowlist) and return its safe address set for
+ * pinning. Shared by the initial hop AND every redirect hop so a `Location`
+ * can never escape the SSRF policy the initial URL was held to.
+ */
+async function screenUrl(
+  url: string,
+  options: SafeHttpFetchOptions,
+): Promise<ReadonlyArray<LookupAddress>> {
+  const { addresses } = await assertUrlSafe(url, {
+    ...(options.allowlist !== undefined ? { allowlist: options.allowlist } : {}),
+    ...(options.allowedPorts !== undefined
+      ? { allowedPorts: options.allowedPorts }
+      : {}),
+    ...(options.allowedSchemes !== undefined
+      ? { allowedSchemes: options.allowedSchemes }
+      : {}),
+    ...(options.dnsLookup !== undefined ? { dnsLookup: options.dnsLookup } : {}),
+  });
+  return addresses;
+}
+
 export async function safeHttpFetch(
   url: string,
   options: SafeHttpFetchOptions = {},
 ): Promise<SafeHttpFetchResult> {
-  // 1) Parse + scheme check.
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    throw new SafeHttpFetchError('invalid-url', url, 'URL parse failed');
-  }
-  const allowedSchemes = options.allowedSchemes ?? DEFAULT_ALLOWED_SCHEMES;
-  if (!allowedSchemes.includes(parsed.protocol)) {
-    throw new SafeHttpFetchError(
-      'unsupported-scheme',
-      url,
-      `scheme "${parsed.protocol}" not in [${allowedSchemes.join(', ')}]`,
-    );
-  }
-  // 2) Port check.
-  const allowedPorts = options.allowedPorts ?? DEFAULT_ALLOWED_PORTS;
-  const port =
-    parsed.port !== ''
-      ? Number(parsed.port)
-      : parsed.protocol === 'https:'
-        ? 443
-        : 80;
-  if (!allowedPorts.includes(port)) {
-    throw new SafeHttpFetchError(
-      'denied-port',
-      url,
-      `port ${port} not in [${allowedPorts.join(', ')}]`,
-    );
-  }
-  // 3) Internal-IP / hostname denylist (string-only short-circuit).
-  // Hostname can include zone (e.g. fe80::1%eth0); strip brackets for v6.
-  const rawHost = parsed.hostname.replace(/^\[|\]$/g, '');
-  if (isInternalHost(rawHost)) {
-    throw new SafeHttpFetchError(
-      'denied-internal-ip',
-      url,
-      `host "${rawHost}" resolves to an internal / reserved range`,
-    );
-  }
-  // 3b) DNS-resolved IP screening — closes the gap where a hostname
-  // has an A-record pointing to a private range (e.g. `localtest.me`
-  // → 127.0.0.1) that the string-only check can't see.
-  const lookup = options.dnsLookup ?? defaultDnsLookup;
-  const { internalHit, all: screenedAddresses } = await resolveAndScreen(
-    rawHost,
-    lookup,
-  );
-  if (internalHit) {
-    throw new SafeHttpFetchError(
-      'denied-internal-ip',
-      url,
-      `host "${rawHost}" resolved to internal IP ${internalHit.address}`,
-    );
-  }
-  // 4) Allowlist (when present).
-  const allowlist = options.allowlist ?? [];
-  if (!matchesAllowlist(rawHost, allowlist)) {
-    throw new SafeHttpFetchError(
-      'denied-not-in-allowlist',
-      url,
-      `host "${rawHost}" not in allowlist`,
-    );
-  }
-  // 5) Timeout + PINNED dispatch.
-  //
-  // Pin the screened resolution: hand the safe address set to an undici
-  // Agent whose connect.lookup returns ONLY those IPs, so the socket dials
-  // the exact address we screened (no second, rebindable resolution). When
-  // `screenedAddresses` is empty the host was a literal IP already screened
-  // by the string gate, so no dispatcher pin is needed (and a caller's
-  // custom `fetchImpl` may not accept a `dispatcher` anyway).
   const fetchImpl = options.fetchImpl ?? fetch;
   const usingDefaultFetch = fetchImpl === fetch;
-  const dispatcher =
-    usingDefaultFetch && screenedAddresses.length > 0
-      ? pinnedDispatcher(screenedAddresses)
-      : undefined;
-  const controller = new AbortController();
+  const maxRedirects = options.maxRedirects ?? DEFAULT_MAX_REDIRECTS;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
-  // Build the init loosely: `dispatcher` is a Node/undici-only fetch field
-  // (not in the DOM lib) and `BodyInit` is a DOM type this package's
-  // `types: ["node"]` config doesn't load. Cast through `unknown` so both
-  // the DOM-typed and node-typed `fetch` shapes compile, only attaching the
-  // pinned dispatcher when we own the dispatch (default fetch).
-  const init: Record<string, unknown> = {
-    method: options.method ?? 'GET',
-    headers: options.headers as Record<string, string> | undefined,
-    body: options.body,
-    signal: controller.signal,
-  };
-  if (dispatcher) init.dispatcher = dispatcher;
+
+  // Redirect loop: every hop (initial + each Location) is RE-SCREENED through
+  // the identical policy before it is dispatched. `init.redirect = 'manual'`
+  // stops the platform fetch from auto-following to an un-screened host — the
+  // core SSRF gap. We follow ONLY to re-validated hosts, re-pinning the
+  // dispatcher per hop, and cap the chain at `maxRedirects`.
+  let currentUrl = url;
+  let redirects = 0;
+  let dispatcher: Dispatcher | undefined;
+
   try {
-    const res = await fetchImpl(
-      url,
-      init as unknown as Parameters<typeof fetchImpl>[1],
-    );
-    const headers: Record<string, string> = {};
-    res.headers.forEach((v, k) => {
-      headers[k] = v;
-    });
-    // Close the per-request pinned dispatcher once the body is consumed so
-    // its pooled socket is reclaimed (keep-alive is already clamped to 1ms).
-    const closePinned = (): void => shutdownDispatcher(dispatcher, 'close');
-    return {
-      status: res.status,
-      ok: res.ok,
-      headers,
-      text: async (): Promise<string> => {
-        try {
-          return await res.text();
-        } finally {
-          closePinned();
+    // Screen the first hop up-front so an invalid initial URL throws the same
+    // typed errors as before (invalid-url / unsupported-scheme / denied-*).
+    let screenedAddresses = await screenUrl(currentUrl, options);
+
+    for (;;) {
+      // Pin the screened resolution: hand the safe address set to an undici
+      // Agent whose connect.lookup returns ONLY those IPs, so the socket dials
+      // the exact address we screened (no second, rebindable resolution). A
+      // literal-IP host yields an empty set (already pinned by the string
+      // gate); a custom `fetchImpl` may not accept a `dispatcher`, so we only
+      // pin on the default fetch.
+      dispatcher =
+        usingDefaultFetch && screenedAddresses.length > 0
+          ? pinnedDispatcher(screenedAddresses)
+          : undefined;
+      // Build the init loosely: `dispatcher` + `redirect` are Node/undici
+      // fetch fields and `BodyInit` is a DOM type this package's
+      // `types: ["node"]` config doesn't load. Cast through `unknown` so both
+      // fetch shapes compile.
+      const init: Record<string, unknown> = {
+        method: options.method ?? 'GET',
+        headers: options.headers as Record<string, string> | undefined,
+        body: options.body,
+        signal: controller.signal,
+        // Never auto-follow: a 3xx is returned to us so we can re-screen the
+        // Location before choosing to follow it.
+        redirect: 'manual',
+      };
+      if (dispatcher) init.dispatcher = dispatcher;
+
+      const res = await fetchImpl(
+        currentUrl,
+        init as unknown as Parameters<typeof fetchImpl>[1],
+      );
+
+      // Redirect? Re-screen the Location host under the SAME policy.
+      const location = res.headers.get('location');
+      if (REDIRECT_STATUSES.has(res.status) && location) {
+        if (redirects >= maxRedirects) {
+          shutdownDispatcher(dispatcher, 'destroy');
+          throw new SafeHttpFetchError(
+            'too-many-redirects',
+            url,
+            `exceeded maxRedirects (${maxRedirects})`,
+          );
         }
-      },
-      json: async (): Promise<unknown> => {
+        let nextUrl: string;
         try {
-          return await res.json();
-        } finally {
-          closePinned();
+          nextUrl = new URL(location, currentUrl).toString();
+        } catch {
+          shutdownDispatcher(dispatcher, 'destroy');
+          throw new SafeHttpFetchError(
+            'invalid-redirect',
+            url,
+            `redirect Location "${location}" is not a valid URL`,
+          );
         }
-      },
-    };
+        // Re-screen the redirect target with the identical policy. Any
+        // internal/allowlist violation surfaces as its own typed error so a
+        // redirect to an internal or non-allowlisted host is BLOCKED.
+        const nextAddresses = await screenUrl(nextUrl, options);
+        // Drain the redirect response body + retire the pinned dispatcher of
+        // this hop before moving on.
+        shutdownDispatcher(dispatcher, 'destroy');
+        currentUrl = nextUrl;
+        screenedAddresses = nextAddresses;
+        redirects += 1;
+        continue;
+      }
+
+      const headers: Record<string, string> = {};
+      res.headers.forEach((v, k) => {
+        headers[k] = v;
+      });
+      // Close the per-request pinned dispatcher once the body is consumed so
+      // its pooled socket is reclaimed (keep-alive is already clamped to 1ms).
+      const finalDispatcher = dispatcher;
+      const closePinned = (): void =>
+        shutdownDispatcher(finalDispatcher, 'close');
+      return {
+        status: res.status,
+        ok: res.ok,
+        headers,
+        text: async (): Promise<string> => {
+          try {
+            return await res.text();
+          } finally {
+            closePinned();
+          }
+        },
+        json: async (): Promise<unknown> => {
+          try {
+            return await res.json();
+          } finally {
+            closePinned();
+          }
+        },
+      };
+    }
   } catch (err) {
     // Tear down the pinned dispatcher on any dispatch failure.
     shutdownDispatcher(dispatcher, 'destroy');
