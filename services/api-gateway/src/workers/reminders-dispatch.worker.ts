@@ -36,7 +36,11 @@
 import { sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
 import { withServiceRoleContext } from '@borjie/database';
-import { assertUrlSafe } from '@borjie/enterprise-hardening';
+import {
+  safeHttpFetch,
+  SafeHttpFetchError,
+  type SafeHttpFetchResult,
+} from '@borjie/enterprise-hardening';
 
 import { publishCockpitEvent } from '../services/cockpit-events';
 import {
@@ -162,6 +166,23 @@ export interface RemindersDispatchOptions {
   readonly reRemindAfterMs?: number;
   /** Max re-remind nudges before escalation. Default 2. Bounded + small. */
   readonly maxNudges?: number;
+  /**
+   * SSRF-safe HTTP egress for the Slack webhook POST. Defaults to
+   * `safeHttpFetch`, which screens the initial URL AND RE-SCREENS every
+   * redirect hop (scheme / port / internal-IP denylist / DNS-resolved IP)
+   * before following it — so a 3xx to an internal host can never be
+   * followed. Injectable for tests. Never call the raw platform `fetch`
+   * here: its default `redirect: 'follow'` would chase a redirect to an
+   * un-screened host (the SSRF-via-redirect gap).
+   */
+  readonly safeFetch?: (
+    url: string,
+    init: {
+      readonly method: string;
+      readonly headers: Readonly<Record<string, string>>;
+      readonly body: string;
+    },
+  ) => Promise<SafeHttpFetchResult>;
 }
 
 export interface RemindersDispatchHandle {
@@ -603,30 +624,18 @@ export function createRemindersDispatchWorker(
     const slackMention = slackHandle
       ? `<${slackHandle.startsWith('@') ? slackHandle : `@${slackHandle}`}> `
       : '';
-    // SSRF pre-flight OUTSIDE the send try — `webhook` may be a per-tenant
-    // value (slackWebhookForTenant). A blocked internal/metadata target is a
-    // PERMANENT failure AND a security near-miss: classify it non-retryable
-    // (never churn it to the attempt cap) and warn, matching the sibling
-    // policy in webhook-retry-worker + daily-brief-cron. Screening it inside
-    // the generic catch below would mis-mark it retryable=true.
-    try {
-      await assertUrlSafe(webhook);
-    } catch (ssrfErr) {
-      options.logger.warn(
-        {
-          worker: 'reminders-dispatch',
-          tenantId: r.tenantId,
-          reminderId: r.id,
-          err: ssrfErr instanceof Error ? ssrfErr.message : String(ssrfErr),
-        },
-        'reminders-dispatch: Slack webhook failed SSRF screening — blocked, not retried',
-      );
-      return { outcome: await handleFailure(r, false, 'slack_webhook_unsafe') };
-    }
     const slackLocale = await localeFor(r);
     const slackCopy = localizedCopy(r, slackLocale);
+    const httpFetch = options.safeFetch ?? safeHttpFetch;
     try {
-      const res = await fetch(webhook, {
+      // Route through safeHttpFetch — `webhook` may be a per-tenant value
+      // (slackWebhookForTenant). safeHttpFetch screens the initial URL AND
+      // RE-SCREENS every redirect hop before following it, so a 3xx to an
+      // internal/metadata host can never be followed (the SSRF-via-redirect
+      // gap the old assertUrlSafe-then-raw-fetch left open). No allowlist:
+      // the operator-supplied webhook host is arbitrary, but the internal-IP
+      // denylist + per-hop re-screen still fence off SSRF targets.
+      const res = await httpFetch(webhook, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -650,6 +659,26 @@ export function createRemindersDispatchWorker(
       await markSent(r);
       return { outcome: 'sent' };
     } catch (err) {
+      // A safeHttpFetch policy rejection (SSRF-blocked initial URL OR a
+      // redirect that failed re-screening, unsupported scheme/port, too many
+      // redirects) is a PERMANENT failure AND a security near-miss: classify
+      // it non-retryable (never churn it to the attempt cap) and warn.
+      // Everything else (network / timeout) is a transient transport fault.
+      if (err instanceof SafeHttpFetchError) {
+        options.logger.warn(
+          {
+            worker: 'reminders-dispatch',
+            tenantId: r.tenantId,
+            reminderId: r.id,
+            code: err.code,
+            err: err.message,
+          },
+          'reminders-dispatch: Slack webhook failed SSRF screening — blocked, not retried',
+        );
+        return {
+          outcome: await handleFailure(r, false, `slack_webhook_unsafe:${err.code}`),
+        };
+      }
       return {
         outcome: await handleFailure(
           r,

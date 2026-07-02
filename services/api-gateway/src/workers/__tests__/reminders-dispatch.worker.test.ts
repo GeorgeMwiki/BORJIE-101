@@ -15,6 +15,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
+import { safeHttpFetch } from '@borjie/enterprise-hardening';
 import { createRemindersDispatchWorker } from '../reminders-dispatch.worker.js';
 import { isWithinQuietHours } from '../reminders-quiet-hours.js';
 
@@ -763,5 +764,128 @@ describe('reminders-dispatch — no-reminder-slips sweep (re-remind + escalate)'
           c.sql.includes('dispatched_at = NULL'),
       ),
     ).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// SSRF-via-redirect: the Slack webhook POST must route through
+// safeHttpFetch, which re-screens EVERY redirect hop. A 3xx Location to an
+// internal host must be BLOCKED (not followed); a legit target still
+// delivers. We inject the REAL safeHttpFetch (with a scripted low-level
+// fetchImpl) as the worker's `safeFetch`, so this proves the SUT delegates
+// to the redirect-rescreen policy — not a stub.
+// ─────────────────────────────────────────────────────────────────────
+
+/** A low-level fetch that 302-redirects the first hop to `redirectTo`. */
+function redirectingFetchImpl(redirectTo: string): typeof fetch {
+  let hop = 0;
+  return (async (_url: string) => {
+    hop += 1;
+    if (hop === 1) {
+      return {
+        status: 302,
+        ok: false,
+        headers: new Headers({ location: redirectTo }),
+        text: async () => '',
+        json: async () => ({}),
+      } as unknown as Response;
+    }
+    // Any second hop (should never be reached for an internal target) 200s.
+    return {
+      status: 200,
+      ok: true,
+      headers: new Headers(),
+      text: async () => 'ok',
+      json: async () => ({ ok: true }),
+    } as unknown as Response;
+  }) as unknown as typeof fetch;
+}
+
+/** A low-level fetch that returns a plain 200 (legit delivery). */
+function okFetchImpl(): typeof fetch {
+  return (async () =>
+    ({
+      status: 200,
+      ok: true,
+      headers: new Headers(),
+      text: async () => 'ok',
+      json: async () => ({ ok: true }),
+    }) as unknown as Response) as unknown as typeof fetch;
+}
+
+/** Bind the real safeHttpFetch to a scripted fetchImpl for the worker. */
+function safeFetchWith(fetchImpl: typeof fetch) {
+  return (
+    url: string,
+    init: {
+      readonly method: string;
+      readonly headers: Readonly<Record<string, string>>;
+      readonly body: string;
+    },
+  ) => safeHttpFetch(url, { ...init, fetchImpl });
+}
+
+function slackRow(id: string): Record<string, unknown> {
+  return {
+    id,
+    tenant_id: 't-1',
+    owner_id: 'u-1',
+    title: 'Standup',
+    body: 'Shift handover',
+    channel: 'slack',
+    payload: {},
+    idempotency_key: `idem-${id}`,
+    attempt_count: 0,
+  };
+}
+
+describe('reminders-dispatch — Slack webhook SSRF-via-redirect', () => {
+  it('BLOCKS a Slack webhook that 302-redirects to an internal host (non-retryable)', async () => {
+    const db = makeStubDb([slackRow('ssrf-redirect')]);
+    const w = createRemindersDispatchWorker({
+      db,
+      logger: stubLogger,
+      emailProvider: okEmailProvider,
+      smsProvider: stubSmsProvider,
+      // A legit public host on the FIRST hop that then 302s to the cloud
+      // metadata endpoint. The old code (assertUrlSafe initial URL, then raw
+      // fetch redirect:follow) would follow the redirect; safeHttpFetch
+      // re-screens the Location and blocks it.
+      slackWebhookForTenant: () => 'https://hooks.slack.example/services/T/B/x',
+      safeFetch: safeFetchWith(
+        redirectingFetchImpl('http://169.254.169.254/latest/meta-data/'),
+      ),
+      enabled: true,
+    });
+    const res = await w.tickOnce();
+    expect(res.claimed).toBe(1);
+    expect(res.sent).toBe(0);
+    // Blocked → terminal failure, NOT retried (no re-queue to 'scheduled').
+    expect(res.failed).toBe(1);
+    expect(res.retried).toBe(0);
+    // Terminal 'failed' write happened; no retry re-queue to 'scheduled'.
+    expect(db.calls.some((c) => c.sql.includes("SET status = 'failed'"))).toBe(
+      true,
+    );
+    expect(
+      db.calls.some((c) => c.sql.includes("SET status = 'scheduled'")),
+    ).toBe(false);
+  });
+
+  it('DELIVERS a Slack webhook that reaches a legit target (200)', async () => {
+    const db = makeStubDb([slackRow('legit')]);
+    const w = createRemindersDispatchWorker({
+      db,
+      logger: stubLogger,
+      emailProvider: okEmailProvider,
+      smsProvider: stubSmsProvider,
+      slackWebhookForTenant: () => 'https://hooks.slack.example/services/T/B/x',
+      safeFetch: safeFetchWith(okFetchImpl()),
+      enabled: true,
+    });
+    const res = await w.tickOnce();
+    expect(res.claimed).toBe(1);
+    expect(res.sent).toBe(1);
+    expect(res.failed).toBe(0);
   });
 });

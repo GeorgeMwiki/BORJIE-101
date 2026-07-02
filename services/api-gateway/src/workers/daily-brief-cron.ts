@@ -37,7 +37,11 @@
 import { randomUUID } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
-import { assertUrlSafe } from '@borjie/enterprise-hardening';
+import {
+  safeHttpFetch,
+  SafeHttpFetchError,
+  type SafeHttpFetchResult,
+} from '@borjie/enterprise-hardening';
 import { composeOwnerBrief, persistSnapshot } from '../routes/owner/brief.hono';
 import { callBrainOnce } from '../routes/owner/brain-call';
 import {
@@ -131,7 +135,24 @@ export interface DailyBriefCronOptions {
   readonly intervalMs?: number;
   readonly enabled?: boolean;
   readonly now?: () => Date;
+  /**
+   * SSRF-safe HTTP egress for the Slack webhook POST. Defaults to
+   * `safeHttpFetch`, which screens the initial URL AND RE-SCREENS every
+   * redirect hop before following it — closing the SSRF-via-redirect gap the
+   * old assertUrlSafe-then-raw-fetch left open. Injectable for tests.
+   */
+  readonly safeFetch?: SafeFetch;
 }
+
+/** SSRF-safe egress signature shared across the cron's dispatch legs. */
+type SafeFetch = (
+  url: string,
+  init: {
+    readonly method: string;
+    readonly headers: Readonly<Record<string, string>>;
+    readonly body: string;
+  },
+) => Promise<SafeHttpFetchResult>;
 
 export interface DailyBriefCronHandle {
   start(): void;
@@ -323,6 +344,7 @@ interface RunForTenantArgs {
   readonly slackWebhookForTenant?: (tenantId: string) => string | null;
   readonly tenant: DueTenant;
   readonly now: Date;
+  readonly safeFetch?: SafeFetch;
 }
 
 async function runForTenant(
@@ -681,20 +703,6 @@ async function dispatchOne(args: DispatchOneArgs): Promise<DispatchResult> {
         errorMessage: 'no webhook configured for tenant',
       };
     }
-    // SSRF pre-flight — the webhook may be a per-tenant value
-    // (slackWebhookForTenant); screen it before dispatch so an internal /
-    // metadata target can never be reached. Fails closed (no send).
-    try {
-      await assertUrlSafe(webhook);
-    } catch (err) {
-      return {
-        status: 'failed',
-        errorCode: 'slack_webhook_unsafe',
-        errorMessage: `SSRF-blocked Slack webhook: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      };
-    }
     const slackHeader =
       recipientLocale === 'sw'
         ? `*Bw. Mwikila — muhtasari wa siku* (${args.snapshotDate})`
@@ -707,7 +715,13 @@ async function dispatchOne(args: DispatchOneArgs): Promise<DispatchResult> {
         : action
           ? `\n_Action:_ ${action}`
           : '';
-    const res = await fetch(webhook, {
+    // Route through safeHttpFetch: the webhook may be a per-tenant value
+    // (slackWebhookForTenant). safeHttpFetch screens the initial URL AND
+    // RE-SCREENS every redirect hop before following it, so a 3xx to an
+    // internal/metadata host can never be followed — closing the
+    // SSRF-via-redirect gap the old assertUrlSafe-then-raw-fetch left open.
+    const httpFetch = args.safeFetch ?? safeHttpFetch;
+    const res = await httpFetch(webhook, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -728,6 +742,16 @@ async function dispatchOne(args: DispatchOneArgs): Promise<DispatchResult> {
     }
     return { status: 'sent' };
   } catch (err) {
+    // A safeHttpFetch policy rejection (SSRF-blocked initial URL OR a redirect
+    // that failed re-screening, bad scheme/port, too many redirects) fails
+    // closed with a clear code; anything else is a transport fault.
+    if (err instanceof SafeHttpFetchError) {
+      return {
+        status: 'failed',
+        errorCode: `slack_webhook_unsafe:${err.code}`,
+        errorMessage: `SSRF-blocked Slack webhook: ${err.message}`,
+      };
+    }
     return {
       status: 'failed',
       errorCode: 'dispatch_threw',
