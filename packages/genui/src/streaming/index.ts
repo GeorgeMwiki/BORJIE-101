@@ -53,9 +53,10 @@ export {
   type ChoreographyTickEvent,
 } from "./choreography-engine";
 
-export {
-  useChoreography,
-  staggeredReveal,
-  type UseChoreographyResult,
-  type UseChoreographyOptions,
-} from "./use-choreography";
+// NOTE: the React CLIENT hook (`useChoreography` / `staggeredReveal`, a
+// `'use client'` module that references bare `window`) is INTENTIONALLY
+// NOT re-exported from this barrel. This `streaming/index` is pulled into
+// the node-safe `@borjie/genui/server` entry (see `../server.ts`), and a
+// bare-`window` module in the server type graph breaks `services/api-gateway`
+// typecheck. The hook is exported ONLY from the React entry
+// (`@borjie/genui`, `../index.ts`), which owner-web imports.

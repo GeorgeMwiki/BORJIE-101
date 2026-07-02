@@ -110,7 +110,16 @@ export function useChoreography(
     if (reduced || !hasRaf()) return;
 
     const total = totalChoreographyMs(choreo);
-    if (total <= 0) return; // nothing timed to animate
+    if (total <= 0) {
+      // Nothing is timed to animate (e.g. a single-artifact staggered
+      // reveal where every cue is atMs<=0). The rAF loop below would never
+      // run, leaving `revealed` empty FOREVER — the artifact would be
+      // invisible to default (non-reduced-motion) users while reduced-motion
+      // users saw it. Reveal every atMs<=0 cue synchronously so a zero-time
+      // choreography shows immediately, matching the instant reduced path.
+      setState((prev) => tickChoreography(prev, choreo, 0).state);
+      return;
+    }
 
     let cancelled = false;
 
