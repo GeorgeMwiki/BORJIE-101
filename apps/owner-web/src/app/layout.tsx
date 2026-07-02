@@ -4,7 +4,7 @@ import './globals.css';
 import { OwnerShell } from '@/components/OwnerShell';
 import { AppProviders } from './providers';
 import { BorjieWidgetMount } from '@/components/BorjieWidgetMount';
-import { OwnerCommandPalette } from '@/components/OwnerCommandPalette';
+import { OwnerCommandPaletteMount } from '@/components/OwnerCommandPaletteMount';
 import { WebVitalsReporter } from '@/components/perf/WebVitalsReporter';
 import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister';
 import { FeedbackButton } from '@/components/FeedbackButton';
@@ -90,8 +90,12 @@ export default async function RootLayout({
             {/* Wave SUPERPOWERS - universal Cmd-K palette. Mounted at
                 the root so it works on every owner screen. Language
                 follows the resolved `borjie_locale` (default 'en') — the
-                same source the layout chrome and dashboard read. */}
-            <OwnerCommandPalette languagePreference={locale} />
+                same source the layout chrome and dashboard read. The
+                client mount supplies the palette's WORKING callbacks
+                (action-intent / spawn-tab / sign-out) and mounts the
+                superpower CustomEvent receivers (form-prefill +
+                highlight) — without it those rows/events are no-ops. */}
+            <OwnerCommandPaletteMount languagePreference={locale} />
               </>
             )}
             {/* SOTA lazy-load Wave — Web Vitals side-channel reporter.

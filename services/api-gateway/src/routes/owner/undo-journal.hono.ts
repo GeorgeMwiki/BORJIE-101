@@ -66,6 +66,11 @@ const REVERSE_TARGETS: Readonly<Record<string, ReverseTarget>> = Object.freeze({
   bids: { table: 'marketplace_bids', columns: ['status', 'attributes'] },
   document_uploads: { table: 'document_uploads', columns: ['deleted_at'] },
   documents: { table: 'document_uploads', columns: ['deleted_at'] },
+  // Undo of a `pin` (mining.ui.bookmark): the journal row carries
+  // `beforeState.unpinned_at` so reverse-replay soft-deletes (un-pins)
+  // the row the owner just pinned. Scoped to the single soft-delete
+  // column so a tampered snapshot can never rewrite the entity/owner.
+  pinned_items: { table: 'pinned_items', columns: ['unpinned_at'] },
 });
 
 function toSnakeCase(key: string): string {

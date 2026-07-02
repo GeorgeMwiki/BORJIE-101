@@ -19,12 +19,61 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { and, asc, eq, isNull } from 'drizzle-orm';
 
-import { pinnedItems, PIN_ENTITY_TYPES } from '@borjie/database';
+import { pinnedItems, PIN_ENTITY_TYPES, undoJournal } from '@borjie/database';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { createLogger } from '../../utils/logger';
 
 const moduleLogger = createLogger('owner-pinned-items');
+
+/**
+ * Append an undo-journal row for a fresh/reactivated pin so the FE
+ * "Undo" chip actually reverses THIS pin (previously the chip posted to
+ * /undo-journal/undo-last which, finding no pin row, reversed an
+ * UNRELATED recent action). The journal row targets the pinned_items
+ * table by the pin's own id; `beforeState.unpinned_at` carries the
+ * reversal timestamp so the generative reverse-replay soft-deletes
+ * (un-pins) the row. Best-effort: a journal failure never fails the
+ * pin itself — the pin already landed — but is logged so it is never
+ * silently swallowed. Returns the journal id (or null on failure) so
+ * the FE only lights the Undo chip when a real reversible entry exists.
+ */
+async function appendPinUndoEntry(
+  db: any,
+  tenantId: string,
+  actorId: string,
+  pinnedItemId: string,
+  entityType: string,
+  entityId: string,
+): Promise<string | null> {
+  try {
+    const [row] = await db
+      .insert(undoJournal)
+      .values({
+        tenantId,
+        actorId,
+        entityType: 'pinned_items',
+        entityId: pinnedItemId,
+        actionKind: 'pin',
+        toolId: 'mining.ui.bookmark',
+        // Reverse-replay writes these columns back onto the pin row.
+        // Setting `unpinned_at` un-pins (soft-deletes) it — the correct
+        // undo of a just-created pin.
+        beforeState: { unpinned_at: new Date().toISOString() },
+        afterState: { entityType, entityId, unpinned_at: null },
+        windowSeconds: 300,
+      })
+      .returning();
+    return row?.id ?? null;
+  } catch (e) {
+    moduleLogger.error('owner-pinned-items: undo-journal append failed', {
+      tenantId,
+      pinnedItemId,
+      error: e instanceof Error ? e.message : String(e),
+    });
+    return null;
+  }
+}
 
 const pinSchema = z.object({
   entityType: z.enum(PIN_ENTITY_TYPES),
@@ -127,18 +176,28 @@ app.post('/', async (c: any) => {
           })
           .where(eq(pinnedItems.id, existing.id))
           .returning();
+        const undoJournalId = await appendPinUndoEntry(
+          db,
+          auth.tenantId,
+          ownerId,
+          row.id,
+          input.entityType,
+          input.entityId,
+        );
         return c.json({
           success: true,
-          data: { pinnedItemId: row.id, position: row.position, label: row.label },
+          data: { pinnedItemId: row.id, position: row.position, label: row.label, undoJournalId },
         });
       }
-      // Already pinned and active - return idempotent success.
+      // Already pinned and active - return idempotent success. No new
+      // undo entry: nothing changed, so there is nothing to reverse.
       return c.json({
         success: true,
         data: {
           pinnedItemId: existing.id,
           position: existing.position,
           label: existing.label,
+          undoJournalId: null,
         },
       });
     }
@@ -155,17 +214,27 @@ app.post('/', async (c: any) => {
       })
       .returning();
 
+    const undoJournalId = await appendPinUndoEntry(
+      db,
+      auth.tenantId,
+      ownerId,
+      row.id,
+      input.entityType,
+      input.entityId,
+    );
+
     moduleLogger.info('owner-pinned-items: pinned', {
       tenantId: auth.tenantId,
       ownerId,
       pinnedItemId: row.id,
       entityType: input.entityType,
+      undoJournalId,
     });
 
     return c.json(
       {
         success: true,
-        data: { pinnedItemId: row.id, position: row.position, label: row.label },
+        data: { pinnedItemId: row.id, position: row.position, label: row.label, undoJournalId },
       },
       201,
     );

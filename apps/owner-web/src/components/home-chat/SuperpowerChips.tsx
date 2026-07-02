@@ -36,6 +36,10 @@ import { pickByLocale } from '@/lib/locale-shared';
 import { gatewayFetch, type FetchResult } from '@/lib/gateway-result';
 import { captureMessage } from '@/lib/sentry';
 import { superpowerChipsStrings as S } from '@/i18n/strings/superpower-chips';
+import {
+  FORM_PREFILL_EVENT_NAME,
+  HIGHLIGHT_EVENT_NAME,
+} from './superpower-events';
 
 // ─── Schemas (mirrors services/api-gateway/src/routes/ui-navigate-parser.ts) ─
 
@@ -122,8 +126,12 @@ type HighlightEvent = {
   tone: 'info' | 'success' | 'warning' | 'critical';
 };
 
-export const FORM_PREFILL_EVENT_NAME = 'borjie:form-prefill';
-export const HIGHLIGHT_EVENT_NAME = 'borjie:highlight';
+// Re-exported (imported at the top from the leaf `superpower-events`
+// module) so the receiver island (`SuperpowerListeners`) can import the
+// names without dragging this component's heavy transitive deps
+// (sentry/pino, gateway-fetch) into its bundle. Call sites keep
+// importing them from here unchanged.
+export { FORM_PREFILL_EVENT_NAME, HIGHLIGHT_EVENT_NAME };
 
 export function publishFormPrefill(payload: FormPrefillEvent): void {
   if (typeof window === 'undefined') return;
@@ -366,12 +374,17 @@ export function SuperpowerChips(props: SuperpowerChipsProps): ReactElement | nul
   }, []);
 
   const onBookmark = useCallback(async (chip: UiBookmarkChip) => {
-    const data = await postJsonData<{ pinnedItemId: string }>(
-      '/api/v1/owner/pinned-items',
-      chip,
-    );
-    if (data?.pinnedItemId) {
-      setActiveUndoIds([data.pinnedItemId]);
+    const data = await postJsonData<{
+      pinnedItemId: string;
+      undoJournalId: string | null;
+    }>('/api/v1/owner/pinned-items', chip);
+    // Surface the Undo chip ONLY when the pin wrote a reversible
+    // undo-journal entry. Feeding the pinnedItemId here (as before) let
+    // UndoChip post /undo-last, which — with no pin journal row —
+    // reversed an UNRELATED recent action. A re-pin of an already-active
+    // item returns `undoJournalId: null` (nothing changed to undo).
+    if (data?.undoJournalId) {
+      setActiveUndoIds([data.undoJournalId]);
     }
   }, []);
 
