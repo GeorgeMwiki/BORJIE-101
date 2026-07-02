@@ -482,7 +482,28 @@ e.g. "kompyuta", "simu"), or (b) replace it everywhere with a native term
 glossary drift. No user-visible mixing today; this is a terminology ratification,
 not a bug.
 
-End of register. **Open KI count: 0 user-reachable customer-facing; 1 incomplete feature (KI-017); 3 non-customer residuals (KI-018 admin-i18n nav-fixed, KI-019 audit-sweep tail-truncation, KI-020 scoop loanword glossary decision).**
+### KI-021 — marketing sw.json carries a deep domain/technical English register in both locales (glossary pass) — **REGISTERED 2026-07-03 — LOW (glossary decision, consistent both-locale usage)**
+
+After round-6 fixed the clear injected English fragments in `apps/marketing/src/i18n/sw.json`
+(roadmap pills, /buyers copy) and added the `locale-purity.test.ts` gate, ~50
+Swahili values still embed English domain/technical terms used CONSISTENTLY in
+BOTH en and sw copy: drill-hole, audit chain, off-take, biometric, assay,
+commission, tenant, append-only, payroll, hedge, pipeline, LBMA spot, OCR. These
+are non-byte-equal (partial fragments), so the new purity gate does not flag them.
+
+**Decision needed (owner/glossary):** ratify these as adopted domain loanwords
+(many have no crisp Swahili equivalent) OR run ONE deliberate Swahili-ization
+pass with canonical translations. Distinct from the named injected phrases (those
+were fixed). A stricter fragment-level lint would be the enforcement follow-up.
+
+### KI-022 — apps/marketing/src/i18n/sw.approved.json is a stale dead snapshot — **REGISTERED 2026-07-03 — LOW (dead file, hygiene)**
+
+`apps/marketing/src/i18n/sw.approved.json` differs from the live `sw.json` and is
+referenced NOWHERE in source (the app imports `sw.json` via `lib/i18n.ts`). It is
+a stale translation snapshot. Delete it, or re-sync + wire it into an approval
+workflow if it was meant to be a review gate. No runtime impact (unimported).
+
+End of register. **Open KI count: 0 user-reachable customer-facing; 1 incomplete feature (KI-017); 5 non-customer residuals (KI-018 admin-i18n nav-fixed, KI-019 audit-sweep tail-truncation, KI-020 scoop loanword, KI-021 marketing domain glossary, KI-022 sw.approved dead file).**
 
 ---
 
