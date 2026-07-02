@@ -5348,6 +5348,9 @@ importers:
       '@borjie/ledger-attestor':
         specifier: workspace:*
         version: link:../../packages/ledger-attestor
+      '@borjie/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       '@borjie/system-graph':
         specifier: workspace:*
         version: link:../../packages/system-graph

@@ -736,6 +736,16 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0375_oauth_action_approvals_initiated_by.sql",
+      "down": "down/0375_down_oauth_action_approvals_initiated_by.sql",
+      "reverses": "Drops the oauth_action_approvals.initiated_by column 0375 adds (the four-eye separation-of-duties initiator identity for the durable Postgres-backed ApprovalStore). Dev/staging only — DATA LOSS: any pending four-eye approvals lose their initiator, forfeiting durable self-approval rejection until re-created. No money/licence/ledger records touched.",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }
