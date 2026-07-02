@@ -17,12 +17,6 @@ import { useI18n } from '../../src/i18n/useI18n'
 
 const SCREEN_ID = 'W-M-08'
 
-const COPY = {
-  errorPrefix: 'Hitilafu: ',
-  sealOk: 'Sampuli imehifadhiwa kwenye seva.',
-  sealQueued: 'Sampuli imehifadhiwa offline.'
-} as const
-
 interface Attributes {
   readonly chain?: ReadonlyArray<{ actor?: string; role?: string; atISO?: string }>
 }
@@ -140,7 +134,7 @@ function SampleView(): JSX.Element {
       ) : null}
       {query.error && !networkError ? (
         <Section title="Sampuli za leo">
-          <Text style={styles.errorText}>{COPY.errorPrefix}{query.error.message}</Text>
+          <Text style={styles.errorText}>{copy.errorPrefix}{query.error.message}</Text>
         </Section>
       ) : null}
       {!query.isLoading && !query.error && samples.length === 0 ? (
@@ -224,13 +218,13 @@ function SampleView(): JSX.Element {
             />
           )}
           {confirmation === 'ok' ? (
-            <Text style={styles.successText}>{COPY.sealOk}</Text>
+            <Text style={styles.successText}>{copy.wm08SealOk}</Text>
           ) : null}
           {confirmation === 'queued' ? (
-            <Text style={styles.warnText}>{COPY.sealQueued}</Text>
+            <Text style={styles.warnText}>{copy.wm08SealQueued}</Text>
           ) : null}
           {sealMutation.error && sealMutation.error.status !== 0 && sealMutation.error.status !== 503 ? (
-            <Text style={styles.errorText}>{COPY.errorPrefix}{sealMutation.error.message}</Text>
+            <Text style={styles.errorText}>{copy.errorPrefix}{sealMutation.error.message}</Text>
           ) : null}
         </Section>
       ) : null}

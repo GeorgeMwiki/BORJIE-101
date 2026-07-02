@@ -18,12 +18,6 @@ import { useI18n } from '../../src/i18n/useI18n'
 const SCREEN_ID = 'W-M-06'
 const HISTORY_LIMIT = 10
 
-const COPY = {
-  errorPrefix: 'Hitilafu: ',
-  scoopOk: 'Scoop imerekodiwa kwenye seva.',
-  scoopQueued: 'Scoop imehifadhiwa offline.'
-} as const
-
 interface OreParcel {
   readonly id: string
   readonly siteId: string
@@ -128,10 +122,10 @@ function ExcavatorCounter(): JSX.Element {
         </Pressable>
         {isOffline ? <PreviewBanner kind="offline" /> : null}
         {mutation.error && !isOffline && mutation.error.status !== 0 ? (
-          <Text style={styles.errorText}>{COPY.errorPrefix}{mutation.error.message}</Text>
+          <Text style={styles.errorText}>{copy.errorPrefix}{mutation.error.message}</Text>
         ) : null}
         {mutation.isSuccess ? (
-          <Text style={styles.successText}>{COPY.scoopOk}</Text>
+          <Text style={styles.successText}>{copy.wm06ScoopOk}</Text>
         ) : null}
       </Section>
       <Section title={`Historia ya hivi karibuni (${rows.length}/${HISTORY_LIMIT})`}>
@@ -143,7 +137,7 @@ function ExcavatorCounter(): JSX.Element {
         ) : null}
         {history.error && networkError ? <PreviewBanner kind="env-missing" /> : null}
         {history.error && !networkError ? (
-          <Text style={styles.errorText}>{COPY.errorPrefix}{history.error.message}</Text>
+          <Text style={styles.errorText}>{copy.errorPrefix}{history.error.message}</Text>
         ) : null}
         {!history.isLoading && !history.error && rows.length === 0 ? (
           <View>

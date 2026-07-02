@@ -998,7 +998,17 @@
       "wm18Empty": "No documents to sign.",
       "wm20Loading": "Creating letter...",
       "wm22Loading": "Loading training catalogue...",
-      "wm22Empty": "No training paths assigned."
+      "wm22Empty": "No training paths assigned.",
+      "errorPrefix": "Error: ",
+      "wm05PingsError": "Failed to load pings.",
+      "wm05ReplyNotePrefix": "Reply will be saved offline (reply endpoint not configured: ",
+      "wm05ReplyNoteSuffix": ").",
+      "wm05ReplyOk": "Reply sent to the server.",
+      "wm05ReplyQueued": "Reply saved offline.",
+      "wm06ScoopOk": "Scoop recorded on the server.",
+      "wm06ScoopQueued": "Scoop saved offline.",
+      "wm08SealOk": "Sample sealed on the server.",
+      "wm08SealQueued": "Sample sealed offline."
     }
   },
   "cockpit": {

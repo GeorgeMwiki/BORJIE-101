@@ -20,14 +20,6 @@ const SCREEN_ID = 'W-M-05'
 // `POST /api/v1/mining/cockpit/sic-pings` (or a /reply sibling).
 const MISSING_REPLY_ENDPOINT = 'POST /api/v1/mining/cockpit/sic-pings (reply)'
 
-const COPY = {
-  pingsError: 'Imeshindwa kupakia pings.',
-  errorPrefix: 'Hitilafu: ',
-  replyNote: `Jibu litahifadhiwa offline (endpoint ya jibu haijaundwa: ${MISSING_REPLY_ENDPOINT}).`,
-  replyOk: 'Jibu limetumwa kwenye seva.',
-  replyQueued: 'Jibu limehifadhiwa offline.'
-} as const
-
 interface SicPingRow {
   readonly id: string
   readonly siteId: string | null
@@ -113,7 +105,7 @@ function PingsView(): JSX.Element {
             <Text style={styles.muted}>{copy.wm05LoadingPings}</Text>
           </View>
         ) : pings.isError ? (
-          <Text style={styles.errorText}>{COPY.pingsError}</Text>
+          <Text style={styles.errorText}>{copy.wm05PingsError}</Text>
         ) : items.length === 0 ? (
           <Text style={styles.muted}>{copy.wm05Empty}</Text>
         ) : (
@@ -129,7 +121,7 @@ function PingsView(): JSX.Element {
         )}
       </Section>
       <Section title="Tuma jibu la haraka" hint="Itahifadhiwa kwa sync ukirudi mtandaoni">
-        <Text style={styles.replyNote}>{COPY.replyNote}</Text>
+        <Text style={styles.replyNote}>{copy.wm05ReplyNotePrefix}{MISSING_REPLY_ENDPOINT}{copy.wm05ReplyNoteSuffix}</Text>
         <Text style={styles.fieldLabel}>Mizigo iliyofanyika</Text>
         <TextInput
           value={loads}
@@ -162,12 +154,12 @@ function PingsView(): JSX.Element {
         {confirmation !== 'idle' ? (
           <View style={styles.confirmBox}>
             <Text style={styles.confirmText}>
-              {confirmation === 'ok' ? COPY.replyOk : COPY.replyQueued}
+              {confirmation === 'ok' ? copy.wm05ReplyOk : copy.wm05ReplyQueued}
             </Text>
           </View>
         ) : null}
         {mutation.error ? (
-          <Text style={styles.errorText}>{COPY.errorPrefix}{mutation.error.message}</Text>
+          <Text style={styles.errorText}>{copy.errorPrefix}{mutation.error.message}</Text>
         ) : null}
       </Section>
     </View>

@@ -998,7 +998,17 @@
       "wm18Empty": "Hakuna hati za kusaini.",
       "wm20Loading": "Inatengeneza barua...",
       "wm22Loading": "Inapakia mafunzo...",
-      "wm22Empty": "Hakuna mafunzo umepangiwa."
+      "wm22Empty": "Hakuna mafunzo umepangiwa.",
+      "errorPrefix": "Hitilafu: ",
+      "wm05PingsError": "Imeshindwa kupakia pings.",
+      "wm05ReplyNotePrefix": "Jibu litahifadhiwa offline (endpoint ya jibu haijaundwa: ",
+      "wm05ReplyNoteSuffix": ").",
+      "wm05ReplyOk": "Jibu limetumwa kwenye seva.",
+      "wm05ReplyQueued": "Jibu limehifadhiwa offline.",
+      "wm06ScoopOk": "Scoop imerekodiwa kwenye seva.",
+      "wm06ScoopQueued": "Scoop imehifadhiwa offline.",
+      "wm08SealOk": "Sampuli imehifadhiwa kwenye seva.",
+      "wm08SealQueued": "Sampuli imehifadhiwa offline."
     }
   },
   "cockpit": {
