@@ -3174,6 +3174,10 @@
     "goHome": "Back to home"
   },
   "pageMeta": {
+    "home": {
+      "metaTitle": "Borjie — AI-native mining estate OS",
+      "metaDescription": "Borjie is an AI-native mining estate operating system, with Mr. Mwikila as its brain layer — licences, royalty, workforce, treasury, compliance, marketplace."
+    },
     "pricing": {
       "metaTitle": "Pricing · Borjie",
       "metaDescription": "Borjie pricing: Mwanzo (free), Mkulima, Mfanyabiashara, Kampuni, Group. All tiers in TZS. Pay via M-Pesa, Tigo Pesa, Airtel Money, or bank."

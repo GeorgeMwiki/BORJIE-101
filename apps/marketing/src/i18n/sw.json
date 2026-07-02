@@ -3174,6 +3174,10 @@
     "goHome": "Rudi nyumbani"
   },
   "pageMeta": {
+    "home": {
+      "metaTitle": "Borjie — mfumo wa uendeshaji wa migodi",
+      "metaDescription": "Borjie ni mfumo wa uendeshaji wa mashamba ya migodi wenye akili bandia, na Bwana Mwikila ni ubongo wake — leseni, mrabaha, wafanyakazi, hazina, soko."
+    },
     "pricing": {
       "metaTitle": "Bei · Borjie",
       "metaDescription": "Bei za Borjie: Mwanzo (bure), Mkulima, Mfanyabiashara, Kampuni, Group. Vifurushi vyote kwa TZS. Lipa kwa M-Pesa, Tigo Pesa, Airtel Money au benki."

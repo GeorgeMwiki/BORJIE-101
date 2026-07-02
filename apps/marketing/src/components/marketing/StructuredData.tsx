@@ -39,11 +39,26 @@ interface GraphNode {
 }
 
 /**
+ * Honest, glossary-consistent Organization description per active locale. The
+ * @graph advertises `inLanguage: locale`, so an English sentence sitting under a
+ * `/sw` graph is a zero-mix seam AI crawlers read verbatim — the description
+ * must match the page's own language. Both carry the SAME domain-true identity
+ * (mining-estate OS, TZ + pan-African, Mr. Mwikila brain layer, the six core
+ * capabilities). No invented metrics, ratings, or counts.
+ */
+const ORG_DESCRIPTION: Record<string, string> = {
+  en: 'An AI-native mining estate operating system for Tanzanian and pan-African mining — licences, royalty, workforce, treasury, compliance, and marketplace, orchestrated end to end.',
+  sw: 'Mfumo wa uendeshaji wa mashamba ya migodi wenye akili bandia kwa migodi ya Tanzania na Afrika — leseni, mrabaha, wafanyakazi, hazina, uzingatiaji na soko, vinavyoendeshwa mwanzo hadi mwisho.',
+};
+
+/**
  * Honest identity @graph. Description is domain-true (mining-estate OS, TZ
- * launch, bilingual); `areaServed` reflects the launch beachhead + region;
- * `knowsLanguage` is the real bilingual pair. No metrics, ratings, or counts.
+ * launch, bilingual) in the ACTIVE locale; `areaServed` reflects the launch
+ * beachhead + region; `knowsLanguage` is the real bilingual pair. No metrics,
+ * ratings, or counts.
  */
 export function buildGraph(locale: string): GraphNode {
+  const description = ORG_DESCRIPTION[locale] ?? ORG_DESCRIPTION.en;
   return {
     '@context': 'https://schema.org',
     '@graph': [
@@ -52,8 +67,7 @@ export function buildGraph(locale: string): GraphNode {
         '@id': ORG_ID,
         name: 'Borjie',
         url: BASE_URL,
-        description:
-          'An AI-native mining estate operating system for Tanzanian and pan-African mining — licences, royalty, workforce, treasury, compliance, and marketplace, orchestrated end to end.',
+        description,
         logo: {
           '@type': 'ImageObject',
           url: `${BASE_URL}/favicon.svg`,
