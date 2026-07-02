@@ -42,7 +42,6 @@ import {
   createInMemorySubscriptionRegistry,
   createInMemorySessionStore,
   createSessionManager,
-  createInMemoryApprovalStore,
   createUnsupportedSamplingResponder,
   createEmptyRootsProvider,
   createEmptyWorkspaceProvider,
@@ -56,6 +55,7 @@ import {
   type SseEvent,
 } from '@borjie/mcp-server-borjie';
 import { oauthAgentTokens, platformKillswitchState } from '@borjie/database';
+import { createApprovalStore } from '../mcp/pg-approval-store';
 import jwt from 'jsonwebtoken';
 import { getJwtSecret } from '../config/jwt';
 // NoPin: this is a long-lived MCP surface (SSE transport + JSON-RPC proxy to
@@ -100,8 +100,16 @@ const rateLimiter = createTokenBucketRateLimiter();
 const subscriptions = createInMemorySubscriptionRegistry();
 const sessionStore = createInMemorySessionStore();
 const sessionManager = createSessionManager({ store: sessionStore });
-const approvalStore = createInMemoryApprovalStore();
 const sharedLogLevel = createLogLevelController('info');
+
+// Four-eye approval store is DURABLE (Postgres-backed) per request: the
+// HIGH-risk sovereign-prefix gate must survive gateway restarts and be
+// consistent across replicas. `createApprovalStore` returns the
+// Postgres store when a live db is present and falls back to an
+// in-memory store only when the registry is not live (dev / no-db).
+function resolveApprovalStore(db: unknown) {
+  return createApprovalStore((db ?? null) as Parameters<typeof createApprovalStore>[0]);
+}
 
 const gatewayClient = createGatewayClient({ baseUrl: PUBLIC_API_BASE });
 
@@ -238,7 +246,7 @@ function buildDeps(db: unknown) {
     rateLimiter,
     subscriptions,
     sessionManager,
-    approvalStore,
+    approvalStore: resolveApprovalStore(db),
     samplingResponder: createUnsupportedSamplingResponder(),
     rootsProvider: createEmptyRootsProvider(),
     workspaceProvider: createEmptyWorkspaceProvider(),
@@ -416,6 +424,7 @@ app.post('/actions/approve', authMiddleware, async (c) => {
   if (typeof approvalId !== 'string' || approvalId.length === 0) {
     return c.json({ success: false, error: 'approvalId required' }, 400);
   }
+  const approvalStore = resolveApprovalStore(db);
   const approval = await approvalStore.get(approvalId);
   if (!approval) return c.json({ success: false, error: 'unknown approval' }, 404);
   const ownerTenant = await resolveApprovalTenant(db, approval.tokenId);
@@ -460,6 +469,7 @@ app.post('/actions/deny', authMiddleware, async (c) => {
   if (typeof approvalId !== 'string' || approvalId.length === 0) {
     return c.json({ success: false, error: 'approvalId required' }, 400);
   }
+  const approvalStore = resolveApprovalStore(db);
   const approval = await approvalStore.get(approvalId);
   if (!approval) return c.json({ success: false, error: 'unknown approval' }, 404);
   const ownerTenant = await resolveApprovalTenant(db, approval.tokenId);

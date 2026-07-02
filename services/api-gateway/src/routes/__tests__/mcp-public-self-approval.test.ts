@@ -19,6 +19,10 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { Hono } from 'hono';
 import jwt from 'jsonwebtoken';
+import {
+  makeApprovalRowStore,
+  makeFakeApprovalDb,
+} from '../../mcp/__tests__/fake-approval-db';
 
 const JWT_SECRET = 'test-jwt-secret-four-eye-sod-0123456789abcdef';
 // Must be set before hono-auth (transitively imported by the router) loads.
@@ -30,44 +34,37 @@ const TENANT = 'tenant-fe-1';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let mcpPublicRouter: any;
 
-// A drizzle-shaped stub answering the three reads the route makes, branched on
-// the SELECT projection: resolveAuthContext (has clientLabel) -> agent row;
-// killSwitchOpen (has level) -> no halt row; resolveApprovalTenant (only
-// tenantId) -> the owner's tenant.
-function stubDb() {
-  const rowsFor = (selector: Record<string, unknown>) => {
-    const keys = Object.keys(selector ?? {});
-    if (keys.includes('clientLabel')) {
-      return [
-        {
-          id: 'tok-fe-1',
-          tenantId: TENANT,
-          userId: OWNER,
-          scopes: ['owner:write', 'admin:read'],
-          clientLabel: 'fe-agent',
-          revokedAt: null,
-          expiresAt: new Date(Date.now() + 3_600_000),
-          issuedAt: new Date(Date.now() - 1_000),
-        },
-      ];
-    }
-    if (keys.includes('level')) return []; // killswitch: no halt row => normal
-    if (keys.length === 1 && keys[0] === 'tenantId') return [{ tenantId: TENANT }];
-    return [];
-  };
-  return {
-    select: (selector: Record<string, unknown>) => ({
-      from: () => ({
-        where: () => ({ limit: async () => rowsFor(selector) }),
-      }),
-    }),
-  };
+// A durable-store-shaped fake db (in-memory rows behind the drizzle
+// surface) so the REAL Postgres ApprovalStore code path runs: the
+// `POST /mcp` seed persists a pending row via insert().returning(), and
+// `POST /actions/approve` reads/updates it. One shared `rows` map is
+// injected per app so create -> approve share state across requests
+// (the durable-table equivalent). The route's projected reads
+// (resolveAuthContext -> clientLabel, killSwitchOpen -> level,
+// resolveApprovalTenant -> tenantId) are answered by authRow/tenantRow.
+function makeDb(rows: ReturnType<typeof makeApprovalRowStore>) {
+  return makeFakeApprovalDb({
+    rows,
+    authRow: {
+      id: 'tok-fe-1',
+      tenantId: TENANT,
+      userId: OWNER,
+      scopes: ['owner:write', 'admin:read'],
+      clientLabel: 'fe-agent',
+      revokedAt: null,
+      expiresAt: new Date(Date.now() + 3_600_000),
+      issuedAt: new Date(Date.now() - 1_000),
+    },
+    tenantRow: { tenantId: TENANT },
+  });
 }
 
 function testApp(): Hono {
   const app = new Hono();
+  const rows = makeApprovalRowStore();
+  const db = makeDb(rows);
   app.use('*', async (c, next) => {
-    c.set('db', stubDb());
+    c.set('db', db);
     c.set('repos', {});
     return next();
   });
