@@ -247,6 +247,15 @@ async function insertBenchmarkRow(
   },
 ): Promise<boolean> {
   try {
+    // Migration 0374 added UNIQUE (source, metric_id, value) on
+    // external_benchmarks so the 0371 seed's ON CONFLICT DO NOTHING is a
+    // true no-op on re-apply. A bare append INSERT here therefore throws
+    // 23505 whenever the feed re-fetches a value it has already recorded
+    // (same source+metric+value) — every quiet market re-tick would fail
+    // its benchmark write and stop refreshing the row. UPSERT on that key:
+    // a repeat value refreshes as_of (so the benchmark stays "live"),
+    // while a distinct value still appends a new row — preserving the
+    // 30-row LBMA rolling series the FX volatility slice reads.
     await db.execute(sql`
       INSERT INTO external_benchmarks (source, metric_id, value, unit, as_of, notes)
       VALUES (
@@ -257,6 +266,8 @@ async function insertBenchmarkRow(
         NOW(),
         ${args.notes ?? null}
       )
+      ON CONFLICT (source, metric_id, value) DO UPDATE
+        SET as_of = EXCLUDED.as_of
     `);
     return true;
   } catch (err) {
