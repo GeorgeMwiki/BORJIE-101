@@ -726,6 +726,16 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0374_external_benchmarks_stable_key.sql",
+      "down": "down/0374_down_external_benchmarks_stable_key.sql",
+      "reverses": "Swaps the external_benchmarks idempotency key from the drift-stable (source, metric_id, value) 0374 adds back to 0373 (source, metric_id, as_of). Dev/staging only — the de-duplication the up-migration performed is NOT reversible (duplicate rows were removed); the down only restores the pre-0374 (post-0373) table shape. No money/licence/ledger records touched.",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }
