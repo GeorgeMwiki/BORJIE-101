@@ -22,61 +22,94 @@ function resolveBase(): string {
 const BASE = resolveBase();
 
 /**
- * Next 15 server-emitted sitemap. Lists the crawlable surfaces that
- * exist today on the marketing site, including the audience landing
- * pages reachable from the "Who we serve" nav menu. As docs sub-pages
- * land they'll be folded in here so the search engines see them on the
- * next crawl.
+ * Every audience-segment marketing route (/for-*). Kept in sync with the
+ * filesystem by `src/app/__tests__/sitemap-coverage.test.ts` — a new
+ * `/for-*` page fails CI until its slug is listed here, so the sitemap can
+ * never silently drift from the routes.
+ */
+export const SEGMENT_SLUGS = [
+  'for-pml',
+  'for-ml',
+  'for-sml',
+  'for-off-taker',
+  'for-cooperatives',
+  'for-csr-community',
+  'for-regulator',
+  'for-investor',
+  'for-bank',
+  'for-family-office',
+] as const;
+
+/**
+ * Non-segment public routes. Static routes carry NO `lastModified`: Google
+ * uses lastmod for crawl scheduling only while it is verifiably truthful and
+ * ignores it site-wide once it proves unreliable — emitting `new Date()` on
+ * every build is exactly that unreliable signal (SEO-L8). A route gets a
+ * lastModified only when a real content date exists (none here yet).
+ */
+const STATIC_ROUTES: ReadonlyArray<{
+  readonly path: string;
+  readonly priority: number;
+  readonly changeFrequency: MetadataRoute.Sitemap[number]['changeFrequency'];
+}> = [
+  { path: '', priority: 1.0, changeFrequency: 'weekly' },
+  { path: '/pricing', priority: 0.9, changeFrequency: 'weekly' },
+  { path: '/pilot', priority: 0.9, changeFrequency: 'weekly' },
+  { path: '/buyers', priority: 0.9, changeFrequency: 'weekly' },
+  { path: '/docs', priority: 0.7, changeFrequency: 'weekly' },
+  { path: '/about', priority: 0.6, changeFrequency: 'monthly' },
+  { path: '/contact', priority: 0.6, changeFrequency: 'monthly' },
+  { path: '/careers', priority: 0.5, changeFrequency: 'weekly' },
+  { path: '/blog', priority: 0.7, changeFrequency: 'weekly' },
+  { path: '/support', priority: 0.5, changeFrequency: 'monthly' },
+  { path: '/status', priority: 0.4, changeFrequency: 'daily' },
+  { path: '/privacy', priority: 0.4, changeFrequency: 'monthly' },
+  { path: '/terms', priority: 0.4, changeFrequency: 'monthly' },
+  { path: '/dpa', priority: 0.4, changeFrequency: 'monthly' },
+  { path: '/legal/privacy', priority: 0.4, changeFrequency: 'monthly' },
+  { path: '/legal/terms', priority: 0.4, changeFrequency: 'monthly' },
+  { path: '/legal/cookies', priority: 0.4, changeFrequency: 'monthly' },
+  { path: '/legal/subprocessors', priority: 0.4, changeFrequency: 'monthly' },
+];
+
+/**
+ * hreflang alternates for a marketing route (SEO-L3). Each page has an `en` URL
+ * (the shared/default URL), a Swahili `/sw` locale-prefixed URL, and an
+ * `x-default` pointing at the shared URL — cross-linked so search engines index
+ * both language versions and know the default for an unmatched locale.
+ */
+export function withAlternates(path: string): {
+  languages: Record<string, string>;
+} {
+  const enUrl = `${BASE}${path}`;
+  const swUrl = `${BASE}${path === '' ? '/sw' : `/sw${path}`}`;
+  return {
+    languages: {
+      en: enUrl,
+      sw: swUrl,
+      'x-default': enUrl,
+    },
+  };
+}
+
+/**
+ * Next 15 server-emitted sitemap. Lists the crawlable public surfaces with
+ * en/sw/x-default hreflang alternates and no fabricated lastmod.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
-  const now = new Date();
-  const entry = (
-    path: string,
-    priority: number,
-    freq: MetadataRoute.Sitemap[number]['changeFrequency'] = 'weekly',
-  ): MetadataRoute.Sitemap[number] => ({
-    url: `${BASE}${path}`,
-    lastModified: now,
-    changeFrequency: freq,
-    priority,
-  });
-  return [
-    // Hero
-    entry('/', 1.0, 'weekly'),
+  const staticEntries: MetadataRoute.Sitemap = STATIC_ROUTES.map((r) => ({
+    url: `${BASE}${r.path}`,
+    alternates: withAlternates(r.path),
+    changeFrequency: r.changeFrequency,
+    priority: r.priority,
+  }));
 
-    // Primary product surfaces
-    entry('/pricing', 0.9, 'weekly'),
-    entry('/pilot', 0.9, 'weekly'),
-    entry('/buyers', 0.9, 'weekly'),
-    entry('/docs', 0.7, 'weekly'),
+  const segmentEntries: MetadataRoute.Sitemap = SEGMENT_SLUGS.map((slug) => ({
+    url: `${BASE}/${slug}`,
+    alternates: withAlternates(`/${slug}`),
+    changeFrequency: 'monthly',
+    priority: 0.7,
+  }));
 
-    // Audience landing pages — reachable from the "Who we serve" mega-menu
-    entry('/for-pml', 0.7, 'monthly'),
-    entry('/for-ml', 0.7, 'monthly'),
-    entry('/for-sml', 0.7, 'monthly'),
-    entry('/for-off-taker', 0.7, 'monthly'),
-    entry('/for-cooperatives', 0.7, 'monthly'),
-    entry('/for-csr-community', 0.6, 'monthly'),
-    entry('/for-regulator', 0.6, 'monthly'),
-    entry('/for-investor', 0.6, 'monthly'),
-    entry('/for-bank', 0.6, 'monthly'),
-    entry('/for-family-office', 0.6, 'monthly'),
-
-    // Company
-    entry('/about', 0.6, 'monthly'),
-    entry('/contact', 0.6, 'monthly'),
-    entry('/careers', 0.5, 'weekly'),
-    entry('/blog', 0.7, 'weekly'),
-    entry('/support', 0.5, 'monthly'),
-    entry('/status', 0.4, 'daily'),
-
-    // Legal
-    entry('/privacy', 0.4, 'monthly'),
-    entry('/terms', 0.4, 'monthly'),
-    entry('/dpa', 0.4, 'monthly'),
-    entry('/legal/privacy', 0.4, 'monthly'),
-    entry('/legal/terms', 0.4, 'monthly'),
-    entry('/legal/cookies', 0.4, 'monthly'),
-    entry('/legal/subprocessors', 0.4, 'monthly'),
-  ];
+  return [...staticEntries, ...segmentEntries];
 }

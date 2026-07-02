@@ -3,6 +3,7 @@ import { Landmark } from 'lucide-react';
 import { AudiencePage } from '@/components/audience/AudiencePage';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
+import { buildSegmentMetadata } from '@/components/marketing/segment-metadata';
 
 /**
  * /for-family-office , landing page for multi-generational mining
@@ -14,10 +15,12 @@ import { getMessages } from '@/lib/i18n';
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
   const t = getMessages(locale).audiencePages.familyOffice;
-  return {
+  return buildSegmentMetadata({
+    path: '/for-family-office',
+    locale,
     title: t.metaTitle,
     description: t.metaDescription,
-  };
+  });
 }
 
 export default async function ForFamilyOfficePage() {

@@ -1734,7 +1734,7 @@
   "audiencePages": {
     "pml": {
       "metaTitle": "Borjie for PML holders: artisanal mining software",
-      "metaDescription": "Borjie for Primary Mining Licence holders. Daily brief, royalty calendar, drill-hole logger, M-Pesa payouts. Built for Tanzanian artisanal miners. 90-day free pilot.",
+      "metaDescription": "Borjie for Primary Mining Licence holders: daily brief, royalty calendar, drill-hole logger, M-Pesa payouts. Built for Tanzanian artisanal miners.",
       "heroKicker": "For PML holders",
       "heroHeadline": "Run your PML site like a",
       "heroHeadlineAccent": "mid-tier operator",
@@ -1832,7 +1832,7 @@
     },
     "ml": {
       "metaTitle": "Borjie for ML operators: mid-tier mining software",
-      "metaDescription": "Borjie for Mining Licence operators across gold, gemstones and every mineral type. Multi-pit production rollups, blast logs, fleet telemetry, royalty automation, board-ready reporting. 90-day free pilot.",
+      "metaDescription": "Borjie for Mining Licence operators across gold, gemstones and more. Multi-pit rollups, blast logs, fleet telemetry, royalty automation, board reporting.",
       "heroKicker": "For ML operators",
       "heroHeadline": "Mid-tier mines deserve",
       "heroHeadlineAccent": "mid-tier software",
@@ -1930,7 +1930,7 @@
     },
     "sml": {
       "metaTitle": "Borjie for SML operators: large-format mining software",
-      "metaDescription": "Borjie for Special Mining Licence holders. Multi-site consolidation, environmental compliance, community relations ledger, board governance, regulator-grade audit chains. 90-day free pilot.",
+      "metaDescription": "Borjie for Special Mining Licence holders: multi-site consolidation, environmental compliance, community ledger, board governance, regulator-grade audit chains.",
       "heroKicker": "For SML operators",
       "heroHeadline": "Special licences deserve",
       "heroHeadlineAccent": "special discipline",
@@ -2028,7 +2028,7 @@
     },
     "cooperatives": {
       "metaTitle": "Borjie for cooperatives: AMCOS-style mining software",
-      "metaDescription": "Borjie for artisanal mining cooperatives and AMCOS. Member roster, pooled production ledger, bulk advances, and federated payouts. Built for federated mining groups across Tanzania. 90-day free pilot.",
+      "metaDescription": "Borjie for artisanal mining cooperatives and AMCOS: member roster, pooled production ledger, bulk advances, and federated payouts across Tanzania.",
       "heroKicker": "For cooperatives",
       "heroHeadline": "Cooperative discipline,",
       "heroHeadlineAccent": "individual dignity",

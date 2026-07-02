@@ -94,14 +94,19 @@ describe('KI-016 — audience pages are reachable (no orphan landing pages)', ()
   it('each newly-linked audience page appears in the sitemap', () => {
     const sitemap = read('app/sitemap.ts');
     for (const href of NEWLY_LINKED) {
-      // The sitemap may store paths inside template literals or as plain
-      // strings via the `entry('/path', …)` helper — accept either form so
-      // future structural refactors don't trip this canary.
+      // The sitemap may store paths inside template literals, as plain
+      // strings via the `entry('/path', …)` helper, or as a leading-slash-less
+      // slug in the SEGMENT_SLUGS list (mapped to `/${slug}`) — accept any form
+      // so future structural refactors don't trip this canary. The
+      // filesystem-vs-slugs equality is enforced separately by
+      // app/__tests__/sitemap-coverage.test.ts.
+      const slug = href.replace(/^\//, '');
       const inTemplate = sitemap.includes(`${href}\``);
       const inEntry = sitemap.includes(`'${href}'`);
+      const inSlugList = sitemap.includes(`'${slug}'`);
       expect(
-        inTemplate || inEntry,
-        `${href} should be in sitemap (template OR entry-helper form)`,
+        inTemplate || inEntry || inSlugList,
+        `${href} should be in sitemap (template, entry, or slug-list form)`,
       ).toBe(true);
     }
   });

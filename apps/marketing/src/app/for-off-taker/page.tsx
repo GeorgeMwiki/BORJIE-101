@@ -3,6 +3,7 @@ import { Truck } from 'lucide-react';
 import { AudiencePage } from '@/components/audience/AudiencePage';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
+import { buildSegmentMetadata } from '@/components/marketing/segment-metadata';
 
 /**
  * /for-off-taker , landing page for off-takers and exporters who
@@ -14,10 +15,12 @@ import { getMessages } from '@/lib/i18n';
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
   const t = getMessages(locale).audiencePages.offTaker;
-  return {
+  return buildSegmentMetadata({
+    path: '/for-off-taker',
+    locale,
     title: t.metaTitle,
     description: t.metaDescription,
-  };
+  });
 }
 
 export default async function ForOffTakerPage() {

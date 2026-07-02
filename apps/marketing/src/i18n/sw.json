@@ -1734,7 +1734,7 @@
   "audiencePages": {
     "pml": {
       "metaTitle": "Borjie kwa wenye PML, mfumo wa uchimbaji mdogo",
-      "metaDescription": "Borjie kwa wenye Leseni za Uchimbaji wa Msingi. Muhtasari wa kila siku, kalenda ya mrabaha, daftari la mashimo, malipo kupitia M-Pesa. Imejengwa kwa wachimbaji wadogo Tanzania. Majaribio ya bure ya siku 90.",
+      "metaDescription": "Borjie kwa wenye Leseni za Uchimbaji wa Msingi: muhtasari wa kila siku, kalenda ya mrabaha, daftari la mashimo, malipo ya M-Pesa. Kwa wachimbaji wadogo TZ.",
       "heroKicker": "Kwa wenye PML",
       "heroHeadline": "Endesha mgodi wako wa PML kama",
       "heroHeadlineAccent": "mwendeshaji mkubwa",
@@ -1832,7 +1832,7 @@
     },
     "ml": {
       "metaTitle": "Borjie kwa waendeshaji wa ML, mfumo wa uchimbaji wa kati",
-      "metaDescription": "Borjie kwa waendeshaji wa Leseni za Uchimbaji. Muunganisho wa migodi mingi, daftari za milipuko, telemetri za magari, otomatiki ya mrabaha, ripoti za bodi. Majaribio ya bure ya siku 90.",
+      "metaDescription": "Borjie kwa waendeshaji wa Leseni za Uchimbaji: muunganisho wa migodi, daftari za milipuko, telemetri za magari, otomatiki ya mrabaha, ripoti za bodi.",
       "heroKicker": "Kwa waendeshaji wa ML",
       "heroHeadline": "Migodi ya kati inastahili",
       "heroHeadlineAccent": "programu ya kati",
@@ -1930,7 +1930,7 @@
     },
     "sml": {
       "metaTitle": "Borjie kwa waendeshaji wa SML, mfumo wa uchimbaji mkubwa",
-      "metaDescription": "Borjie kwa wenye Leseni Maalum za Uchimbaji. Muunganisho wa migodi mingi, ulingano wa mazingira, daftari la jamii, utawala wa bodi, mlolongo wa ukaguzi wa msimamizi. Majaribio ya bure ya siku 90.",
+      "metaDescription": "Borjie kwa wenye Leseni Maalum za Uchimbaji: muunganisho wa migodi, ulingano wa mazingira, daftari la jamii, utawala wa bodi, ukaguzi wa msimamizi.",
       "heroKicker": "Kwa waendeshaji wa SML",
       "heroHeadline": "Leseni maalum zinastahili",
       "heroHeadlineAccent": "nidhamu maalum",
@@ -2028,7 +2028,7 @@
     },
     "cooperatives": {
       "metaTitle": "Borjie kwa vyama vya ushirika, mfumo wa AMCOS",
-      "metaDescription": "Borjie kwa vyama vya ushirika vya uchimbaji mdogo na AMCOS. Daftari la wanachama, daftari la uzalishaji wa pamoja, mikopo ya pamoja, malipo ya pamoja. Imejengwa kwa vyama vya uchimbaji Tanzania. Majaribio ya bure ya siku 90.",
+      "metaDescription": "Borjie kwa vyama vya ushirika vya uchimbaji na AMCOS: daftari la wanachama, uzalishaji wa pamoja, mikopo ya pamoja, na malipo ya pamoja Tanzania.",
       "heroKicker": "Kwa vyama vya ushirika",
       "heroHeadline": "Nidhamu ya ushirika,",
       "heroHeadlineAccent": "heshima ya mtu mmoja mmoja",
@@ -2125,7 +2125,7 @@
       "ctaPrimary": "Omba majaribio"
     },
     "familyOffice": {
-      "metaTitle": "Kwa familia za biashara - utajiri wa migodi kwa vizazi - Borjie",
+      "metaTitle": "Familia za biashara - utajiri wa migodi kwa vizazi - Borjie",
       "metaDescription": "Borjie kwa ofisi za familia: utawala, urithi, uunganishaji wa kampuni, na ripoti za kiwango cha ukaguzi katika eneo lote la migodi.",
       "heroKicker": "Kwa familia za biashara",
       "heroHeadline": "Endesha eneo la migodi la familia kama",
@@ -2224,7 +2224,7 @@
     },
     "investor": {
       "metaTitle": "Kwa wawekezaji na wakopeshaji - Borjie",
-      "metaDescription": "Borjie kwa wawekezaji na wakopeshaji wa migodi: ushuhuda wa kila siku, ufuatiliaji wa masharti, na ukweli wa msingi katika kila mgodi ulioko kwenye kitabu chako.",
+      "metaDescription": "Borjie kwa wawekezaji na wakopeshaji wa migodi: ushuhuda wa kila siku, ufuatiliaji wa masharti, na ukweli wa msingi katika kila mgodi wa kitabu chako.",
       "heroKicker": "Kwa wawekezaji na wakopeshaji",
       "heroHeadline": "Mtaji wa migodi pamoja na",
       "heroHeadlineAccent": "ushahidi wa kila siku",

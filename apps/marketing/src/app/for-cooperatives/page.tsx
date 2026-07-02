@@ -3,6 +3,7 @@ import { Users } from 'lucide-react';
 import { AudiencePage } from '@/components/audience/AudiencePage';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
+import { buildSegmentMetadata } from '@/components/marketing/segment-metadata';
 
 /**
  * /for-cooperatives — landing page for artisanal mining cooperatives
@@ -14,10 +15,12 @@ import { getMessages } from '@/lib/i18n';
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
   const t = getMessages(locale).audiencePages.cooperatives;
-  return {
+  return buildSegmentMetadata({
+    path: '/for-cooperatives',
+    locale,
     title: t.metaTitle,
     description: t.metaDescription,
-  };
+  });
 }
 
 export default async function ForCooperativesPage() {

@@ -3,6 +3,7 @@ import { HeartHandshake } from 'lucide-react';
 import { AudiencePage } from '@/components/audience/AudiencePage';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
+import { buildSegmentMetadata } from '@/components/marketing/segment-metadata';
 
 /**
  * /for-csr-community , landing page for CSR teams and community
@@ -14,10 +15,12 @@ import { getMessages } from '@/lib/i18n';
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
   const t = getMessages(locale).audiencePages.csrCommunity;
-  return {
+  return buildSegmentMetadata({
+    path: '/for-csr-community',
+    locale,
     title: t.metaTitle,
     description: t.metaDescription,
-  };
+  });
 }
 
 export default async function ForCsrCommunityPage() {

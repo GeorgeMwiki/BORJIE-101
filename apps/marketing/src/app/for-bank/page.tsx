@@ -3,6 +3,7 @@ import { Building2 } from 'lucide-react';
 import { AudiencePage } from '@/components/audience/AudiencePage';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
+import { buildSegmentMetadata } from '@/components/marketing/segment-metadata';
 
 /**
  * /for-bank , landing page for banks and microfinance lenders that
@@ -14,10 +15,12 @@ import { getMessages } from '@/lib/i18n';
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
   const t = getMessages(locale).audiencePages.bank;
-  return {
+  return buildSegmentMetadata({
+    path: '/for-bank',
+    locale,
     title: t.metaTitle,
     description: t.metaDescription,
-  };
+  });
 }
 
 export default async function ForBankPage() {

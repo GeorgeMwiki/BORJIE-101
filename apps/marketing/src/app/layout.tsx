@@ -8,6 +8,7 @@ import { MainNav } from '@/components/marketing/MainNav';
 import { MarketingFooter } from '@/components/marketing/MarketingFooter';
 import { MarketingWidgetSlot } from '@/components/marketing/MarketingWidgetSlot';
 import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister';
+import { StructuredData } from '@/components/marketing/StructuredData';
 import { ThemeProvider, BORJIE_THEME_BOOTSTRAP_SCRIPT } from '@borjie/design-system';
 
 // Typography stack — LitFin parity:
@@ -161,6 +162,9 @@ export default async function RootLayout({
         <script
           dangerouslySetInnerHTML={{ __html: BORJIE_THEME_BOOTSTRAP_SCRIPT }}
         />
+        {/* SEO-L7: server-rendered Organization + WebSite @graph in the initial
+            HTML so zero-JS AI crawlers see Borjie's identity entity. */}
+        <StructuredData />
       </head>
       <body className="bg-background text-foreground antialiased min-h-screen font-sans">
         <ThemeProvider defaultTheme="dark" enableSystem>
