@@ -138,4 +138,42 @@ describe('persona-kernel-bridge', () => {
     expect(typeof anon.tenant.tenantId).toBe('string');
     expect(anon.tenant.tenantId.length).toBeGreaterThan(0);
   });
+
+  it('FAILS CLOSED: a role-less scope resolves to the least-privileged persona, never owner tier', () => {
+    // Vertical-BFLA class sibling: a scope with NO role must not inherit the
+    // T1_owner_strategist tool ceiling. It gets T5_customer_concierge.
+    const slug = personaSlugForScope({ tenantId: 't1', userId: 'u1' });
+    expect(slug).toBe('T5_customer_concierge');
+    expect(slug).not.toBe('T1_owner_strategist');
+
+    const ctx = buildPersonaToolContext({ tenantId: 't1', userId: 'u1' }, 'thr');
+    // The closed-over actor binds the least-privileged RBAC role so downstream
+    // persona resolution cannot promote a role-less caller to owner.
+    expect((ctx.actor as { role?: string }).role).toBe('CUSTOMER');
+    expect(ctx.actor.roles).toEqual(['CUSTOMER']);
+    expect(ctx.persona.id).toBe('T5_customer_concierge');
+  });
+
+  it('FAILS CLOSED: an unrecognized role resolves to the least-privileged persona, never owner tier', () => {
+    const slug = personaSlugForScope({
+      tenantId: 't1',
+      userId: 'u1',
+      // Cast an out-of-vocabulary role to prove the ?? default is fail-closed.
+      role: 'ghost' as unknown as 'owner',
+    });
+    expect(slug).toBe('T5_customer_concierge');
+    expect(slug).not.toBe('T1_owner_strategist');
+  });
+
+  it('keeps legitimate owner access working: an owner scope still resolves to the owner strategist', () => {
+    expect(
+      personaSlugForScope({ tenantId: 't1', userId: 'u1', role: 'owner' }),
+    ).toBe('T1_owner_strategist');
+    const ctx = buildPersonaToolContext(
+      { tenantId: 't1', userId: 'u1', role: 'owner' },
+      'thr',
+    );
+    expect((ctx.actor as { role?: string }).role).toBe('OWNER');
+    expect(ctx.persona.id).toBe('T1_owner_strategist');
+  });
 });

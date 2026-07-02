@@ -1068,7 +1068,13 @@ function resolveKillSwitchOpenFromEnv(
  * literal RBAC tokens the index.ts gate switches on so the SAME slug
  * resolution applies on the orchestrator path.
  */
-function rbacRoleForSovereignRole(
+/**
+ * Map a cached-brain `SovereignRole` to the RBAC role string the persona gate's
+ * `resolvePersonaSlug` keys off. FAIL-CLOSED: a role-less / unrecognized scope
+ * binds `CUSTOMER` (least privilege), never `OWNER` (vertical BFLA). Exported
+ * for the fail-closed regression test.
+ */
+export function rbacRoleForSovereignRole(
   role: SovereignRole | undefined,
 ): string {
   switch (role) {
@@ -1080,10 +1086,16 @@ function rbacRoleForSovereignRole(
     case 'manager':
       return 'MANAGER';
     case 'tenant':
-    default:
-      // Brain-chat default surface — matches the index.ts persona-gate
-      // fallback (T1 owner strategist).
+      // Brain-chat default surface — a tenant-scoped viewer keeps the
+      // owner-strategist catalog (matches the index.ts persona-gate + the
+      // persona-kernel-bridge `PERSONA_SLUG_BY_ROLE.tenant` mapping).
       return 'OWNER';
+    default:
+      // FAIL-CLOSED: a role-less / unrecognized scope must NOT inherit the
+      // owner-tier tool ceiling (vertical BFLA). Bind the least-privileged
+      // RBAC role so `resolvePersonaSlug` resolves to T5_customer_concierge —
+      // the same fail-closed default as resolvePersonaSlugFromActor.
+      return 'CUSTOMER';
   }
 }
 
@@ -1137,7 +1149,12 @@ function buildPersonaCatalogForScope(args: {
       if (rbacRole === 'OWNER') return 'T1_owner_strategist';
       if (rbacRole === 'PLATFORM_ADMIN') return 'T2_admin_strategist';
       if (rbacRole === 'MANAGER') return 'T3_module_manager';
-      return 'T1_owner_strategist';
+      if (rbacRole === 'WORKER' || rbacRole === 'EMPLOYEE')
+        return 'T4_field_employee';
+      // FAIL-CLOSED: any other / unresolvable RBAC role (incl. the CUSTOMER
+      // default a role-less scope now binds) gets the least-privileged
+      // persona — never the owner-tier ceiling (vertical BFLA).
+      return 'T5_customer_concierge';
     },
     auditSink: createPinoAuditSink(logger),
     ...(personaLoopbackClient && { httpClient: personaLoopbackClient }),

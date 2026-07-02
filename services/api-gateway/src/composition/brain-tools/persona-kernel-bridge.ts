@@ -102,6 +102,18 @@ const RBAC_ROLE_BY_SOVEREIGN_ROLE: Readonly<
   tenant: 'OWNER',
 });
 
+/**
+ * FAIL-CLOSED persona slug + RBAC role for a role-less / unresolvable scope.
+ * Vertical-BFLA class: a scope arriving with NO resolvable role must NOT inherit
+ * the owner-tier tool ceiling. It gets the least-privileged persona
+ * (`T5_customer_concierge`) — the same fail-closed default the primary persona
+ * gate (`resolvePersonaSlugFromActor` in persona-slug-gate.ts) enforces. Only an
+ * EXPLICITLY role-bearing scope (owner / tenant / manager / org-admin /
+ * sovereign) maps to a higher persona.
+ */
+const FAIL_CLOSED_PERSONA_SLUG = 'T5_customer_concierge';
+const FAIL_CLOSED_RBAC_ROLE = 'CUSTOMER';
+
 export interface PersonaBridgeScope {
   readonly tenantId: string | null;
   readonly userId: string | null;
@@ -125,15 +137,16 @@ const PLATFORM_TENANT_SENTINEL = '__platform__';
 const ANON_ACTOR_SENTINEL = '__nouser__';
 
 /**
- * Resolve the persona slug for a scope. Defaults to the owner strategist —
- * the brain-chat default surface — when the role is absent so a role-less
- * scope (e.g. the mining chat-orchestrator path) still gets the full
- * owner-tier catalog rather than an empty one.
+ * Resolve the persona slug for a scope from its EXPLICIT role. FAIL-CLOSED: a
+ * role-less scope, or a role not in the slug table, resolves to the
+ * least-privileged persona (`T5_customer_concierge`) — never the owner tier. A
+ * role-less caller must not silently inherit the owner-strategist tool ceiling
+ * (vertical BFLA). Only an explicitly role-bearing scope maps higher.
  */
 export function personaSlugForScope(scope: PersonaBridgeScope): string {
   return scope.role
-    ? (PERSONA_SLUG_BY_ROLE[scope.role] ?? 'T1_owner_strategist')
-    : 'T1_owner_strategist';
+    ? (PERSONA_SLUG_BY_ROLE[scope.role] ?? FAIL_CLOSED_PERSONA_SLUG)
+    : FAIL_CLOSED_PERSONA_SLUG;
 }
 
 /**
@@ -148,9 +161,12 @@ export function buildPersonaToolContext(
   const tenantId = scope.tenantId ?? PLATFORM_TENANT_SENTINEL;
   const actorId = scope.userId ?? ANON_ACTOR_SENTINEL;
   const slug = personaSlugForScope(scope);
+  // FAIL-CLOSED: a role-less / unknown-role scope binds the least-privileged
+  // RBAC role (`CUSTOMER`) so the closed-over actor cannot resolve to the
+  // owner-tier tool ceiling downstream — never default to `OWNER`.
   const rbacRole = scope.role
-    ? (RBAC_ROLE_BY_SOVEREIGN_ROLE[scope.role] ?? 'OWNER')
-    : 'OWNER';
+    ? (RBAC_ROLE_BY_SOVEREIGN_ROLE[scope.role] ?? FAIL_CLOSED_RBAC_ROLE)
+    : FAIL_CLOSED_RBAC_ROLE;
 
   const tenant: AITenantContext = {
     tenantId,
