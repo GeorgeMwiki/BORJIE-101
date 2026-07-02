@@ -110,6 +110,9 @@ export {
   type AffectiveProfile,
   type AffectiveObservation,
   type AffectiveAccumulator,
+  type AffectiveAccumulatorOptions,
+  type AffectiveStore,
+  type AffectiveStoreRecord,
 } from './theory-of-mind.js';
 export {
   assessCognitiveLoad,

@@ -16,8 +16,11 @@
  * comparison is a direct text equality. `value` is numeric(4,3) in [0,1];
  * `expiresAt` carries the 24h TTL so an expired profile reads as absent.
  *
- * Standalone schema module (NOT re-exported from schemas/index.ts here — the
- * shared barrel is reconciled separately).
+ * Standalone schema module, re-exported from the shared barrel
+ * (schemas/index.ts `export * from './affective-profiles.schema.js'`), so
+ * `affectiveProfiles` / `AFFECTIVE_DIMENSIONS` / `AffectiveDimension` resolve off
+ * `@borjie/database`. The Drizzle adapter that persists the accumulator lives at
+ * services/api-gateway/src/composition/affective-store.drizzle.ts.
  */
 
 import {

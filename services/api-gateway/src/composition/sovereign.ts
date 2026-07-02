@@ -155,6 +155,7 @@ import { logger } from '../utils/logger.js';
 // `packages/database/src/services/kernel-grounding.service.ts`.
 type SovereignRole = 'tenant' | 'manager' | 'owner' | 'org-admin' | 'sovereign';
 import { getDb } from './db-client';
+import { createDrizzleAffectiveStore } from './affective-store.drizzle';
 import { readSovereignLedgerFailClosedFromEnv } from './service-registry';
 import { wrapAnthropicWithCircuitBreaker } from './anthropic-circuit-breaker';
 import { wrapAnthropicWithOtelSpans } from './anthropic-otel-spans';
@@ -1520,6 +1521,15 @@ const affectAccumulatorByTenant = new Map<string, AffectiveAccumulator>();
  * injected into that tenant's brains (so turns write to it) and read by the
  * proactive worker's earned-trust resolver (so it reads what the turns wrote).
  * Lazily minted; the platform-tier (null tenant) shares the `__platform__` key.
+ *
+ * DURABLE STORE (migration 0372). When the DB is up AND we have a real tenant,
+ * the accumulator is backed by `createDrizzleAffectiveStore(db)` so `observe()`
+ * write-throughs persist to `affective_profiles` and a restart / replica warms
+ * its cache via `hydrate()` — the profile no longer resets on deploy or split
+ * across replicas. The store is best-effort: any DB fault is swallowed inside
+ * the accumulator and it degrades to pure in-memory (theory-of-mind.ts). The
+ * platform-tier (null tenant) has no tenant GUC to bind, so it stays in-memory —
+ * `affective_profiles` is tenant-scoped by design.
  */
 export function getAffectAccumulator(
   tenantId: string | null,
@@ -1527,7 +1537,15 @@ export function getAffectAccumulator(
   const key = tenantId ?? '__platform__';
   const existing = affectAccumulatorByTenant.get(key);
   if (existing) return existing;
-  const fresh = createAffectiveAccumulator();
+  const db = getDb();
+  // Only attach a durable store when the DB is up AND we have a real tenant to
+  // bind the GUC to (platform-tier stays in-memory — `affective_profiles` is
+  // tenant-scoped). `exactOptionalPropertyTypes` forbids passing an explicit
+  // `undefined`, so omit the option entirely in the in-memory case.
+  const fresh =
+    db && tenantId
+      ? createAffectiveAccumulator({ store: createDrizzleAffectiveStore(db) })
+      : createAffectiveAccumulator();
   affectAccumulatorByTenant.set(key, fresh);
   return fresh;
 }
