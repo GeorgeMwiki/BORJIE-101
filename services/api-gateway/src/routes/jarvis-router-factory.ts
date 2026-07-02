@@ -118,6 +118,9 @@ const logger = pino({
 const GENERIC_STREAM_ERROR =
   'The assistant is temporarily unavailable. Please try again.';
 
+/** Test seam — the generic SSE error banner, exported for assertion. */
+export const GENERIC_STREAM_ERROR_FOR_TEST = GENERIC_STREAM_ERROR;
+
 /** Fail-closed placeholder substituted when the egress guard wrapper throws. */
 const EGRESS_FAIL_CLOSED = '[redacted]';
 
@@ -851,6 +854,53 @@ export function createJarvisRouter(config: JarvisRouterConfig): Hono {
               ),
             });
             continue;
+          }
+          // HONEST MID-STREAM DEGRADE (D19) — the kernel emits a TERMINAL
+          // `error` frame (instead of `done`) when the sensor faults mid-turn
+          // so a truncated turn is NEVER presented as complete. Without this
+          // branch the frame falls through and the loop simply ends, leaving
+          // the client with a SILENTLY truncated stream (no done, no error).
+          // Surface a client-visible error frame + honest terminal done, then
+          // stop. IP-EGRESS: emit the GENERIC banner only — the raw `ev.reason`
+          // (provider / model / internal detail) is logged server-side, never
+          // forwarded to the wire.
+          //
+          // NOTE: the kind is read through a widened structural view. The
+          // `KernelStreamEvent` union carries this `error` member in source, but
+          // the api-gateway resolves central-intelligence via its built `.d.ts`,
+          // which can lag a freshly-added member; the structural read keeps this
+          // consumer correct against the runtime frame regardless of that lag.
+          if ((ev as { kind: string }).kind === 'error') {
+            const errEvt = ev as unknown as {
+              reason?: unknown;
+              partial?: unknown;
+            };
+            logger.error(
+              {
+                wiring: 'jarvis-router-factory',
+                surface: config.surface,
+                threadId: body.threadId,
+                reason:
+                  typeof errEvt.reason === 'string'
+                    ? errEvt.reason
+                    : String(errEvt.reason),
+                partial: errEvt.partial === true,
+              },
+              'jarvis /stream: kernel emitted terminal error frame (mid-stream degrade)',
+            );
+            await stream.writeSSE({
+              event: 'error',
+              data: JSON.stringify({
+                message: GENERIC_STREAM_ERROR,
+                code: 'INTERNAL',
+                retryable: false,
+              }),
+            });
+            await stream.writeSSE({
+              event: 'done',
+              data: JSON.stringify({ thoughtId: '', kind: 'error' }),
+            });
+            return finalDecision;
           }
           if (ev.kind === 'done') {
             finalDecision = ev.decision;

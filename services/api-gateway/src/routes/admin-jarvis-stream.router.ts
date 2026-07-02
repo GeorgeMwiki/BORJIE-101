@@ -88,10 +88,21 @@ interface AgUiEmitLike {
  * labels, NEVER the audit math), and `buildSelfModelEgressPayload` shape-clamps
  * it. The frame is STILL re-yielded so the pump's own loop is unaffected (it
  * ignores the kind, as before). Pure pass-through for every other frame.
+ *
+ * HONEST MID-STREAM DEGRADE (D19) — this tee ALSO intercepts the kernel's
+ * TERMINAL `error` frame. The kernel emits `error` (instead of `done`) when the
+ * sensor faults mid-turn so a truncated turn is never presented as complete.
+ * `pumpKernelToAgUi` does NOT know that kind — if the `error` frame reached it,
+ * the pump's loop would simply end and its no-`done` fallthrough would emit a
+ * SUCCESSFUL `RUN_FINISHED`, fabricating a completed run from a faulted one. So
+ * this tee emits an honest `RUN_ERROR` (generic banner — the raw reason is
+ * logged server-side, never on the wire) and STOPS the stream, never yielding
+ * the error frame onward to the pump.
  */
-async function* teeSelfModelToAgUi<T extends { readonly kind: string }>(
+export async function* teeSelfModelToAgUi<T extends { readonly kind: string }>(
   source: AsyncIterable<T>,
   emitter: AgUiEmitLike,
+  runId: string,
 ): AsyncGenerator<T, void, unknown> {
   for await (const ev of source) {
     if (ev.kind === 'self_model') {
@@ -107,6 +118,25 @@ async function* teeSelfModelToAgUi<T extends { readonly kind: string }>(
           },
         ],
       });
+    }
+    if (ev.kind === 'error') {
+      const errEvt = ev as unknown as { reason?: unknown; partial?: unknown };
+      logger.error(
+        {
+          wiring: 'admin-jarvis-stream',
+          runId,
+          reason:
+            typeof errEvt.reason === 'string'
+              ? errEvt.reason
+              : String(errEvt.reason),
+          partial: errEvt.partial === true,
+        },
+        'admin-jarvis-stream: kernel emitted terminal error frame (mid-stream degrade)',
+      );
+      // Honest terminal: RUN_ERROR (no fabricated RUN_FINISHED). The emitter is
+      // no-op-after-terminal, so any downstream RUN_FINISHED is swallowed.
+      emitter.emit({ type: 'RUN_ERROR', runId, error: GENERIC_RUN_ERROR });
+      return;
     }
     yield ev;
   }
@@ -124,7 +154,7 @@ const logger = pino({
  * NEVER forward it to the AG-UI wire. The real cause is logged server-side
  * (pino) only; the client renders this fixed banner.
  */
-const GENERIC_RUN_ERROR = 'The assistant is temporarily unavailable. Please try again.';
+export const GENERIC_RUN_ERROR = 'The assistant is temporarily unavailable. Please try again.';
 
 // ─────────────────────────────────────────────────────────────────────
 // Presence packet — defined by the AG-UI / Central-Command contract.
@@ -433,6 +463,7 @@ adminJarvisStreamRouter.post('/', withSecurityEvents({ action: 'admin.create', r
               '',
             ),
             emitter,
+            runId,
           ),
           abort,
         ),
