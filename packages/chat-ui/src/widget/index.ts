@@ -25,6 +25,7 @@ export { WaveformVisualizer } from './WaveformVisualizer';
 export { VoiceOverlay } from './VoiceOverlay';
 export { FloatingChatWidget } from './FloatingChatWidget';
 export { renderMarkdown, escapeHtml } from './markdown';
+export { MarkdownStyles } from './MarkdownStyles';
 // The legacy `Widget` export was removed: only `LitFinWidget` (below) is a
 // mountable floating widget, so there is no second skeleton path to flash on
 // chunk-load. No live consumer imported `Widget`/`WidgetProps`.

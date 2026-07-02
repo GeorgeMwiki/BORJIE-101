@@ -9,6 +9,7 @@
 import type { ReactNode } from 'react';
 import type { ChatMessage } from './types';
 import { renderMarkdown } from './markdown';
+import { MarkdownStyles } from './MarkdownStyles';
 import { DegradedBanner, type DegradedMarker } from '../components/DegradedBanner';
 import {
   InlineRichRender,
@@ -188,8 +189,10 @@ export function MessageBubble({
           lineHeight: 1.45,
         }}
       >
+        <MarkdownStyles />
         <div
           data-testid="message-bubble-body"
+          className="borjie-md-body"
           dangerouslySetInnerHTML={{ __html: renderMarkdown(message.text) }}
         />
         {message.attachments && message.attachments.length > 0 ? (
