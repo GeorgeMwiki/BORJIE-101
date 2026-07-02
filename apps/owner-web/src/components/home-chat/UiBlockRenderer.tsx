@@ -24,6 +24,7 @@
 import type { ReactElement } from 'react';
 import { ConceptCard as ConceptCardChrome, type ConceptCardBlock as ConceptCardChromeBlock } from './ConceptCard';
 import { MicroLessonCard, type MicroLessonCardBlock } from './MicroLessonCard';
+import { GenuiBlockReveal, isGenuiKind } from './GenuiBlockReveal';
 
 // ─── Block shapes ──────────────────────────────────────────────────
 
@@ -297,6 +298,11 @@ interface UiBlockRendererProps {
    * option-to-verb map).
    */
   readonly onDecisionOption?: (index: number, label: string) => void;
+  /**
+   * Stable id (usually the message id) used as the choreography reveal
+   * target when a block routes to the shared 37-primitive AdaptiveRenderer.
+   */
+  readonly targetId?: string;
 }
 
 export function UiBlockRenderer({
@@ -307,6 +313,7 @@ export function UiBlockRenderer({
   onRelatedClick,
   onMicroLessonCta,
   onDecisionOption,
+  targetId,
 }: UiBlockRendererProps): ReactElement | null {
   switch (block.type) {
     case 'concept_card':
@@ -339,6 +346,22 @@ export function UiBlockRenderer({
         />
       );
     default:
+      // A block whose `type` names one of the 37 shared genui primitives
+      // (kpi-grid, chart-vega, data-table, comparison-table, …) is NOT a
+      // bespoke teach block — route it through the SAME AdaptiveRenderer +
+      // GENUI_REGISTRY the admin JarvisConsole uses, with a staged reveal.
+      // Previously these fell through to `return null` and were silently
+      // dropped in the owner cockpit (born-dark). `targetId` gates the
+      // choreography; without one we still render (reveal collapses to a
+      // single frame).
+      if (isGenuiKind(block.type)) {
+        return (
+          <GenuiBlockReveal
+            block={block as { readonly type: string; readonly [k: string]: unknown }}
+            targetId={targetId ?? `genui-${block.type}`}
+          />
+        );
+      }
       return null;
   }
 }

@@ -360,3 +360,14 @@ export {
   type ChoreographyState,
   type ChoreographyTickEvent,
 } from './streaming/index';
+
+// LP-24b consumer — the React hook that drives the pure choreography
+// engine over requestAnimationFrame for staged artifact reveal. Client-
+// only ('use client'), so it lives on this React index, NOT the node-safe
+// `@borjie/genui/server` entry. `staggeredReveal` is a pure helper.
+export {
+  useChoreography,
+  staggeredReveal,
+  type UseChoreographyResult,
+  type UseChoreographyOptions,
+} from './streaming/use-choreography';

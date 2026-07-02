@@ -1545,6 +1545,7 @@ function TeachBubble({
           <UiBlockRenderer
             block={message.uiBlock}
             language={languagePreference}
+            targetId={message.id}
             onDeepDive={({ title, point }) => {
               const verb = pickByLocale(languagePreference, S.deepDiveVerb);
               const target = point ? `"${point}"` : `"${title}"`;

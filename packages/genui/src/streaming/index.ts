@@ -52,3 +52,10 @@ export {
   type ChoreographyState,
   type ChoreographyTickEvent,
 } from "./choreography-engine";
+
+export {
+  useChoreography,
+  staggeredReveal,
+  type UseChoreographyResult,
+  type UseChoreographyOptions,
+} from "./use-choreography";
