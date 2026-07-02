@@ -7,21 +7,12 @@ import { RoleGuard } from '../../src/components/RoleGuard'
 import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { miningApi } from '../../src/api/client'
 import { ApiError, isNetworkError } from '../../src/api/errors'
+import { useI18n } from '../../src/i18n/useI18n'
+import type { StringDict } from '../../src/i18n'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'O-M-04'
-
-const COPY = Object.freeze({
-  loading: 'Inapakia ramani ya portfolio…',
-  errorInline: 'Ombi la portfolio limeshindwa kuthibitishwa.',
-  emptyHint: 'Hakuna leseni au tovuti zilizosajiliwa kwenye akaunti yako.',
-  sectionMap: 'Ramani ya portifolio',
-  sectionMapHint: 'Polygons + rangi za hali · bonyeza kuchagua',
-  sectionFilter: 'Chuja kwa hali',
-  sectionList: 'Migodi',
-  unknown: 'Haijulikani'
-})
 
 type FeatureLayer = 'site' | 'licence'
 type FilterKey = 'all' | 'active' | 'working' | 'pending' | 'expired'
@@ -60,13 +51,15 @@ interface NormalizedMine {
   readonly rawStatus: string
 }
 
-const FILTERS: ReadonlyArray<{ key: FilterKey; label: string }> = [
-  { key: 'all', label: 'Zote' },
-  { key: 'active', label: 'Hai' },
-  { key: 'working', label: 'Kazi' },
-  { key: 'pending', label: 'Subiri' },
-  { key: 'expired', label: 'Imekwisha' }
-]
+const FILTER_KEYS: ReadonlyArray<FilterKey> = ['all', 'active', 'working', 'pending', 'expired']
+
+function filterLabel(key: FilterKey, COPY: StringDict['ownerScreens']['om04']): string {
+  if (key === 'all') return COPY.filterAll
+  if (key === 'active') return COPY.filterActive
+  if (key === 'working') return COPY.filterWorking
+  if (key === 'pending') return COPY.filterPending
+  return COPY.filterExpired
+}
 
 export default function Screen(): JSX.Element {
   return (
@@ -79,6 +72,8 @@ export default function Screen(): JSX.Element {
 }
 
 function PortfolioMapView(): JSX.Element {
+  const { t } = useI18n()
+  const COPY = t.ownerScreens.om04
   const query = useQuery<PortfolioMapResponse, Error>({
     queryKey: ['mining', 'portfolio-map'],
     queryFn: async ({ signal }) => {
@@ -95,8 +90,8 @@ function PortfolioMapView(): JSX.Element {
 
   const mines = useMemo<ReadonlyArray<NormalizedMine>>(() => {
     if (!query.data) return []
-    return query.data.features.map((feature, index) => normalize(feature, index))
-  }, [query.data])
+    return query.data.features.map((feature, index) => normalize(feature, index, COPY))
+  }, [query.data, COPY])
 
   const [filter, setFilter] = useState<FilterKey>('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -173,32 +168,35 @@ function PortfolioMapView(): JSX.Element {
             ))}
           </View>
           <View style={styles.legend}>
-            <LegendDot status="active" label={`Hai (${totals.active})`} />
-            <LegendDot status="working" label={`Kazi (${totals.working})`} />
-            <LegendDot status="pending" label={`Subiri (${totals.pending})`} />
-            <LegendDot status="expired" label={`Kwisha (${totals.expired})`} />
+            <LegendDot status="active" label={`${COPY.legendActive} (${totals.active})`} />
+            <LegendDot status="working" label={`${COPY.legendWorking} (${totals.working})`} />
+            <LegendDot status="pending" label={`${COPY.legendPending} (${totals.pending})`} />
+            <LegendDot status="expired" label={`${COPY.legendExpired} (${totals.expired})`} />
           </View>
         </View>
       </Section>
       <Section title={COPY.sectionFilter}>
         <View style={styles.filterRow}>
-          {FILTERS.map((f) => (
-            <Pressable
-              key={f.key}
-              accessibilityRole="button"
-              accessibilityLabel={f.label}
-              onPress={() => setFilter(f.key)}
-              style={({ pressed }) => [
-                styles.chip,
-                filter === f.key && styles.chipActive,
-                pressed && styles.chipPressed
-              ]}
-            >
-              <Text style={[styles.chipLabel, filter === f.key && styles.chipLabelActive]}>
-                {f.label}
-              </Text>
-            </Pressable>
-          ))}
+          {FILTER_KEYS.map((key) => {
+            const label = filterLabel(key, COPY)
+            return (
+              <Pressable
+                key={key}
+                accessibilityRole="button"
+                accessibilityLabel={label}
+                onPress={() => setFilter(key)}
+                style={({ pressed }) => [
+                  styles.chip,
+                  filter === key && styles.chipActive,
+                  pressed && styles.chipPressed
+                ]}
+              >
+                <Text style={[styles.chipLabel, filter === key && styles.chipLabelActive]}>
+                  {label}
+                </Text>
+              </Pressable>
+            )
+          })}
         </View>
       </Section>
       <Section title={`${COPY.sectionList} (${visible.length})`}>
@@ -217,10 +215,11 @@ function PortfolioMapView(): JSX.Element {
             <View style={[styles.statusDot, { backgroundColor: statusColor(mine.status) }]} />
             <View style={styles.rowBody}>
               <Text style={styles.rowTitle}>
-                {mine.label} · {statusLabel(mine.status)}
+                {mine.label} · {statusLabel(mine.status, COPY)}
               </Text>
               <Text style={styles.rowMeta}>
-                {mine.region} · {mine.mineral} · {mine.layer === 'site' ? 'tovuti' : 'leseni'}
+                {mine.region} · {mine.mineral} ·{' '}
+                {mine.layer === 'site' ? COPY.layerSite : COPY.layerLicence}
               </Text>
             </View>
           </Pressable>
@@ -252,14 +251,18 @@ function statusColor(status: MineStatus): string {
   return colors.danger
 }
 
-function statusLabel(status: MineStatus): string {
-  if (status === 'active') return 'hai'
-  if (status === 'working') return 'kazi'
-  if (status === 'pending') return 'subiri'
-  return 'imekwisha'
+function statusLabel(status: MineStatus, COPY: StringDict['ownerScreens']['om04']): string {
+  if (status === 'active') return COPY.statusActive
+  if (status === 'working') return COPY.statusWorking
+  if (status === 'pending') return COPY.statusPending
+  return COPY.statusExpired
 }
 
-function normalize(feature: PortfolioFeature, index: number): NormalizedMine {
+function normalize(
+  feature: PortfolioFeature,
+  index: number,
+  COPY: StringDict['ownerScreens']['om04']
+): NormalizedMine {
   const props = feature.properties ?? {}
   const layer: FeatureLayer = props['layer'] === 'licence' ? 'licence' : 'site'
   const rawIdValue = props['id']
@@ -273,7 +276,7 @@ function normalize(feature: PortfolioFeature, index: number): NormalizedMine {
       : typeof nameValue === 'string' && nameValue.length > 0
         ? nameValue
         : id.slice(0, 8)
-  const region = pickRegion(feature)
+  const region = pickRegion(feature, COPY)
   const mineralValue = props['mineral']
   const mineral = typeof mineralValue === 'string' && mineralValue.length > 0
     ? mineralValue
@@ -295,7 +298,7 @@ function pickStatus(props: Readonly<Record<string, unknown>>): string | null {
   return typeof value === 'string' ? value : null
 }
 
-function pickRegion(feature: PortfolioFeature): string {
+function pickRegion(feature: PortfolioFeature, COPY: StringDict['ownerScreens']['om04']): string {
   const props = feature.properties ?? {}
   const candidates = ['region', 'district', 'province', 'phase'] as const
   for (const key of candidates) {

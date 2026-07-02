@@ -24,6 +24,7 @@ export const MOBILE_BUNDLE_SHARED_ALLOWLIST = new Set([
   'Auger',
   // Product / regime terms coined in-product (not translated).
   'USD-cliff',
+  'Brand-Lock',
   // Sample asset-id data (proper-noun identifiers).
   'Excavator-1, Truck-3, Loader-2',
   // Adopted domain loanwords — the sw bundle uses these consistently as

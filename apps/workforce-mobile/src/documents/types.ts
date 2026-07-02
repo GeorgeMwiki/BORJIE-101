@@ -81,21 +81,24 @@ export function validateUpload(input: {
   readonly mimeType: string
   readonly fileSize: number
 }): { readonly ok: true } | { readonly ok: false; readonly code: string; readonly message: string } {
+  // `message` is a DEV/LOG string only (English) — the UI never renders it: the
+  // caller (DocumentUploadButton) localizes by the stable `code` through the
+  // i18n bundle, so no off-locale string can reach the user via this path.
   if (!input.fileName || input.fileName.length === 0) {
-    return { ok: false, code: 'FILE_NAME_REQUIRED', message: 'Jina la faili linahitajika.' }
+    return { ok: false, code: 'FILE_NAME_REQUIRED', message: 'A file name is required.' }
   }
   if (!ALLOWED_MIMES.includes(input.mimeType)) {
     return {
       ok: false,
       code: 'MIME_NOT_ALLOWED',
-      message: 'Aina za faili zinazoruhusiwa: PDF, DOCX, JPEG, PNG, WEBP.',
+      message: 'Allowed file types: PDF, DOCX, JPEG, PNG, WEBP.',
     }
   }
   if (input.fileSize <= 0) {
-    return { ok: false, code: 'FILE_EMPTY', message: 'Faili ni tupu.' }
+    return { ok: false, code: 'FILE_EMPTY', message: 'The file is empty.' }
   }
   if (input.fileSize > MAX_FILE_BYTES) {
-    return { ok: false, code: 'FILE_TOO_LARGE', message: 'Kiasi cha juu ni 25 MB.' }
+    return { ok: false, code: 'FILE_TOO_LARGE', message: 'The maximum size is 25 MB.' }
   }
   return { ok: true }
 }

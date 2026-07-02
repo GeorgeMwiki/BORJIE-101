@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
-import { useLocalSearchParams } from 'expo-router'
+import { Stack, useLocalSearchParams } from 'expo-router'
 import { DocumentExplorer } from '../../src/documents/DocumentExplorer'
 import { listDocuments } from '../../src/documents/api'
 import type { UploadedDocument } from '../../src/documents/types'
+import { useI18n } from '../../src/i18n/useI18n'
 import { colors } from '../../src/theme/colors'
 import { fontSize, spacing } from '../../src/theme/spacing'
 
@@ -14,6 +15,7 @@ import { fontSize, spacing } from '../../src/theme/spacing'
  * client-side find is cheap).
  */
 export default function DocumentDetailScreen(): JSX.Element {
+  const { t } = useI18n()
   const params = useLocalSearchParams<{ id: string }>()
   const id = String(params.id)
   const [doc, setDoc] = useState<UploadedDocument | null>(null)
@@ -28,12 +30,12 @@ export default function DocumentDetailScreen(): JSX.Element {
         if (cancelled) return
         const found = docs.find((d) => d.id === id) ?? null
         setDoc(found)
-        setError(found ? null : 'Hati haijapatikana.')
+        setError(found ? null : t.documentsTab.notFound)
       })
-      .catch((cause: unknown) => {
+      .catch(() => {
         if (cancelled) return
-        const message = cause instanceof Error ? cause.message : 'Imeshindikana.'
-        setError(message)
+        // Opaque backend errors must never leak under the active locale.
+        setError(t.documentsTab.loadError)
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -41,11 +43,17 @@ export default function DocumentDetailScreen(): JSX.Element {
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [id, t])
+
+  // The screen owns its localized header title; the route-level fallback in
+  // app/_layout.tsx is the locale-neutral brand only, so the header never
+  // flashes a hardcoded off-locale string.
+  const headerTitle = <Stack.Screen options={{ title: t.documentsTab.detailTitle }} />
 
   if (loading) {
     return (
       <View style={styles.center}>
+        {headerTitle}
         <ActivityIndicator color={colors.goldDark} />
       </View>
     )
@@ -53,11 +61,17 @@ export default function DocumentDetailScreen(): JSX.Element {
   if (!doc) {
     return (
       <View style={styles.center}>
-        <Text style={styles.error}>{error ?? 'Hati haijapatikana.'}</Text>
+        {headerTitle}
+        <Text style={styles.error}>{error ?? t.documentsTab.notFound}</Text>
       </View>
     )
   }
-  return <DocumentExplorer document={doc} />
+  return (
+    <>
+      {headerTitle}
+      <DocumentExplorer document={doc} />
+    </>
+  )
 }
 
 const styles = StyleSheet.create({

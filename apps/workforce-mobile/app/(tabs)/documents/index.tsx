@@ -7,6 +7,7 @@ import { listDocuments } from '../../../src/documents/api'
 import type { UploadedDocument } from '../../../src/documents/types'
 import { ScreenShell } from '../../../src/components/ScreenShell'
 import { Section } from '../../../src/components/Section'
+import { useI18n } from '../../../src/i18n/useI18n'
 import { colors } from '../../../src/theme/colors'
 import { fontSize, spacing } from '../../../src/theme/spacing'
 
@@ -23,6 +24,7 @@ import { fontSize, spacing } from '../../../src/theme/spacing'
  * as the chat-level paperclip.
  */
 export default function DocumentsTab(): JSX.Element {
+  const { t } = useI18n()
   const [docs, setDocs] = useState<ReadonlyArray<UploadedDocument>>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -33,14 +35,15 @@ export default function DocumentsTab(): JSX.Element {
     try {
       const next = await listDocuments(50)
       setDocs(next)
-    } catch (cause) {
-      const message = cause instanceof Error ? cause.message : 'Imeshindikana kupakia hati.'
-      setError(message)
+    } catch {
+      // Never render a raw backend/opaque message under the active locale —
+      // route to a localized generic load error.
+      setError(t.documentsTab.loadError)
       setDocs([])
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     void refresh()
@@ -48,10 +51,10 @@ export default function DocumentsTab(): JSX.Element {
 
   return (
     <ScreenShell screenId="W-DOC-INTEL-01">
-      <Section title="Hati hai">
+      <Section title={t.documentsTab.activeTitle}>
         <View style={styles.uploadRow}>
           <DocumentUploadButton
-            label="Pakia hati mpya"
+            label={t.documentsTab.uploadNewLabel}
             onUploaded={(result) => {
               setDocs((prev) => [result.document, ...prev])
             }}

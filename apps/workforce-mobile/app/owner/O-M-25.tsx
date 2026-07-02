@@ -10,30 +10,12 @@ import { FingerprintPlaceholder } from '../../src/components/FingerprintPlacehol
 import { request } from '../../src/api/client'
 import { API_BASE_URL } from '../../src/api/config'
 import { ApiError, isNetworkError } from '../../src/api/errors'
+import { useI18n } from '../../src/i18n/useI18n'
+import type { StringDict } from '../../src/i18n'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'O-M-25'
-
-const COPY = Object.freeze({
-  loading: 'Inakusanya entries za audit-trail…',
-  errorInline: 'Imeshindwa kupakua entries za audit-trail.',
-  emptyHint: 'Hakuna entries za audit-trail kwa akaunti yako bado.',
-  sectionSummary: 'Muhtasari',
-  sectionInclusions: 'Vifaa vinavyojumuishwa',
-  sectionInclusionsHint: 'Ushahidi kamili kwa mdhibiti (kutoka audit-trail)',
-  sectionPackages: 'Historia ya pakeji',
-  sectionPackagesHint: 'Pakeji moja kwa kila robo ya mwaka',
-  sectionSign: 'Saini ya kuondoa pakeji',
-  sectionSignHint: 'Idhinisha kwa kidole',
-  startNew: 'Anzisha pakeji ya robo hii',
-  startingNow: 'Inazalishwa…',
-  exportLabel: 'Hamisha bundle (JSON)',
-  exportBusy: 'Inahamisha…',
-  exportUnavailable: 'Haipatikani',
-  exportSucceeded: 'Bundle imehifadhiwa kwa export.',
-  exportFailed: 'Export ya bundle imeshindwa.'
-})
 
 const AUDIT_BASE = `${API_BASE_URL}/api/v1/audit-trail`
 
@@ -74,13 +56,15 @@ interface PackageSummary {
   readonly status: 'ready' | 'empty'
 }
 
-const INCLUDED_SECTIONS: ReadonlyArray<{ readonly id: string; readonly label: string }> = [
-  { id: 's1', label: 'Maamuzi yote ya AI (ai_autonomous / ai_proposal)' },
-  { id: 's2', label: 'Vitendo vya wanadamu (human_action / human_approval)' },
-  { id: 's3', label: 'Mlolongo wa hash (prev_hash → this_hash)' },
-  { id: 's4', label: 'Saini za chain (per-entry signature)' },
-  { id: 's5', label: 'Evidence attachments per row' }
-]
+const INCLUDED_SECTION_IDS: ReadonlyArray<string> = ['s1', 's2', 's3', 's4', 's5']
+
+function inclusionLabel(id: string, COPY: StringDict['ownerScreens']['om25']): string {
+  if (id === 's1') return COPY.inclusionAiDecisions
+  if (id === 's2') return COPY.inclusionHumanActions
+  if (id === 's3') return COPY.inclusionHashChain
+  if (id === 's4') return COPY.inclusionChainSignatures
+  return COPY.inclusionEvidence
+}
 
 export default function Screen(): JSX.Element {
   return (
@@ -93,6 +77,8 @@ export default function Screen(): JSX.Element {
 }
 
 function AuditPackagesView(): JSX.Element {
+  const { t } = useI18n()
+  const COPY = t.ownerScreens.om25
   const queryClient = useQueryClient()
   const [actionMessage, setActionMessage] = useState<string | null>(null)
 
@@ -191,16 +177,17 @@ function AuditPackagesView(): JSX.Element {
     <View>
       <Section
         title={COPY.sectionSummary}
-        hint={`Entries ${entries.length} · ${packages.length} robo`}
+        hint={`${COPY.summaryEntriesPrefix} ${entries.length} · ${packages.length} ${COPY.summaryQuartersSuffix}`}
       >
         <View style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>
-            Pakeji ya Ukaguzi · {currentQuarter.label}
+            {COPY.summaryTitle} · {currentQuarter.label}
           </Text>
           <Text style={styles.summaryLine}>
-            Kipindi: {formatDate(currentQuarter.startIso)} → {formatDate(currentQuarter.endIso)}
+            {COPY.summaryPeriodPrefix} {formatDate(currentQuarter.startIso)} →{' '}
+            {formatDate(currentQuarter.endIso)}
           </Text>
-          <Text style={styles.summaryLine}>Endpoint: POST /api/v1/audit-trail/bundle</Text>
+          <Text style={styles.summaryLine}>{COPY.summaryEndpointPrefix} POST /api/v1/audit-trail/bundle</Text>
         </View>
         <Button
           label={bundleMutation.isPending ? COPY.startingNow : COPY.startNew}
@@ -210,10 +197,10 @@ function AuditPackagesView(): JSX.Element {
       </Section>
 
       <Section title={COPY.sectionInclusions} hint={COPY.sectionInclusionsHint}>
-        {INCLUDED_SECTIONS.map((row) => (
-          <View key={row.id} style={styles.itemRow}>
+        {INCLUDED_SECTION_IDS.map((id) => (
+          <View key={id} style={styles.itemRow}>
             <View style={styles.dot} />
-            <Text style={styles.itemText}>{row.label}</Text>
+            <Text style={styles.itemText}>{inclusionLabel(id, COPY)}</Text>
           </View>
         ))}
       </Section>
@@ -227,16 +214,17 @@ function AuditPackagesView(): JSX.Element {
               <View style={styles.packageHead}>
                 <Text style={styles.packageQuarter}>{pkg.quarter}</Text>
                 <View style={[styles.statusPill, statusPillStyle(pkg.status)]}>
-                  <Text style={styles.statusPillText}>{statusLabel(pkg.status)}</Text>
+                  <Text style={styles.statusPillText}>{statusLabel(pkg.status, COPY)}</Text>
                 </View>
               </View>
               <Text style={styles.packageMeta}>{pkg.periodLabel}</Text>
               <Text style={styles.packageMeta}>
-                Entries {pkg.entryCount} · ya mwisho {formatDate(pkg.latestEntryAt)}
+                {COPY.summaryEntriesPrefix} {pkg.entryCount} · {COPY.packageLatestPrefix}{' '}
+                {formatDate(pkg.latestEntryAt)}
               </Text>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`Hamisha ${pkg.quarter}`}
+                accessibilityLabel={`${COPY.exportA11yPrefix} ${pkg.quarter}`}
                 onPress={() => exportPackage(pkg)}
                 disabled={bundleMutation.isPending}
                 style={({ pressed }) => [
@@ -266,7 +254,7 @@ function AuditPackagesView(): JSX.Element {
       </Section>
 
       <Section title={COPY.sectionSign} hint={COPY.sectionSignHint}>
-        <FingerprintPlaceholder label="Idhinisha kupakua" />
+        <FingerprintPlaceholder label={COPY.signApprove} />
       </Section>
     </View>
   )
@@ -329,9 +317,9 @@ function computeCurrentQuarter(now: Date): {
   return { label: `Q${quarter} ${year}`, startIso, endIso }
 }
 
-function statusLabel(status: PackageSummary['status']): string {
-  if (status === 'ready') return 'Tayari'
-  return 'Tupu'
+function statusLabel(status: PackageSummary['status'], COPY: StringDict['ownerScreens']['om25']): string {
+  if (status === 'ready') return COPY.statusReady
+  return COPY.statusEmpty
 }
 
 function statusPillStyle(status: PackageSummary['status']): { backgroundColor: string } {

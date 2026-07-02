@@ -106,13 +106,21 @@ export default function RootLayout(): JSX.Element {
               <Stack.Screen name="worker/W-M-20" options={{ headerShown: false }} />
               <Stack.Screen name="worker/W-M-21" options={{ headerShown: false }} />
               <Stack.Screen name="worker/W-M-22" options={{ headerShown: false }} />
+              {/* Locale-neutral brand as the pre-mount fallback title; the
+                  documents/[id] screen overrides it with its localized
+                  header title (t.documentsTab.detailTitle) on mount, so no
+                  hardcoded off-locale string is ever painted. */}
               <Stack.Screen
                 name="documents/[id]"
-                options={{ title: 'Hati hai', headerShown: true }}
+                options={{ title: 'Borjie', headerShown: true }}
               />
+              {/* Locale-neutral brand as the pre-mount fallback title; the
+                  notifications/index screen overrides it with its locale-gated
+                  header title (sw ? 'Arifa' : 'Notifications') on mount, so no
+                  hardcoded off-locale string is ever painted. */}
               <Stack.Screen
                 name="notifications/index"
-                options={{ title: 'Arifa', headerShown: true }}
+                options={{ title: 'Borjie', headerShown: true }}
               />
             </Stack>
           </AuthProvider>

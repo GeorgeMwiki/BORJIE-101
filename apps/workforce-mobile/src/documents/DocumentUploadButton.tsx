@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 import * as DocumentPicker from 'expo-document-picker'
+import { useI18n } from '../i18n/useI18n'
 import { colors } from '../theme/colors'
 import { fontSize, radius, spacing } from '../theme/spacing'
 import { registerUpload } from './api'
 import { ALLOWED_MIMES, validateUpload, type UploadResult } from './types'
 
 export interface DocumentUploadButtonProps {
-  /** Surface label override (defaults to Swahili-first paperclip glyph). */
+  /** Surface label override. Defaults to a locale-resolved label so a
+   *  label-less caller can never leak a hardcoded string. */
   readonly label?: string
   /** Called when a document is successfully registered. The chat surface
    *  uses this to inject a "Nimepakia <filename>..." message. */
@@ -39,6 +41,7 @@ export function DocumentUploadButton({
   onError,
   variant = 'button',
 }: DocumentUploadButtonProps): JSX.Element {
+  const { t } = useI18n()
   const [busy, setBusy] = useState(false)
 
   async function handlePress(): Promise<void> {
@@ -59,7 +62,7 @@ export function DocumentUploadButton({
       const asset = picked.assets[0]
       if (!asset) {
         setBusy(false)
-        onError?.('Hakuna faili iliyochaguliwa.')
+        onError?.(t.documentsTab.noFileSelected)
         return
       }
       const validation = validateUpload({
@@ -69,7 +72,9 @@ export function DocumentUploadButton({
       })
       if (!validation.ok) {
         setBusy(false)
-        onError?.(validation.message)
+        // validateUpload returns a hardcoded-copy `message`; localize by the
+        // stable `code` so the active locale is never breached.
+        onError?.(localizeValidation(validation.code))
         return
       }
       const result = await registerUpload({
@@ -78,11 +83,26 @@ export function DocumentUploadButton({
         fileSize: asset.size ?? 0,
       })
       onUploaded?.(result)
-    } catch (cause) {
-      const message = cause instanceof Error ? cause.message : 'Imeshindikana kupakia faili.'
-      onError?.(message)
+    } catch {
+      // Opaque upload/network errors must not leak under the active locale.
+      onError?.(t.documentsTab.uploadFailed)
     } finally {
       setBusy(false)
+    }
+  }
+
+  function localizeValidation(code: string): string {
+    switch (code) {
+      case 'FILE_NAME_REQUIRED':
+        return t.documentsTab.validationNameRequired
+      case 'MIME_NOT_ALLOWED':
+        return t.documentsTab.validationTypeUnsupported
+      case 'FILE_EMPTY':
+        return t.documentsTab.validationEmpty
+      case 'FILE_TOO_LARGE':
+        return t.documentsTab.validationTooLarge
+      default:
+        return t.documentsTab.uploadFailed
     }
   }
 
@@ -90,7 +110,7 @@ export function DocumentUploadButton({
     return (
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={label ?? 'Pakia hati'}
+        accessibilityLabel={label ?? t.documentsTab.uploadLabel}
         accessibilityState={{ busy }}
         disabled={busy}
         onPress={handlePress}
@@ -110,7 +130,7 @@ export function DocumentUploadButton({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label ?? 'Pakia hati mpya'}
+      accessibilityLabel={label ?? t.documentsTab.uploadNewLabel}
       accessibilityState={{ busy }}
       disabled={busy}
       onPress={handlePress}
@@ -118,7 +138,7 @@ export function DocumentUploadButton({
     >
       <View style={styles.buttonInner}>
         <Text style={styles.buttonGlyph}>{'📎'}</Text>
-        <Text style={styles.buttonLabel}>{label ?? 'Pakia hati'}</Text>
+        <Text style={styles.buttonLabel}>{label ?? t.documentsTab.uploadLabel}</Text>
         {busy ? <ActivityIndicator color={colors.surface} /> : null}
       </View>
     </Pressable>

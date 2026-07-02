@@ -7,6 +7,7 @@ import { AskBorjie } from '../../src/components/AskBorjie'
 import { RoleGuard } from '../../src/components/RoleGuard'
 import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { workforcePersonaSpec } from '../../src/roles/persona'
+import { useI18n } from '../../src/i18n/useI18n'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 import { API_BASE_URL } from '../../src/api/config'
@@ -14,17 +15,6 @@ import { ApiError } from '../../src/api/errors'
 import { getAuthToken } from '../../src/auth/session'
 
 const SCREEN_ID = 'W-M-16'
-
-const COPY = {
-  composerTitle: 'Andika swali',
-  composerPlaceholder: 'Andika swali lako hapa…',
-  sendCta: 'Tuma',
-  voiceTitle: 'Uliza kwa Kiswahili',
-  historyTitle: 'Maswali ya hivi karibuni',
-  loading: 'Borjie anafikiri…',
-  empty: 'Hujauliza swali bado. Anza kwa kuandika au kubonyeza kitufe cha sauti.',
-  errorPrefix: 'Hitilafu: '
-} as const
 
 interface AskTurn {
   readonly id: string
@@ -76,6 +66,8 @@ export default function Screen(): JSX.Element {
 }
 
 function AskBorjieChat(): JSX.Element {
+  const { t } = useI18n()
+  const COPY = t.workerScreens.statusCopy
   const personaSlug = workforcePersonaSpec('employee').slug
   const [turns, setTurns] = useState<ReadonlyArray<AskTurn>>([])
   const [draft, setDraft] = useState<string>('')
@@ -104,15 +96,15 @@ function AskBorjieChat(): JSX.Element {
 
   return (
     <View>
-      <Section title={COPY.voiceTitle}>
+      <Section title={COPY.wm16VoiceTitle}>
         <AskBorjie />
       </Section>
-      <Section title={COPY.composerTitle}>
+      <Section title={COPY.wm16ComposerTitle}>
         <View style={styles.composer}>
           <TextInput
             value={draft}
             onChangeText={setDraft}
-            placeholder={COPY.composerPlaceholder}
+            placeholder={COPY.wm16ComposerPlaceholder}
             placeholderTextColor={colors.textMuted}
             style={styles.input}
             multiline
@@ -120,7 +112,7 @@ function AskBorjieChat(): JSX.Element {
           />
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={COPY.sendCta}
+            accessibilityLabel={COPY.wm16SendCta}
             onPress={submit}
             disabled={mutation.isPending || draft.trim().length === 0}
             style={({ pressed }) => [
@@ -129,20 +121,20 @@ function AskBorjieChat(): JSX.Element {
               (mutation.isPending || draft.trim().length === 0) && styles.sendDisabled
             ]}
           >
-            <Text style={styles.sendLabel}>{COPY.sendCta}</Text>
+            <Text style={styles.sendLabel}>{COPY.wm16SendCta}</Text>
           </Pressable>
         </View>
         {mutation.isPending ? (
           <View style={styles.loading}>
             <ActivityIndicator color={colors.gold} />
-            <Text style={styles.loadingText}>{COPY.loading}</Text>
+            <Text style={styles.loadingText}>{COPY.wm16Loading}</Text>
           </View>
         ) : null}
         {mutation.isError ? (
           <PreviewBanner kind="env-missing" />
         ) : null}
       </Section>
-      <Section title={`${COPY.historyTitle} (persona: ${personaSlug})`}>
+      <Section title={`${COPY.wm16HistoryTitle} (persona: ${personaSlug})`}>
         {turns.length === 0 ? (
           <PreviewBanner kind="no-data" />
         ) : (
@@ -150,7 +142,7 @@ function AskBorjieChat(): JSX.Element {
             <View key={turn.id} style={styles.turn}>
               <Text style={styles.question}>{turn.question}</Text>
               <Text style={styles.reply}>{turn.reply}</Text>
-              <Text style={styles.timestamp}>{formatRelative(turn.askedAtISO)}</Text>
+              <Text style={styles.timestamp}>{formatRelative(turn.askedAtISO, COPY)}</Text>
             </View>
           ))
         )}
@@ -159,14 +151,17 @@ function AskBorjieChat(): JSX.Element {
   )
 }
 
-function formatRelative(iso: string): string {
+function formatRelative(
+  iso: string,
+  copy: { wm16JustNow: string; wm16MinutesAgo: string; wm16HoursAgo: string }
+): string {
   const then = new Date(iso).getTime()
   if (!Number.isFinite(then)) return iso
   const minutesAgo = Math.max(0, Math.round((Date.now() - then) / 60000))
-  if (minutesAgo < 1) return 'sasa hivi'
-  if (minutesAgo < 60) return `dakika ${minutesAgo} zilizopita`
+  if (minutesAgo < 1) return copy.wm16JustNow
+  if (minutesAgo < 60) return copy.wm16MinutesAgo.replace('{n}', String(minutesAgo))
   const hoursAgo = Math.round(minutesAgo / 60)
-  return `saa ${hoursAgo} zilizopita`
+  return copy.wm16HoursAgo.replace('{n}', String(hoursAgo))
 }
 
 const styles = StyleSheet.create({

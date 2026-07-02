@@ -17,53 +17,22 @@ import { Button } from '../../src/forms/Button'
 import { request } from '../../src/api/client'
 import { API_BASE_URL } from '../../src/api/config'
 import { ApiError } from '../../src/api/errors'
+import { useI18n } from '../../src/i18n/useI18n'
+import type { StringDict } from '../../src/i18n'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'O-M-23'
 
-const COPY = Object.freeze({
-  loading: 'Inapakia mipangilio...',
-  orgSettings: 'Mipangilio ya Kampuni',
-  orgSettingsHint: 'Geuza vifaa vya msingi vya kampuni yako',
-  inviteSection: 'Karibisha mwanachama',
-  inviteHint: 'Tuma mwaliko kwa mtu mpya',
-  inviteName: 'Jina kamili',
-  inviteNamePh: 'Mfano: Juma Mwangi',
-  invitePhone: 'Simu',
-  invitePhonePh: '+255 7XX XXX XXX',
-  inviteRole: 'Cheo',
-  inviteRolePh: 'Chagua cheo',
-  inviteSubmit: 'Tuma mwaliko',
-  inviteQueued: (id: string): string => `Mwaliko umewekwa kwenye foleni - ${id}`,
-  teamSection: 'Timu yako',
-  teamCount: (n: number): string => `Wanachama ${n} kwa jumla`,
-  planSection: 'Mpango wa sasa',
-  planNextInvoice: (iso: string | null): string =>
-    iso ? `Bili inayofuata: ${iso.slice(0, 10)}` : 'Bili haijapangwa',
-  planUsersLine: (count: number): string => `Watumiaji: ${count}`,
-  planUpgrade: 'Boresha mpango',
-  planUpgradeHint:
-    'Kuboresha mpango kunafanyika kwenye portali ya wavuti ya mmiliki. Wasiliana na msimamizi wa Borjie.',
-  toggleMultiTenant: 'Mfumo wa Multi-Tenant',
-  toggleMultiTenantHint: 'Tenga data kwa kila kampuni',
-  toggleBrandLock: 'Brand-Lock',
-  toggleBrandLockHint: 'Funga rangi na nembo za Borjie',
-  toggleCurrency: 'Sarafu ya msingi TZS',
-  toggleCurrencyHint: 'Kataa mikataba ya USD ya ndani',
-  toggleLang: 'Kiswahili-Kwanza',
-  toggleLangHint: 'UI inaanza na lugha ya Kiswahili',
-  brandingError: 'Imeshindwa kuhifadhi mipangilio. Jaribu tena.',
-  inviteError: 'Imeshindwa kutuma mwaliko. Jaribu tena.'
-})
-
 type RoleValue = 'owner' | 'manager' | 'employee'
 
-const ROLE_OPTIONS = [
-  { value: 'owner' as const, label: 'Mmiliki (owner)' },
-  { value: 'manager' as const, label: 'Meneja (manager)' },
-  { value: 'employee' as const, label: 'Mfanyakazi (employee)' }
-] as const
+const ROLE_VALUES: ReadonlyArray<RoleValue> = ['owner', 'manager', 'employee']
+
+function roleOptionLabel(role: RoleValue, COPY: StringDict['ownerScreens']['om23']): string {
+  if (role === 'owner') return COPY.roleOptionOwner
+  if (role === 'manager') return COPY.roleOptionManager
+  return COPY.roleOptionEmployee
+}
 
 interface BrandingPayload {
   readonly aiPersonaDisplayName?: string
@@ -254,6 +223,8 @@ export default function Screen(): JSX.Element {
 }
 
 function SettingsAndBilling(): JSX.Element {
+  const { t } = useI18n()
+  const COPY = t.ownerScreens.om23
   const brandingQuery = useTenantBranding()
   const usersQuery = useAdminUsers()
   const billingQuery = useBilling()
@@ -382,7 +353,10 @@ function SettingsAndBilling(): JSX.Element {
           label={COPY.inviteRole}
           value={inviteRole}
           onChange={setInviteRole}
-          options={ROLE_OPTIONS}
+          options={ROLE_VALUES.map((role) => ({
+            value: role,
+            label: roleOptionLabel(role, COPY)
+          }))}
           placeholder={COPY.inviteRolePh}
         />
         <Button
@@ -392,14 +366,17 @@ function SettingsAndBilling(): JSX.Element {
           loading={invite.isPending}
         />
         {lastQueuedId ? (
-          <Text style={styles.queued}>{COPY.inviteQueued(lastQueuedId)}</Text>
+          <Text style={styles.queued}>{`${COPY.inviteQueuedPrefix} ${lastQueuedId}`}</Text>
         ) : null}
         {invite.isError ? (
           <Text style={styles.errorLine}>{COPY.inviteError}</Text>
         ) : null}
       </Section>
 
-      <Section title={COPY.teamSection} hint={COPY.teamCount(team.length)}>
+      <Section
+        title={COPY.teamSection}
+        hint={`${COPY.teamCountPrefix} ${team.length} ${COPY.teamCountSuffix}`}
+      >
         {team.length === 0 ? (
           <PreviewBanner kind="no-data" />
         ) : (
@@ -410,24 +387,33 @@ function SettingsAndBilling(): JSX.Element {
                 <Text style={styles.memberMeta}>{member.email ?? member.phone ?? ''}</Text>
               </View>
               <View style={[styles.badge, badgeStyle(member.role)]}>
-                <Text style={styles.badgeText}>{roleLabel(member.role)}</Text>
+                <Text style={styles.badgeText}>{roleLabel(member.role, COPY)}</Text>
               </View>
             </View>
           ))
         )}
       </Section>
 
-      <Section title={COPY.planSection} hint={COPY.planNextInvoice(billing?.renewalAt ?? null)}>
+      <Section
+        title={COPY.planSection}
+        hint={
+          billing?.renewalAt
+            ? `${COPY.planNextInvoicePrefix} ${billing.renewalAt.slice(0, 10)}`
+            : COPY.planNoInvoice
+        }
+      >
         {billing ? (
           <View style={styles.planCard}>
             <Text style={styles.planTier}>{billing.plan ?? '-'}</Text>
             <Text style={styles.planLine}>
-              {COPY.planUsersLine(billing.seats || team.length)}
+              {`${COPY.planUsersPrefix} ${billing.seats || team.length}`}
             </Text>
             <Text style={styles.planLine}>
               {billing.currency ?? '-'} - {billing.mrrMinor}
             </Text>
-            <Text style={styles.planLine}>Status: {billing.status ?? '-'}</Text>
+            <Text style={styles.planLine}>
+              {COPY.planStatusPrefix} {billing.status ?? '-'}
+            </Text>
           </View>
         ) : (
           <PreviewBanner kind="no-data" />
@@ -474,10 +460,10 @@ function ToggleRow({ label, hint, value, onChange }: ToggleRowProps): JSX.Elemen
   )
 }
 
-function roleLabel(role: RoleValue): string {
-  if (role === 'owner') return 'Mmiliki'
-  if (role === 'manager') return 'Meneja'
-  return 'Mfanyakazi'
+function roleLabel(role: RoleValue, COPY: StringDict['ownerScreens']['om23']): string {
+  if (role === 'owner') return COPY.roleLabelOwner
+  if (role === 'manager') return COPY.roleLabelManager
+  return COPY.roleLabelEmployee
 }
 
 function badgeStyle(role: RoleValue): { backgroundColor: string } {

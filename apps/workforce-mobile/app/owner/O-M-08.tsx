@@ -14,28 +14,13 @@ import { AskBorjie } from '../../src/components/AskBorjie'
 import { RoleGuard } from '../../src/components/RoleGuard'
 import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { request } from '../../src/api/client'
+import { useI18n } from '../../src/i18n/useI18n'
 import { API_BASE_URL } from '../../src/api/config'
 import { ApiError, isNetworkError } from '../../src/api/errors'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'O-M-08'
-
-const COPY = Object.freeze({
-  loading: 'Inapakia hati zako…',
-  asking: 'Inajibu swali…',
-  errorInline: 'Imeshindwa kuwasiliana na huduma ya doc-chat.',
-  validationEmpty: 'Tafadhali andika swali.',
-  emptyDocs: 'Hakuna hati zilizoidhinishwa kwenye akaunti yako.',
-  emptyTurns: 'Andika swali la kwanza ili kuanza mazungumzo.',
-  sectionAsk: 'Uliza hati zako',
-  sectionAskHint: 'Jibu lenye chanzo · evidence_id imethibitishwa',
-  sectionCompose: 'Andika swali',
-  sectionTurns: 'Maswali ya hivi karibuni',
-  sectionDocs: 'Hati zilizopatikana',
-  sourcesLabel: 'Chanzo:',
-  pageLabel: 'ukurasa'
-})
 
 const DOC_CHAT_BASE = `${API_BASE_URL}/api/v1/doc-chat`
 const DOCUMENTS_BASE = `${API_BASE_URL}/api/v1/mining/documents`
@@ -120,6 +105,8 @@ export default function Screen(): JSX.Element {
 }
 
 function DocumentChatView(): JSX.Element {
+  const { t } = useI18n()
+  const COPY = t.ownerScreens.om08
   const queryClient = useQueryClient()
   const [turns, setTurns] = useState<ReadonlyArray<QaTurn>>([])
   const [draft, setDraft] = useState<string>('')
@@ -258,7 +245,7 @@ function DocumentChatView(): JSX.Element {
   return (
     <View>
       <Section title={COPY.sectionAsk} hint={COPY.sectionAskHint}>
-        <AskBorjie label="Uliza Hati" />
+        <AskBorjie label={COPY.askBorjieLabel} />
       </Section>
       <Section title={COPY.sectionCompose}>
         <View style={styles.composer}>
@@ -270,7 +257,7 @@ function DocumentChatView(): JSX.Element {
                 setValidationError(null)
               }
             }}
-            placeholder="Mfano: Lini PML 67890 itapata jibu?"
+            placeholder={COPY.inputPlaceholder}
             placeholderTextColor={colors.textMuted}
             style={styles.input}
             multiline
@@ -288,7 +275,7 @@ function DocumentChatView(): JSX.Element {
           ) : null}
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Tuma swali"
+            accessibilityLabel={COPY.sendA11yLabel}
             onPress={() => void submit()}
             disabled={askingNow}
             style={({ pressed }) => [
@@ -300,7 +287,7 @@ function DocumentChatView(): JSX.Element {
             {askingNow ? (
               <ActivityIndicator color={colors.earth900} />
             ) : (
-              <Text style={styles.sendLabel}>Tuma</Text>
+              <Text style={styles.sendLabel}>{COPY.sendLabel}</Text>
             )}
           </Pressable>
         </View>
