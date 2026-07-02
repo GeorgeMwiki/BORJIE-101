@@ -9,28 +9,11 @@ import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { miningApi, request } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
 import { API_BASE_URL } from '../../src/api/config'
+import { useI18n } from '../../src/i18n/useI18n'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'O-M-07'
-
-const COPY = Object.freeze({
-  loading: 'Inapakia hali ya fedha…',
-  runwayTitle: 'Muda uliobaki',
-  daysLabel: 'Siku za hela',
-  scenarioTitle: 'Hali za muda mfupi',
-  scenarioHint: 'Bonyeza moja kubadili makadirio',
-  inflowTitle: 'Mapato ya siku 90',
-  riskHigh: 'Hatari kubwa · panga sasa',
-  riskMid: 'Kabla ya kufungwa',
-  riskLow: 'Hali nzuri',
-  burnPrefix: 'Burn: ',
-  perDaySuffix: ' kwa siku',
-  scenarioBase: 'Hali ya kawaida',
-  scenarioFuelCut: 'Kata mafuta 20%',
-  scenarioExpansion: `Panua ${'wafanya' + 'kazi'}`,
-  subscriptionTitle: 'Mpango wa malipo'
-})
 
 interface CashRunwayResponse {
   readonly success: true
@@ -83,6 +66,8 @@ export default function Screen(): JSX.Element {
 }
 
 function CashRunwayView(): JSX.Element {
+  const { t } = useI18n()
+  const COPY = t.ownerScreens.om07
   const [scenarioKey, setScenarioKey] = useState<ScenarioKey>('base')
 
   const cashQuery = useQuery<CashRunwayResponse['data'], ApiError>({
@@ -135,7 +120,7 @@ function CashRunwayView(): JSX.Element {
         burnRateTzs: Math.round(dailyAvg * 1.4)
       }
     ]
-  }, [cashQuery.data])
+  }, [cashQuery.data, COPY])
 
   const activeScenario = useMemo<Scenario | null>(() => {
     if (scenarios.length === 0) return null
@@ -197,7 +182,7 @@ function CashRunwayView(): JSX.Element {
                   {scenario.label}
                 </Text>
                 <Text style={[styles.scenarioDays, isActive && styles.scenarioDaysActive]}>
-                  {scenario.daysRemaining} siku
+                  {scenario.daysRemaining} {COPY.daysUnit}
                 </Text>
               </Pressable>
             )
@@ -206,7 +191,7 @@ function CashRunwayView(): JSX.Element {
       </Section>
       <Section
         title={COPY.inflowTitle}
-        hint={`${cashQuery.data.sampleCount} mauzo`}
+        hint={`${cashQuery.data.sampleCount} ${COPY.salesUnit}`}
       >
         <View style={styles.accountRow}>
           <View style={styles.accountHead}>

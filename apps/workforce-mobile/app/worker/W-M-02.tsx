@@ -9,8 +9,11 @@ import { fontSize, radius, spacing } from '../../src/theme/spacing'
 import { useTodayShift, type ShiftTaskLite } from '../../src/home/worker/useTodayShift'
 import { enqueueWrite } from '../../src/sync/queue'
 import { useAuth } from '../../src/auth/useAuth'
+import { useI18n } from '../../src/i18n/useI18n'
 
 const SCREEN_ID = 'W-M-02'
+
+type StatusCopy = ReturnType<typeof useI18n>['t']['workerScreens']['statusCopy']
 
 export default function Screen(): JSX.Element {
   return (
@@ -23,6 +26,8 @@ export default function Screen(): JSX.Element {
 }
 
 function TodayView(): JSX.Element {
+  const { t } = useI18n()
+  const copy = t.workerScreens.statusCopy
   const { user } = useAuth()
   const userId = user?.id ?? null
   const [started, setStarted] = useState<boolean>(false)
@@ -83,9 +88,9 @@ function TodayView(): JSX.Element {
   const breakLabel = useMemo(
     () =>
       shift?.nextBreakISO != null
-        ? relativeFromNow(shift.nextBreakISO)
-        : 'Hapana',
-    [shift]
+        ? relativeFromNow(shift.nextBreakISO, copy)
+        : copy.wm02BreakNone,
+    [shift, copy]
   )
   const doneCount = doneIds.length
   const taskCount = shift?.tasks.length ?? 0
@@ -95,19 +100,19 @@ function TodayView(): JSX.Element {
     return (
       <View style={styles.loadingWrap} accessibilityRole="progressbar">
         <ActivityIndicator color={colors.gold} />
-        <Text style={styles.loadingText}>Inapakia shifti…</Text>
+        <Text style={styles.loadingText}>{copy.wm02Loading}</Text>
       </View>
     )
   }
 
   if (shiftQuery.isError) {
     return (
-      <Section title="Shifti ya leo">
+      <Section title={copy.wm02SectionShift}>
         <Text style={styles.errorText}>
-          Imeshindwa kupakia shifti. Jaribu tena.
+          {copy.wm02LoadError}
         </Text>
         <Button
-          label="Jaribu Tena"
+          label={copy.wm02Retry}
           onPress={() => {
             void shiftQuery.refetch()
           }}
@@ -118,31 +123,31 @@ function TodayView(): JSX.Element {
 
   return (
     <View>
-      <Section title="Shifti ya leo" hint={siteName}>
+      <Section title={copy.wm02SectionShift} hint={siteName}>
         <View style={styles.timeCard}>
           <View style={styles.timeBlock}>
-            <Text style={styles.timeLabel}>Anza</Text>
+            <Text style={styles.timeLabel}>{copy.wm02Start}</Text>
             <Text style={styles.timeValue}>{startLabel}</Text>
           </View>
           <View style={styles.timeBlock}>
-            <Text style={styles.timeLabel}>Maliza</Text>
+            <Text style={styles.timeLabel}>{copy.wm02End}</Text>
             <Text style={styles.timeValue}>{endLabel}</Text>
           </View>
           <View style={styles.timeBlock}>
-            <Text style={styles.timeLabel}>Pumziko</Text>
+            <Text style={styles.timeLabel}>{copy.wm02Break}</Text>
             <Text style={styles.timeValueAccent}>{breakLabel}</Text>
           </View>
         </View>
         <Button
-          label={started ? 'Shifti imeanza' : 'Anza Shifti'}
+          label={started ? copy.wm02ShiftStarted : copy.wm02StartShift}
           onPress={onStart}
           disabled={started}
         />
       </Section>
-      <Section title={`Kazi za leo (${doneCount}/${taskCount})`}>
+      <Section title={`${copy.wm02SectionTasks} (${doneCount}/${taskCount})`}>
         {taskCount === 0 ? (
           <Text style={styles.emptyText}>
-            Hakuna kazi iliyokupewa leo.
+            {copy.wm02NoTasks}
           </Text>
         ) : (
           (shift?.tasks ?? []).map((task: ShiftTaskLite) => {
@@ -187,15 +192,15 @@ function formatHM(iso: string): string {
   return `${t.getHours().toString().padStart(2, '0')}:${t.getMinutes().toString().padStart(2, '0')}`
 }
 
-function relativeFromNow(iso: string): string {
+function relativeFromNow(iso: string, copy: StatusCopy): string {
   const target = new Date(iso).getTime()
   if (!Number.isFinite(target)) return iso
   const diff = Math.max(0, Math.round((target - Date.now()) / 60000))
-  if (diff <= 0) return 'sasa hivi'
-  if (diff < 60) return `dakika ${diff}`
+  if (diff <= 0) return copy.wm02Now
+  if (diff < 60) return `${copy.wm02Minutes} ${diff}`
   const hours = Math.floor(diff / 60)
   const mins = diff % 60
-  return `saa ${hours} dak ${mins}`
+  return `${copy.wm02Hours} ${hours} ${copy.wm02MinShort} ${mins}`
 }
 
 const styles = StyleSheet.create({

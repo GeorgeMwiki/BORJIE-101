@@ -8,38 +8,25 @@ import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { request } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
 import { API_BASE_URL } from '../../src/api/config'
+import { useI18n } from '../../src/i18n/useI18n'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'O-M-14'
 
-const COPY = Object.freeze({
-  loading: 'Inapakia bidhaa za ghala…',
-  tabAll: 'Zote',
-  tabCritical: 'Hatari',
-  tabLow: 'Chini',
-  tabOk: 'Salama',
-  summaryPrefix: 'Hatari ',
-  summaryMid: ' - Chini ',
-  summaryEnd: ' - Salama ',
-  reorderQueue: 'Foleni ya kuagiza: ',
-  daysSuffix: ' zilizobaki',
-  daysUnknown: 'Siku haijulikani',
-  queueAdd: 'Weka kwenye foleni ya kuagiza',
-  queueAdded: 'Imewekwa kwenye foleni',
-  perDay: ' kwa siku',
-  dailyUse: 'Tumia kila siku '
-})
+type Om14Copy = ReturnType<typeof useI18n>['t']['ownerScreens']['om14']
 
 type Tab = 'all' | 'critical' | 'low' | 'ok'
 
 const TAB_ORDER: ReadonlyArray<Tab> = ['all', 'critical', 'low', 'ok']
 
-const TAB_LABEL: Readonly<Record<Tab, string>> = {
-  all: COPY.tabAll,
-  critical: COPY.tabCritical,
-  low: COPY.tabLow,
-  ok: COPY.tabOk
+function tabLabelMap(copy: Om14Copy): Readonly<Record<Tab, string>> {
+  return {
+    all: copy.tabAll,
+    critical: copy.tabCritical,
+    low: copy.tabLow,
+    ok: copy.tabOk
+  }
 }
 
 interface WarehouseItem {
@@ -122,6 +109,9 @@ export default function Screen(): JSX.Element {
 }
 
 function StoresAndPurchases(): JSX.Element {
+  const { t } = useI18n()
+  const copy = t.ownerScreens.om14
+  const tabLabel = tabLabelMap(copy)
   const [tab, setTab] = useState<Tab>('all')
   const [reorderQueue, setReorderQueue] = useState<ReadonlyArray<string>>([])
 
@@ -163,7 +153,7 @@ function StoresAndPurchases(): JSX.Element {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.goldDark} />
-        <Text style={styles.loadingLabel}>{COPY.loading}</Text>
+        <Text style={styles.loadingLabel}>{copy.loading}</Text>
       </View>
     )
   }
@@ -178,22 +168,22 @@ function StoresAndPurchases(): JSX.Element {
 
   return (
     <View>
-      <Section title={`${COPY.summaryPrefix}${counts.critical}${COPY.summaryMid}${counts.low}${COPY.summaryEnd}${counts.ok}`}>
+      <Section title={`${copy.summaryPrefix}${counts.critical}${copy.summaryMid}${counts.low}${copy.summaryEnd}${counts.ok}`}>
         <View style={styles.tabRow}>
-          {TAB_ORDER.map((t) => (
+          {TAB_ORDER.map((tabKey) => (
             <Pressable
-              key={t}
+              key={tabKey}
               accessibilityRole="button"
-              accessibilityLabel={`Tab ${TAB_LABEL[t]}`}
-              onPress={() => setTab(t)}
-              style={[styles.tab, tab === t && styles.tabActive]}
+              accessibilityLabel={`${copy.tabA11yPrefix} ${tabLabel[tabKey]}`}
+              onPress={() => setTab(tabKey)}
+              style={[styles.tab, tab === tabKey && styles.tabActive]}
             >
-              <Text style={[styles.tabLabel, tab === t && styles.tabLabelActive]}>{TAB_LABEL[t]}</Text>
+              <Text style={[styles.tabLabel, tab === tabKey && styles.tabLabelActive]}>{tabLabel[tabKey]}</Text>
             </Pressable>
           ))}
         </View>
       </Section>
-      <Section title={`${COPY.reorderQueue}${reorderQueue.length}`}>
+      <Section title={`${copy.reorderQueue}${reorderQueue.length}`}>
         {visible.map((item) => {
           const d = daysLeft(item)
           const st = statusOf(item)
@@ -208,20 +198,20 @@ function StoresAndPurchases(): JSX.Element {
               <Text style={styles.cardMeta}>
                 {item.quantity ?? 0} {unit}
                 {item.warehouseLocation ? ` - ${item.warehouseLocation}` : ''}
-                {useRate > 0 ? ` - ${COPY.dailyUse}${useRate} ${unit}` : ''}
-                {reorder > 0 ? ` - reorder ${reorder}` : ''}
+                {useRate > 0 ? ` - ${copy.dailyUse}${useRate} ${unit}` : ''}
+                {reorder > 0 ? ` - ${copy.reorderMeta} ${reorder}` : ''}
               </Text>
               <Text style={[styles.cardDays, { color: toneColor }]}>
-                {d === null ? COPY.daysUnknown : `Siku ${d}${COPY.daysSuffix}`}
+                {d === null ? copy.daysUnknown : `${copy.daysPrefix}${d}${copy.daysSuffix}`}
               </Text>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`Agiza ${item.name}`}
+                accessibilityLabel={`${copy.reorderA11yPrefix} ${item.name}`}
                 onPress={() => queueReorder(item.id)}
                 style={[styles.reorderBtn, queued && styles.reorderBtnActive]}
               >
                 <Text style={[styles.reorderLabel, queued && styles.reorderLabelActive]}>
-                  {queued ? COPY.queueAdded : COPY.queueAdd}
+                  {queued ? copy.queueAdded : copy.queueAdd}
                 </Text>
               </Pressable>
             </View>

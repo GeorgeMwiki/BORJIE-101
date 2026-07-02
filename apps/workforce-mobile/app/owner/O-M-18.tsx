@@ -9,6 +9,7 @@ import { RoleGuard } from '../../src/components/RoleGuard'
 import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { miningApi } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
+import { useI18n } from '../../src/i18n/useI18n'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
@@ -17,25 +18,7 @@ const SCREEN_ID = 'O-M-18'
 // USD-cliff date is platform policy (CLAUDE.md hard rule). Not seed data.
 const USD_CLIFF_ISO = '2026-03-27'
 
-const COPY = Object.freeze({
-  loading: 'Inapakia hali ya 27-Machi…',
-  cliffTitle: 'Hesabu ya mwisho — Machi 27, 2026',
-  daysLabel: 'Siku hadi kuanza kwa sharti',
-  daysLabelPast: 'Tarehe ya mwisho imepita',
-  cliffNote: 'Mikataba ya ndani isiyo TZS itakataliwa baada ya tarehe hii',
-  exposureTitle: 'Mfichuko wa fedha za kigeni',
-  exposurePostPrefix: 'Mauzo baada ya tarehe: ',
-  exposurePostMid: ' · yenye USD: ',
-  exposureNothing: 'Hakuna mauzo bado',
-  exposureGaugeSuffix: '% ya mauzo yapo katika USD',
-  remediationDone: 'Mageuzi yamekamilika',
-  remediationPending: 'Bado kuna mikataba ya USD',
-  contractsTitle: 'Mikataba ya hivi karibuni',
-  actionsTitle: 'Hatua zinazohitajika',
-  actionRewriteTzs: 'Badili kwenda TZS',
-  actionTzsContract: 'Tayari TZS',
-  noContracts: 'Hakuna mikataba ya hivi karibuni'
-})
+type Om18Copy = ReturnType<typeof useI18n>['t']['ownerScreens']['om18']
 
 interface CliffStatusResponse {
   readonly success: true
@@ -77,6 +60,8 @@ export default function Screen(): JSX.Element {
 }
 
 function CliffStatusView(): JSX.Element {
+  const { t } = useI18n()
+  const copy = t.ownerScreens.om18
   const cliffQuery = useQuery<CliffStatusResponse['data'], ApiError>({
     queryKey: CLIFF_KEY,
     queryFn: async ({ signal }) => {
@@ -111,7 +96,7 @@ function CliffStatusView(): JSX.Element {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.goldDark} />
-        <Text style={styles.loadingLabel}>{COPY.loading}</Text>
+        <Text style={styles.loadingLabel}>{copy.loading}</Text>
       </View>
     )
   }
@@ -131,14 +116,14 @@ function CliffStatusView(): JSX.Element {
 
   return (
     <View>
-      <Section title={COPY.cliffTitle}>
+      <Section title={copy.cliffTitle}>
         <BigNumber
           value={isPastCliff ? '0' : String(daysRemaining)}
-          label={isPastCliff ? COPY.daysLabelPast : COPY.daysLabel}
-          caption={COPY.cliffNote}
+          label={isPastCliff ? copy.daysLabelPast : copy.daysLabel}
+          caption={copy.cliffNote}
         />
       </Section>
-      <Section title={COPY.exposureTitle}>
+      <Section title={copy.exposureTitle}>
         <View style={styles.gauge}>
           <View style={styles.gaugeTrack}>
             <View
@@ -151,23 +136,23 @@ function CliffStatusView(): JSX.Element {
           </View>
           <Text style={styles.gaugeLabel}>
             {cliffData.postCliffSales === 0
-              ? COPY.exposureNothing
-              : `${exposurePct}${COPY.exposureGaugeSuffix}`}
+              ? copy.exposureNothing
+              : `${exposurePct}${copy.exposureGaugeSuffix}`}
           </Text>
           <Text style={styles.gaugeSub}>
-            {COPY.exposurePostPrefix}
+            {copy.exposurePostPrefix}
             {cliffData.postCliffSales}
-            {COPY.exposurePostMid}
+            {copy.exposurePostMid}
             {cliffData.usdDenominated}
           </Text>
           <Text style={styles.gaugeSub}>
-            {cliffData.remediationComplete ? COPY.remediationDone : COPY.remediationPending}
+            {cliffData.remediationComplete ? copy.remediationDone : copy.remediationPending}
           </Text>
         </View>
       </Section>
-      <Section title={COPY.contractsTitle}>
+      <Section title={copy.contractsTitle}>
         {recentSales.length === 0 ? (
-          <PlaceholderList items={[]} emptyLabel={COPY.noContracts} />
+          <PlaceholderList items={[]} emptyLabel={copy.noContracts} />
         ) : (
           <PlaceholderList
             items={recentSales.map((sale) => {
@@ -177,28 +162,28 @@ function CliffStatusView(): JSX.Element {
                 id: sale.id,
                 primary: `${sale.id.slice(0, 8)} · ${sale.route}`,
                 secondary: isUsd
-                  ? `USD ${usd.toLocaleString('en-US')} · ${COPY.actionRewriteTzs}`
-                  : `${sale.paymentStatus} · ${COPY.actionTzsContract}`
+                  ? `USD ${usd.toLocaleString('en-US')} · ${copy.actionRewriteTzs}`
+                  : `${sale.paymentStatus} · ${copy.actionTzsContract}`
               }
             })}
           />
         )}
       </Section>
-      <Section title={COPY.actionsTitle}>
+      <Section title={copy.actionsTitle}>
         <PlaceholderList
           items={
             cliffData.remediationComplete
               ? [
                   {
                     id: 'ok',
-                    primary: COPY.remediationDone,
+                    primary: copy.remediationDone,
                     secondary: cliffData.note
                   }
                 ]
               : [
                   {
                     id: 'open',
-                    primary: COPY.remediationPending,
+                    primary: copy.remediationPending,
                     secondary: cliffData.note
                   }
                 ]

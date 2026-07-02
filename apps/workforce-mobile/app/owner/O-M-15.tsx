@@ -8,39 +8,30 @@ import { RoleGuard } from '../../src/components/RoleGuard'
 import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { miningApi } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
+import { useI18n } from '../../src/i18n/useI18n'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'O-M-15'
 const CLEAR_ENDPOINT_PATH = '/api/v1/mining/incidents/{id}/close'
 
-const COPY = Object.freeze({
-  loading: 'Inapakia data ya usalama…',
-  highLabel: 'Hatari ya juu wazi',
-  highCaptionSafe: 'Mgodi salama',
-  highCaptionAction: 'Hatua zinahitajika',
-  totalLabel: 'Jumla wazi',
-  controlsTitle: 'Vidhibiti vya hatari',
-  incidentsTitle: 'Matukio ya hivi karibuni',
-  clear: 'Funga tukio',
-  clearedNote: 'Imethibitishwa salama',
-  openNote: 'Inahitaji hatua',
-  inspectionLabel: 'Imeripotiwa',
-  severityLabels: Object.freeze({
-    critical: 'Mbaya sana',
-    high: 'Juu',
-    medium: 'Kati',
-    low: 'Chini'
-  }),
-  kindLabels: Object.freeze({
-    safety: 'Usalama',
-    environmental: 'Mazingira',
-    community: 'Jamii',
-    near_miss: `${'Kari' + 'bu'} na hatari`,
-    equipment_failure: 'Hitilafu ya kifaa',
-    fatality: 'Kifo'
-  })
-})
+type Om15Copy = ReturnType<typeof useI18n>['t']['ownerScreens']['om15']
+
+function severityLabel(severity: IncidentSeverity, copy: Om15Copy): string {
+  if (severity === 'critical') return copy.severityCritical
+  if (severity === 'high') return copy.severityHigh
+  if (severity === 'medium') return copy.severityMedium
+  return copy.severityLow
+}
+
+function kindLabel(kind: IncidentKind, copy: Om15Copy): string {
+  if (kind === 'safety') return copy.kindSafety
+  if (kind === 'environmental') return copy.kindEnvironmental
+  if (kind === 'community') return copy.kindCommunity
+  if (kind === 'near_miss') return copy.kindNearMiss
+  if (kind === 'equipment_failure') return copy.kindEquipmentFailure
+  return copy.kindFatality
+}
 
 type IncidentSeverity = 'critical' | 'high' | 'medium' | 'low'
 type IncidentKind =
@@ -86,6 +77,8 @@ export default function Screen(): JSX.Element {
 }
 
 function SafetyAndEhs(): JSX.Element {
+  const { t } = useI18n()
+  const copy = t.ownerScreens.om15
   const queryClient = useQueryClient()
   const [clearAttempted, setClearAttempted] = useState<boolean>(false)
   const query = useQuery<ReadonlyArray<IncidentRow>, ApiError>({
@@ -116,7 +109,7 @@ function SafetyAndEhs(): JSX.Element {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.goldDark} />
-        <Text style={styles.loadingLabel}>{COPY.loading}</Text>
+        <Text style={styles.loadingLabel}>{copy.loading}</Text>
       </View>
     )
   }
@@ -131,18 +124,18 @@ function SafetyAndEhs(): JSX.Element {
 
   return (
     <View>
-      <Section title={COPY.controlsTitle}>
+      <Section title={copy.controlsTitle}>
         <View style={styles.heroRow}>
           <View style={styles.heroBox}>
             <BigNumber
               value={String(openHigh)}
-              label={COPY.highLabel}
-              caption={openHigh === 0 ? COPY.highCaptionSafe : COPY.highCaptionAction}
+              label={copy.highLabel}
+              caption={openHigh === 0 ? copy.highCaptionSafe : copy.highCaptionAction}
             />
           </View>
           <View style={styles.miniBox}>
             <Text style={styles.miniValue}>{totalOpen}</Text>
-            <Text style={styles.miniLabel}>{COPY.totalLabel}</Text>
+            <Text style={styles.miniLabel}>{copy.totalLabel}</Text>
           </View>
         </View>
       </Section>
@@ -152,23 +145,23 @@ function SafetyAndEhs(): JSX.Element {
           <Text style={styles.missingPath}>{CLEAR_ENDPOINT_PATH}</Text>
         </View>
       ) : null}
-      <Section title={COPY.incidentsTitle}>
+      <Section title={copy.incidentsTitle}>
         {rows.map((row) => (
           <Pressable
             key={row.id}
             accessibilityRole="button"
-            accessibilityLabel={`${COPY.clear} ${row.id}`}
+            accessibilityLabel={`${copy.clear} ${row.id}`}
             onPress={onAttemptClear}
             style={[styles.control, { borderLeftColor: SEVERITY_COLOR[row.severity] }]}
           >
             <View style={styles.controlHeader}>
-              <Text style={styles.controlName}>{COPY.kindLabels[row.kind]}</Text>
+              <Text style={styles.controlName}>{kindLabel(row.kind, copy)}</Text>
               <View style={[styles.statusDot, styles.dotOpen]} />
             </View>
             <Text style={styles.controlMeta}>
-              {row.description ?? COPY.inspectionLabel} - {COPY.severityLabels[row.severity]}
+              {row.description ?? copy.inspectionLabel} - {severityLabel(row.severity, copy)}
             </Text>
-            <Text style={[styles.controlStatus, { color: colors.danger }]}>{COPY.openNote}</Text>
+            <Text style={[styles.controlStatus, { color: colors.danger }]}>{copy.openNote}</Text>
           </Pressable>
         ))}
       </Section>

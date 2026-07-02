@@ -9,29 +9,13 @@ import { RoleGuard } from '../../src/components/RoleGuard'
 import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { miningApi } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
+import { useI18n } from '../../src/i18n/useI18n'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'O-M-17'
 
-const COPY = Object.freeze({
-  loading: 'Inapakia bei za soko…',
-  spotTitle: 'Bei ya soko ya kuuza',
-  spotLabel: 'USD kwa kilo (wastani wa siku 90)',
-  spotCaption: 'Tofauti na wastani wa wiki: ',
-  historyTitle: 'Mwendo wa mauzo',
-  fxTitle: 'FX iliyorekodiwa kwenye mauzo',
-  decisionTitle: 'Uamuzi — uza au hifadhi',
-  recHigh: 'Bei iko juu — pendekezo: UZA leo',
-  recLow: 'Bei chini ya wastani — pendekezo: HIFADHI',
-  recMid: 'Bei iko karibu na wastani — angalia tena baada ya saa 6',
-  pickSell: 'Uza',
-  pickHold: 'Hifadhi',
-  decisionSell: 'Chaguo: UZA mara mzigo unaopatikana sasa',
-  decisionHold: 'Chaguo: HIFADHI hadi bei ipande zaidi',
-  juuLabel: 'Juu ya wastani',
-  chiniLabel: 'Chini ya wastani'
-})
+type Om17Copy = ReturnType<typeof useI18n>['t']['ownerScreens']['om17']
 
 interface SaleRow {
   readonly id: string
@@ -97,6 +81,8 @@ export default function Screen(): JSX.Element {
 }
 
 function FxGoldWindow(): JSX.Element {
+  const { t } = useI18n()
+  const copy = t.ownerScreens.om17
   const [decision, setDecision] = useState<Decision>('sell')
 
   const salesQuery = useQuery<ReadonlyArray<SaleRow>, ApiError>({
@@ -163,10 +149,10 @@ function FxGoldWindow(): JSX.Element {
   }, [avgPricePerKgUsd, latestPricePerKgUsd])
 
   const recommendation = useMemo<string>(() => {
-    if (deltaPct >= 1) return COPY.recHigh
-    if (deltaPct <= HOLD_THRESHOLD_PCT) return COPY.recLow
-    return COPY.recMid
-  }, [deltaPct])
+    if (deltaPct >= 1) return copy.recHigh
+    if (deltaPct <= HOLD_THRESHOLD_PCT) return copy.recLow
+    return copy.recMid
+  }, [deltaPct, copy])
 
   const fxObservations = useMemo<ReadonlyArray<FxObs>>(() => {
     const sales = salesQuery.data ?? []
@@ -187,7 +173,7 @@ function FxGoldWindow(): JSX.Element {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.goldDark} />
-        <Text style={styles.loadingLabel}>{COPY.loading}</Text>
+        <Text style={styles.loadingLabel}>{copy.loading}</Text>
       </View>
     )
   }
@@ -203,24 +189,24 @@ function FxGoldWindow(): JSX.Element {
 
   return (
     <View>
-      <Section title={COPY.spotTitle}>
+      <Section title={copy.spotTitle}>
         <BigNumber
           value={`USD ${latestPricePerKgUsd.toFixed(2)}`}
-          label={COPY.spotLabel}
-          caption={`${COPY.spotCaption}${deltaPct >= 0 ? '+' : ''}${deltaPct}%`}
+          label={copy.spotLabel}
+          caption={`${copy.spotCaption}${deltaPct >= 0 ? '+' : ''}${deltaPct}%`}
         />
       </Section>
-      <Section title={COPY.historyTitle}>
+      <Section title={copy.historyTitle}>
         <PlaceholderList
           items={priceHistory.map((h) => ({
             id: `${h.date}-${h.pricePerKgUsd}`,
             primary: `${h.date} · USD ${h.pricePerKgUsd.toFixed(2)} / kg`,
-            secondary: h.aboveAvg ? COPY.juuLabel : COPY.chiniLabel
+            secondary: h.aboveAvg ? copy.juuLabel : copy.chiniLabel
           }))}
         />
       </Section>
       {fxObservations.length > 0 ? (
-        <Section title={COPY.fxTitle}>
+        <Section title={copy.fxTitle}>
           <PlaceholderList
             items={fxObservations.map((q) => ({
               id: q.id,
@@ -230,32 +216,32 @@ function FxGoldWindow(): JSX.Element {
           />
         </Section>
       ) : null}
-      <Section title={COPY.decisionTitle}>
+      <Section title={copy.decisionTitle}>
         <Text style={styles.recText}>{recommendation}</Text>
         <View style={styles.actionRow}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Chagua kuuza"
+            accessibilityLabel={copy.pickSellAccessibility}
             onPress={() => setDecision('sell')}
             style={[styles.action, decision === 'sell' && styles.sell]}
           >
             <Text style={[styles.actionLabel, decision === 'sell' && styles.actionLabelActive]}>
-              {COPY.pickSell}
+              {copy.pickSell}
             </Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Chagua kuhifadhi"
+            accessibilityLabel={copy.pickHoldAccessibility}
             onPress={() => setDecision('hold')}
             style={[styles.action, decision === 'hold' && styles.hold]}
           >
             <Text style={[styles.actionLabel, decision === 'hold' && styles.actionLabelActive]}>
-              {COPY.pickHold}
+              {copy.pickHold}
             </Text>
           </Pressable>
         </View>
         <Text style={styles.footer}>
-          {decision === 'sell' ? COPY.decisionSell : COPY.decisionHold}
+          {decision === 'sell' ? copy.decisionSell : copy.decisionHold}
         </Text>
       </Section>
     </View>

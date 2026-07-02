@@ -8,39 +8,33 @@ import { RoleGuard } from '../../src/components/RoleGuard'
 import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { miningApi } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
+import { useI18n } from '../../src/i18n/useI18n'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'O-M-20'
 
-const COPY = Object.freeze({
-  loading: 'Inapakia matangazo…',
-  filterTitle: 'Chuja kwa aina ya madini',
-  verifiedToggleLabel: 'Walioidhinishwa na Borjie tu',
-  resultsPrefix: 'Matokeo (',
-  resultsSuffix: ')',
-  noListings: 'Hakuna matangazo katika kichujio hiki',
-  badgeVerified: 'Imeidhinishwa',
-  ratingPrefix: 'ukadiriaji ',
-  ratingSuffix: ' / 5',
-  filterAll: 'Zote',
-  filterGold: 'Dhahabu',
-  filterCopper: 'Shaba',
-  filterTanzanite: 'Tanzanite',
-  filterCoal: 'Makaa',
-  filterOther: 'Nyingine'
-})
+type Om20Copy = ReturnType<typeof useI18n>['t']['ownerScreens']['om20']
 
 type MineralFilter = 'all' | 'gold' | 'copper' | 'tanzanite' | 'coal' | 'other'
 
-const FILTER_ORDER: ReadonlyArray<{ kind: MineralFilter; label: string; queryValue?: string }> = [
-  { kind: 'all', label: COPY.filterAll },
-  { kind: 'gold', label: COPY.filterGold, queryValue: 'gold' },
-  { kind: 'copper', label: COPY.filterCopper, queryValue: 'copper' },
-  { kind: 'tanzanite', label: COPY.filterTanzanite, queryValue: 'tanzanite' },
-  { kind: 'coal', label: COPY.filterCoal, queryValue: 'coal' },
-  { kind: 'other', label: COPY.filterOther }
+const FILTER_ORDER: ReadonlyArray<{ kind: MineralFilter; queryValue?: string }> = [
+  { kind: 'all' },
+  { kind: 'gold', queryValue: 'gold' },
+  { kind: 'copper', queryValue: 'copper' },
+  { kind: 'tanzanite', queryValue: 'tanzanite' },
+  { kind: 'coal', queryValue: 'coal' },
+  { kind: 'other' }
 ]
+
+function filterLabel(kind: MineralFilter, copy: Om20Copy): string {
+  if (kind === 'all') return copy.filterAll
+  if (kind === 'gold') return copy.filterGold
+  if (kind === 'copper') return copy.filterCopper
+  if (kind === 'tanzanite') return copy.filterTanzanite
+  if (kind === 'coal') return copy.filterCoal
+  return copy.filterOther
+}
 
 interface ListingRow {
   readonly id: string
@@ -100,6 +94,8 @@ export default function Screen(): JSX.Element {
 }
 
 function MarketplaceView(): JSX.Element {
+  const { t } = useI18n()
+  const copy = t.ownerScreens.om20
   const [filter, setFilter] = useState<MineralFilter>('all')
   const [verifiedOnly, setVerifiedOnly] = useState<boolean>(false)
 
@@ -131,7 +127,7 @@ function MarketplaceView(): JSX.Element {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.goldDark} />
-        <Text style={styles.loadingLabel}>{COPY.loading}</Text>
+        <Text style={styles.loadingLabel}>{copy.loading}</Text>
       </View>
     )
   }
@@ -147,25 +143,28 @@ function MarketplaceView(): JSX.Element {
 
   return (
     <View>
-      <Section title={COPY.filterTitle}>
+      <Section title={copy.filterTitle}>
         <View style={styles.filterRow}>
-          {FILTER_ORDER.map((f) => (
-            <Pressable
-              key={f.kind}
-              accessibilityRole="button"
-              accessibilityLabel={`Chuja ${f.label}`}
-              onPress={() => setFilter(f.kind)}
-              style={[styles.chip, filter === f.kind && styles.chipActive]}
-            >
-              <Text style={[styles.chipLabel, filter === f.kind && styles.chipLabelActive]}>
-                {f.label}
-              </Text>
-            </Pressable>
-          ))}
+          {FILTER_ORDER.map((f) => {
+            const label = filterLabel(f.kind, copy)
+            return (
+              <Pressable
+                key={f.kind}
+                accessibilityRole="button"
+                accessibilityLabel={`${copy.filterAccessibilityPrefix} ${label}`}
+                onPress={() => setFilter(f.kind)}
+                style={[styles.chip, filter === f.kind && styles.chipActive]}
+              >
+                <Text style={[styles.chipLabel, filter === f.kind && styles.chipLabelActive]}>
+                  {label}
+                </Text>
+              </Pressable>
+            )
+          })}
         </View>
         <Pressable
           accessibilityRole="checkbox"
-          accessibilityLabel={COPY.verifiedToggleLabel}
+          accessibilityLabel={copy.verifiedToggleLabel}
           accessibilityState={{ checked: verifiedOnly }}
           onPress={() => setVerifiedOnly((current) => !current)}
           style={styles.verifiedToggle}
@@ -173,12 +172,12 @@ function MarketplaceView(): JSX.Element {
           <View style={[styles.checkbox, verifiedOnly && styles.checkboxOn]}>
             {verifiedOnly ? <Text style={styles.checkmark}>OK</Text> : null}
           </View>
-          <Text style={styles.verifiedLabel}>{COPY.verifiedToggleLabel}</Text>
+          <Text style={styles.verifiedLabel}>{copy.verifiedToggleLabel}</Text>
         </Pressable>
       </Section>
-      <Section title={`${COPY.resultsPrefix}${visible.length}${COPY.resultsSuffix}`}>
+      <Section title={`${copy.resultsPrefix}${visible.length}${copy.resultsSuffix}`}>
         {visible.length === 0 ? (
-          <PlaceholderList items={[]} emptyLabel={COPY.noListings} />
+          <PlaceholderList items={[]} emptyLabel={copy.noListings} />
         ) : (
           <View style={styles.list}>
             {visible.map((l) => {
@@ -191,14 +190,14 @@ function MarketplaceView(): JSX.Element {
                 <View key={l.id} style={styles.card}>
                   <View style={styles.cardHead}>
                     <Text style={styles.cardTitle}>{l.title}</Text>
-                    {verified ? <Text style={styles.badge}>{COPY.badgeVerified}</Text> : null}
+                    {verified ? <Text style={styles.badge}>{copy.badgeVerified}</Text> : null}
                   </View>
                   {location || rating !== null ? (
                     <Text style={styles.cardMeta}>
                       {location ?? ''}
                       {location && rating !== null ? ' · ' : ''}
                       {rating !== null
-                        ? `${COPY.ratingPrefix}${rating.toFixed(1)}${COPY.ratingSuffix}`
+                        ? `${copy.ratingPrefix}${rating.toFixed(1)}${copy.ratingSuffix}`
                         : ''}
                     </Text>
                   ) : null}

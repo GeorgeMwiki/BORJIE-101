@@ -9,45 +9,34 @@ import { RoleGuard } from '../../src/components/RoleGuard'
 import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { miningApi } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
+import { useI18n } from '../../src/i18n/useI18n'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'O-M-16'
 const CSR_ENDPOINT_PATH = '/api/v1/mining/csr-plans'
 
-const COPY = Object.freeze({
-  loading: 'Inapakia data ya jamii…',
-  csrTitle: 'Ahadi za jamii — utekelezaji',
-  csrLabel: 'Ahadi zilizotekelezwa',
-  csrSection: 'Orodha ya ahadi',
-  grievancesTitle: 'Malalamiko ya jamii',
-  filterAll: 'Yote',
-  filterOpen: 'Wazi',
-  filterAllAccessibility: 'Onyesha yote',
-  filterOpenAccessibility: 'Onyesha wazi tu',
-  openLabel: 'Wazi',
-  closedLabel: 'Imefungwa',
-  emptyGrievances: 'Hakuna malalamiko wazi',
-  unresolvedLabel: 'wazi',
-  categoryLabels: Object.freeze({
-    noise: 'Kelele',
-    dust: 'Vumbi',
-    water: 'Maji',
-    land: 'Ardhi',
-    wages: 'Mishahara',
-    housing: 'Makazi',
-    access: 'Ufikiaji',
-    other: 'Nyingine'
-  }),
-  raisedByLabels: Object.freeze({
-    worker: 'Mfanyakazi',
-    villager: 'Mwanakijiji',
-    landowner: 'Mmiliki wa ardhi',
-    community_leader: 'Kiongozi wa jamii',
-    local_govt: 'Serikali ya mtaa',
-    ngo: 'NGO'
-  })
-})
+type Om16Copy = ReturnType<typeof useI18n>['t']['ownerScreens']['om16']
+
+function categoryLabel(category: GrievanceCategory, copy: Om16Copy): string {
+  if (category === 'noise') return copy.catNoise
+  if (category === 'dust') return copy.catDust
+  if (category === 'water') return copy.catWater
+  if (category === 'land') return copy.catLand
+  if (category === 'wages') return copy.catWages
+  if (category === 'housing') return copy.catHousing
+  if (category === 'access') return copy.catAccess
+  return copy.catOther
+}
+
+function raisedByLabel(kind: RaisedByKind, copy: Om16Copy): string {
+  if (kind === 'worker') return copy.raisedByWorker
+  if (kind === 'villager') return copy.raisedByVillager
+  if (kind === 'landowner') return copy.raisedByLandowner
+  if (kind === 'community_leader') return copy.raisedByCommunityLeader
+  if (kind === 'local_govt') return copy.raisedByLocalGovt
+  return copy.raisedByNgo
+}
 
 type GrievanceCategory =
   | 'noise'
@@ -97,6 +86,8 @@ export default function Screen(): JSX.Element {
 }
 
 function CommunityRelations(): JSX.Element {
+  const { t } = useI18n()
+  const copy = t.ownerScreens.om16
   const [filter, setFilter] = useState<'all' | 'open'>('all')
   const query = useQuery<ReadonlyArray<GrievanceRow>, ApiError>({
     queryKey: QUERY_KEY,
@@ -117,15 +108,15 @@ function CommunityRelations(): JSX.Element {
 
   return (
     <View>
-      <Section title={COPY.csrTitle}>
+      <Section title={copy.csrTitle}>
         <PreviewBanner kind="env-missing" />
         <Text style={styles.missingPath}>{CSR_ENDPOINT_PATH}</Text>
         <View style={styles.csrSummary}>
-          <BigNumber value="—" label={COPY.csrLabel} />
+          <BigNumber value="—" label={copy.csrLabel} />
         </View>
       </Section>
-      <Section title={COPY.grievancesTitle}>
-        {renderGrievancesContent(query.isLoading, query.isError, query.error, grievances, filtered, filter, setFilter)}
+      <Section title={copy.grievancesTitle}>
+        {renderGrievancesContent(query.isLoading, query.isError, query.error, grievances, filtered, filter, setFilter, copy)}
       </Section>
     </View>
   )
@@ -138,13 +129,14 @@ function renderGrievancesContent(
   all: ReadonlyArray<GrievanceRow>,
   filtered: ReadonlyArray<GrievanceRow>,
   filter: 'all' | 'open',
-  setFilter: (next: 'all' | 'open') => void
+  setFilter: (next: 'all' | 'open') => void,
+  copy: Om16Copy
 ): JSX.Element {
   if (isLoading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.goldDark} />
-        <Text style={styles.loadingLabel}>{COPY.loading}</Text>
+        <Text style={styles.loadingLabel}>{copy.loading}</Text>
       </View>
     )
   }
@@ -160,47 +152,47 @@ function renderGrievancesContent(
       <View style={styles.toggleRow}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={COPY.filterAllAccessibility}
+          accessibilityLabel={copy.filterAllAccessibility}
           onPress={() => setFilter('all')}
           style={[styles.toggle, filter === 'all' && styles.toggleActive]}
         >
           <Text style={[styles.toggleLabel, filter === 'all' && styles.toggleLabelActive]}>
-            {COPY.filterAll}
+            {copy.filterAll}
           </Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={COPY.filterOpenAccessibility}
+          accessibilityLabel={copy.filterOpenAccessibility}
           onPress={() => setFilter('open')}
           style={[styles.toggle, filter === 'open' && styles.toggleActive]}
         >
           <Text style={[styles.toggleLabel, filter === 'open' && styles.toggleLabelActive]}>
-            {COPY.filterOpen}
+            {copy.filterOpen}
           </Text>
         </Pressable>
       </View>
       <PlaceholderList
         items={filtered.map((row) => ({
           id: row.id,
-          primary: `${COPY.categoryLabels[row.category]} - ${row.summary}`,
-          secondary: secondaryLabel(row, now)
+          primary: `${categoryLabel(row.category, copy)} - ${row.summary}`,
+          secondary: secondaryLabel(row, now, copy)
         }))}
-        emptyLabel={COPY.emptyGrievances}
+        emptyLabel={copy.emptyGrievances}
       />
     </View>
   )
 }
 
-function secondaryLabel(row: GrievanceRow, now: number): string {
+function secondaryLabel(row: GrievanceRow, now: number, copy: Om16Copy): string {
   if (isResolved(row.status)) {
-    return COPY.closedLabel
+    return copy.closedLabel
   }
   const raised = Date.parse(row.raisedAt)
   if (!Number.isFinite(raised)) {
-    return COPY.unresolvedLabel
+    return copy.unresolvedLabel
   }
   const days = Math.max(0, Math.floor((now - raised) / MS_PER_DAY))
-  return `${COPY.openLabel} - ${COPY.raisedByLabels[row.raisedByKind]} - siku ${days}`
+  return `${copy.openLabel} - ${raisedByLabel(row.raisedByKind, copy)} - ${copy.daysPrefix} ${days}`
 }
 
 function isResolved(status: string): boolean {
