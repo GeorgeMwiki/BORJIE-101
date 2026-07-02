@@ -44,7 +44,22 @@ async function main(): Promise<void> {
       });
     },
     async killSwitchOpen(): Promise<boolean> {
-      return false;
+      // stdio path has no DB handle. Consult the kernel's env-based
+      // killswitch convention (`KILLSWITCH_STATE`, see
+      // central-intelligence kernel/killswitch.ts): a hard `halt` refuses
+      // every tool call. Fail CLOSED — an unreadable/ambiguous state is
+      // treated as halted rather than silently letting traffic through
+      // (CLAUDE.md: "Kill-switch fail-closed. Never catch + ignore its
+      // errors"). The gateway re-checks its DB-backed state on every
+      // proxied call, so this is defence-in-depth, not the sole gate.
+      try {
+        const state = (process.env['KILLSWITCH_STATE'] ?? 'live')
+          .trim()
+          .toLowerCase();
+        return state === 'halt';
+      } catch {
+        return true;
+      }
     },
     async auditChainHash({ toolName, auth, idempotencyKey }): Promise<string> {
       const seed = `${auth.agentTokenId}:${toolName}:${idempotencyKey ?? ''}:${Date.now()}`;

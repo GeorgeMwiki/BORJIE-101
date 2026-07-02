@@ -121,6 +121,17 @@ export interface DispatcherDeps {
     bearerToken: string | null,
   ) => Promise<BorjieMcpAuthContext | null>;
   readonly killSwitchOpen: () => Promise<boolean>;
+  /**
+   * Mint the bearer the DOWNSTREAM api-gateway will accept for a proxied
+   * tool call. The gateway auth is JWT-only, so the opaque agent token
+   * cannot be forwarded verbatim (it 401s). When provided, the resolved
+   * agent identity is exchanged for a short-lived gateway-accepted token;
+   * when absent we fall back to the raw bearer (stdio/dev path where the
+   * gateway is the authoritative validator of the same token).
+   */
+  readonly mintDownstreamToken?: (
+    auth: BorjieMcpAuthContext,
+  ) => Promise<string>;
   readonly now?: () => Date;
   readonly auditChainHash: (input: {
     readonly toolName: string;
@@ -490,6 +501,114 @@ export function createDispatcher(deps: DispatcherDeps) {
       });
     }
 
+    // ─── actions/approve — owner approves a pending four-eye row ─────
+    // The owner reaches this via the owner-web /oauth/actions/approve
+    // page → gateway, carrying the SAME agent-token bearer the agent
+    // used to initiate (the page is owner-authenticated at the gateway
+    // layer; here we bind the approval to the token that owns it). This
+    // flips the approval pending → approved so `actions/execute` becomes
+    // reachable — closing the dead-end where approve()/consume() had zero
+    // callers and the gate could only ever reject.
+    if (method === 'actions/approve') {
+      const auth = await deps.resolveAuthContext(bearerToken);
+      if (!auth) return buildError(id, JSON_RPC_UNAUTHORIZED, 'authentication required');
+      const params = request.params ?? {};
+      const approvalId = params['approvalId'];
+      if (typeof approvalId !== 'string') {
+        return buildError(id, JSON_RPC_INVALID_PARAMS, 'approvalId required');
+      }
+      const approver = typeof params['approver'] === 'string'
+        ? (params['approver'] as string)
+        : auth.ownerId;
+      const existing = await approvalStore.get(approvalId);
+      if (!existing) return buildError(id, JSON_RPC_METHOD_NOT_FOUND, `unknown approval: ${approvalId}`);
+      if (existing.tokenId !== auth.agentTokenId) {
+        return buildError(id, JSON_RPC_FORBIDDEN, 'approval does not belong to this token');
+      }
+      const approved = await approvalStore.approve(approvalId, approver);
+      if (approved.status === 'expired') {
+        return buildError(id, JSON_RPC_APPROVAL_EXPIRED, 'approval expired', {
+          approvalId,
+          status: approved.status,
+        });
+      }
+      log('warning', 'mcp.four-eye.approved', { approvalId, tool: approved.toolName });
+      return buildSuccess(id, {
+        approvalId,
+        status: approved.status,
+        toolName: approved.toolName,
+      });
+    }
+
+    // ─── actions/deny — owner rejects a pending four-eye row ─────────
+    if (method === 'actions/deny') {
+      const auth = await deps.resolveAuthContext(bearerToken);
+      if (!auth) return buildError(id, JSON_RPC_UNAUTHORIZED, 'authentication required');
+      const params = request.params ?? {};
+      const approvalId = params['approvalId'];
+      if (typeof approvalId !== 'string') {
+        return buildError(id, JSON_RPC_INVALID_PARAMS, 'approvalId required');
+      }
+      const existing = await approvalStore.get(approvalId);
+      if (!existing) return buildError(id, JSON_RPC_METHOD_NOT_FOUND, `unknown approval: ${approvalId}`);
+      if (existing.tokenId !== auth.agentTokenId) {
+        return buildError(id, JSON_RPC_FORBIDDEN, 'approval does not belong to this token');
+      }
+      const denied = await approvalStore.deny(
+        approvalId,
+        typeof params['approver'] === 'string' ? (params['approver'] as string) : auth.ownerId,
+      );
+      return buildSuccess(id, { approvalId, status: denied.status });
+    }
+
+    // ─── actions/execute — consume an approved four-eye row + run ────
+    // The agent polls `actions/approval_status`; once `approved`, it
+    // calls this to CONSUME the approval and actually execute the tool.
+    // consume() is single-use (approved → consumed) so a replay after
+    // execution is rejected. This is the previously-missing re-exec leg.
+    if (method === 'actions/execute') {
+      const auth = await deps.resolveAuthContext(bearerToken);
+      if (!auth) return buildError(id, JSON_RPC_UNAUTHORIZED, 'authentication required');
+      const params = request.params ?? {};
+      const approvalId = params['approvalId'];
+      if (typeof approvalId !== 'string') {
+        return buildError(id, JSON_RPC_INVALID_PARAMS, 'approvalId required');
+      }
+      const approval = await approvalStore.get(approvalId);
+      if (!approval) return buildError(id, JSON_RPC_METHOD_NOT_FOUND, `unknown approval: ${approvalId}`);
+      if (approval.tokenId !== auth.agentTokenId) {
+        return buildError(id, JSON_RPC_FORBIDDEN, 'approval does not belong to this token');
+      }
+      if (approval.status === 'pending') {
+        return buildError(id, JSON_RPC_APPROVAL_PENDING, 'approval still pending');
+      }
+      if (approval.status === 'denied') {
+        return buildError(id, JSON_RPC_APPROVAL_DENIED, 'approval denied');
+      }
+      if (approval.status === 'expired' || approval.expiresAt < now().getTime()) {
+        return buildError(id, JSON_RPC_APPROVAL_EXPIRED, 'approval expired');
+      }
+      if (approval.status !== 'approved') {
+        return buildError(id, JSON_RPC_APPROVAL_DENIED, `approval not executable: ${approval.status}`);
+      }
+      // Single-use: flip approved → consumed BEFORE running so a
+      // concurrent/replayed execute cannot double-fire the sovereign act.
+      try {
+        await approvalStore.consume(approvalId);
+      } catch {
+        return buildError(id, JSON_RPC_APPROVAL_DENIED, 'approval already consumed');
+      }
+      return runToolExec({
+        id,
+        name: approval.toolName,
+        args: approval.arguments as Record<string, unknown>,
+        auth,
+        bearerToken,
+        ...(idempotencyKey !== undefined ? { idempotencyKey } : {}),
+        ...(input.sessionId !== undefined ? { sessionId: input.sessionId } : {}),
+      });
+    }
+
     // ─── tools/list (filterable) ───────────────────────────────────
     if (method === 'tools/list') {
       const params = request.params ?? {};
@@ -565,7 +684,15 @@ export function createDispatcher(deps: DispatcherDeps) {
       const resource = findResource(uri);
       if (!resource) return buildError(id, JSON_RPC_METHOD_NOT_FOUND, `unknown resource: ${uri}`);
       try {
-        const data = await readResource(uri, deps.gatewayClient, auth);
+        const downstreamToken = deps.mintDownstreamToken
+          ? await deps.mintDownstreamToken(auth)
+          : bearerToken ?? '';
+        const data = await readResource(
+          uri,
+          deps.gatewayClient,
+          auth,
+          downstreamToken,
+        );
         return buildSuccess(id, {
           contents: [
             { uri, mimeType: resource.mimeType, text: JSON.stringify(data) },
@@ -632,88 +759,126 @@ export function createDispatcher(deps: DispatcherDeps) {
       }
 
       const args = (params['arguments'] ?? {}) as Record<string, unknown>;
-      const route = TOOL_ROUTE_MAP[name];
-      if (!route) {
-        return buildError(id, JSON_RPC_INTERNAL_ERROR, `route not registered for ${name}`);
-      }
-
       const progressToken = extractProgressToken(params);
-      const emitter = createToolProgressEmitter(notify, {
-        requestId: id,
+      return runToolExec({
+        id,
+        name,
+        args,
+        auth,
+        bearerToken,
+        ...(idempotencyKey !== undefined ? { idempotencyKey } : {}),
         ...(progressToken !== undefined ? { progressToken } : {}),
+        ...(input.sessionId !== undefined ? { sessionId: input.sessionId } : {}),
       });
-      emitter.emit(0, 100, 'starting');
-      log('info', 'mcp.tools.call.begin', { tool: name });
-
-      let path: string;
-      try {
-        path = substitutePath(route.path, args);
-      } catch (err) {
-        return buildError(
-          id,
-          JSON_RPC_INVALID_PARAMS,
-          err instanceof Error ? err.message : 'invalid path params',
-        );
-      }
-      const shaped = shapeRequest(route, args);
-
-      try {
-        const upstream = await deps.gatewayClient.call({
-          path,
-          method: route.method,
-          accessToken: bearerToken ?? '',
-          agentTokenId: auth.agentTokenId,
-          mcpToolName: name,
-          ...(shaped.body !== undefined ? { body: shaped.body } : {}),
-          ...(shaped.query !== undefined ? { query: shaped.query } : {}),
-          ...(idempotencyKey !== undefined ? { idempotencyKey } : {}),
-        });
-        emitter.emit(100, 100, 'done');
-        const auditHash = await deps.auditChainHash({
-          toolName: name,
-          auth,
-          ...(idempotencyKey !== undefined ? { idempotencyKey } : {}),
-        });
-        const result: BorjieMcpToolResult = {
-          ok: true,
-          content: shapeContent(upstream),
-          confidence: pickConfidence(upstream),
-          evidenceIds: pickEvidenceIds(upstream),
-          provenance: {
-            via: 'mcp',
-            agentName: auth.agentName,
-            agentTokenId: auth.agentTokenId,
-            toolName: name,
-            invokedAt: now().toISOString(),
-            auditChainHash: auditHash,
-          },
-          requiresConfirmation: tool.requiresConfirmation,
-        };
-        if (input.sessionId ?? deps.sessionId) {
-          const sid = (input.sessionId ?? deps.sessionId) as string;
-          await sessionManager.resume(sid, auth.agentTokenId).catch(() => null);
-          await sessionManager
-            .checkpoint(sid, {
-              direction: 'response',
-              method: 'tools/call',
-              toolName: name,
-              at: now().getTime(),
-              summary: `${name} ok`,
-            })
-            .catch(() => null);
-        }
-        log('info', 'mcp.tools.call.ok', { tool: name });
-        return buildSuccess(id, result);
-      } catch (err) {
-        log('error', 'mcp.tools.call.error', {
-          tool: name,
-          err: err instanceof Error ? err.message : String(err),
-        });
-        return toolErrorToRpc(id, err);
-      }
     }
 
     return buildError(id, JSON_RPC_METHOD_NOT_FOUND, `unknown method: ${method}`);
+  }
+
+  /**
+   * Shared tool-execution leg used by both `tools/call` and
+   * `actions/execute` (the four-eye re-exec path). Resolves the route,
+   * mints the downstream gateway bearer, calls the gateway, and shapes
+   * the MCP tool result. Scope + four-eye gates are enforced by the
+   * caller BEFORE reaching here.
+   */
+  async function runToolExec(exec: {
+    readonly id: string | number | null;
+    readonly name: string;
+    readonly args: Record<string, unknown>;
+    readonly auth: BorjieMcpAuthContext;
+    readonly bearerToken: string | null;
+    readonly idempotencyKey?: string;
+    readonly progressToken?: string | number;
+    readonly sessionId?: string;
+  }): Promise<JsonRpcResponse> {
+    const { id, name, args, auth } = exec;
+    const tool = findPublicTool(name);
+    const route = TOOL_ROUTE_MAP[name];
+    if (!route) {
+      return buildError(id, JSON_RPC_INTERNAL_ERROR, `route not registered for ${name}`);
+    }
+
+    const emitter = createToolProgressEmitter(notify, {
+      requestId: id,
+      ...(exec.progressToken !== undefined ? { progressToken: exec.progressToken } : {}),
+    });
+    emitter.emit(0, 100, 'starting');
+    log('info', 'mcp.tools.call.begin', { tool: name });
+
+    let path: string;
+    try {
+      path = substitutePath(route.path, args);
+    } catch (err) {
+      return buildError(
+        id,
+        JSON_RPC_INVALID_PARAMS,
+        err instanceof Error ? err.message : 'invalid path params',
+      );
+    }
+    const shaped = shapeRequest(route, args);
+
+    // The downstream gateway is JWT-only; exchange the resolved agent
+    // identity for a gateway-accepted bearer. Fall back to the raw
+    // bearer only when no minter is wired (stdio/dev).
+    const downstreamToken = deps.mintDownstreamToken
+      ? await deps.mintDownstreamToken(auth)
+      : exec.bearerToken ?? '';
+
+    try {
+      const upstream = await deps.gatewayClient.call({
+        path,
+        method: route.method,
+        accessToken: downstreamToken,
+        agentTokenId: auth.agentTokenId,
+        mcpToolName: name,
+        ...(shaped.body !== undefined ? { body: shaped.body } : {}),
+        ...(shaped.query !== undefined ? { query: shaped.query } : {}),
+        ...(exec.idempotencyKey !== undefined ? { idempotencyKey: exec.idempotencyKey } : {}),
+      });
+      emitter.emit(100, 100, 'done');
+      const auditHash = await deps.auditChainHash({
+        toolName: name,
+        auth,
+        ...(exec.idempotencyKey !== undefined ? { idempotencyKey: exec.idempotencyKey } : {}),
+      });
+      const result: BorjieMcpToolResult = {
+        ok: true,
+        content: shapeContent(upstream),
+        confidence: pickConfidence(upstream),
+        evidenceIds: pickEvidenceIds(upstream),
+        provenance: {
+          via: 'mcp',
+          agentName: auth.agentName,
+          agentTokenId: auth.agentTokenId,
+          toolName: name,
+          invokedAt: now().toISOString(),
+          auditChainHash: auditHash,
+        },
+        requiresConfirmation: tool?.requiresConfirmation ?? true,
+      };
+      if (exec.sessionId ?? deps.sessionId) {
+        const sid = (exec.sessionId ?? deps.sessionId) as string;
+        await sessionManager.resume(sid, auth.agentTokenId).catch(() => null);
+        await sessionManager
+          .checkpoint(sid, {
+            direction: 'response',
+            method: 'tools/call',
+            toolName: name,
+            at: now().getTime(),
+            summary: `${name} ok`,
+          })
+          .catch(() => null);
+      }
+      log('info', 'mcp.tools.call.ok', { tool: name });
+      return buildSuccess(id, result);
+    } catch (err) {
+      log('error', 'mcp.tools.call.error', {
+        tool: name,
+        err: err instanceof Error ? err.message : String(err),
+      });
+      return toolErrorToRpc(id, err);
+    }
   }
 
   async function handleFourEye(args: {
@@ -810,12 +975,13 @@ async function readResource(
   uri: string,
   client: GatewayClient,
   auth: BorjieMcpAuthContext,
+  accessToken: string,
 ): Promise<unknown> {
   const path = mapResourceUriToPath(uri);
   return client.call({
     path,
     method: 'GET',
-    accessToken: '',
+    accessToken,
     agentTokenId: auth.agentTokenId,
     mcpToolName: `resource:${uri}`,
   });

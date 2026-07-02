@@ -54,12 +54,15 @@ import {
   type SseChannel,
   type SseEvent,
 } from '@borjie/mcp-server-borjie';
-import { oauthAgentTokens } from '@borjie/database';
+import { oauthAgentTokens, platformKillswitchState } from '@borjie/database';
+import jwt from 'jsonwebtoken';
+import { getJwtSecret } from '../config/jwt';
 // NoPin: this is a long-lived MCP surface (SSE transport + JSON-RPC proxy to
 // the gateway). It must never hold a reserved pool connection across the
 // stream / proxy round-trip. The agent-token lookup is an intentional
 // RLS-bypass-by-secret-hash (tenant-independent), so no GUC binding is needed.
 import { databaseMiddlewareNoPin } from '../middleware/database';
+import { authMiddleware } from '../middleware/hono-auth';
 import { createLogger } from '../utils/logger';
 
 const moduleLogger = createLogger('mcp-public');
@@ -165,7 +168,63 @@ function buildDeps(db: unknown) {
       }
     },
     async killSwitchOpen(): Promise<boolean> {
-      return false;
+      // Consult the REAL platform kill-switch state (migration 0138,
+      // `platform_killswitch_state`). Scope `platform`, level `halt`
+      // means the whole surface is stopped — refuse every MCP call.
+      // CLAUDE.md hard rule: "Kill-switch fail-closed. Never catch +
+      // ignore its errors." If the check itself cannot run (no db, query
+      // error) we treat the switch as OPEN (deny) rather than silently
+      // passing traffic through.
+      if (!db) return true;
+      try {
+        const rows = await (db as {
+          select: (selector: Record<string, unknown>) => {
+            from: (table: unknown) => {
+              where: (predicate: unknown) => {
+                limit: (n: number) => Promise<ReadonlyArray<{ level: string }>>;
+              };
+            };
+          };
+        })
+          .select({ level: platformKillswitchState.level })
+          .from(platformKillswitchState)
+          .where(eq(platformKillswitchState.scope, 'platform'))
+          .limit(1);
+        const level = rows[0]?.level;
+        // Only a hard `halt` refuses all tool calls. `degraded` is a soft
+        // signal handled elsewhere; `live` (or no row) is normal operation.
+        return level === 'halt';
+      } catch (err) {
+        moduleLogger.error('mcp.killSwitchOpen.failed', {
+          err: err instanceof Error ? err.message : String(err),
+        });
+        // Fail CLOSED — indeterminate kill-switch state must not fail open.
+        return true;
+      }
+    },
+    // The downstream api-gateway auth is JWT-only (Supabase ES256 or
+    // legacy HS256). The opaque OAuth agent token cannot be verified as a
+    // JWT, so forwarding it verbatim as the bearer 401s every proxied
+    // tools/call. We mint a SHORT-LIVED HS256 JWT bound to the resolved
+    // agent identity (tenant + owner user + OWNER role) signed with the
+    // gateway's own JWT_SECRET, so the gateway's HS256 verify path accepts
+    // it and binds the correct tenant GUC. Scope enforcement already
+    // happened at the MCP layer; this token only carries identity.
+    async mintDownstreamToken(auth: BorjieMcpAuthContext): Promise<string> {
+      const nowSec = Math.floor(Date.now() / 1_000);
+      return jwt.sign(
+        {
+          userId: auth.ownerId,
+          tenantId: auth.tenantId,
+          role: 'OWNER',
+          permissions: [],
+          propertyAccess: [],
+          iat: nowSec,
+          exp: nowSec + 120,
+        },
+        getJwtSecret(),
+        { algorithm: 'HS256' },
+      );
     },
     async auditChainHash(input: {
       readonly toolName: string;
@@ -303,6 +362,100 @@ app.post('/messages', async (c) => {
     ...(idempotencyKey ? { idempotencyKey } : {}),
   });
   return c.json(response, 200);
+});
+
+// ─── POST /mcp/actions/approve|deny — owner four-eye decision ──────────────
+// The owner lands here from owner-web /oauth/actions/approve. The route is
+// OWNER-authenticated (Supabase JWT via `authMiddleware`), which is the
+// distinct human eye the four-eye gate requires — the agent initiated the
+// action with an opaque agent token; the OWNER decides here. We bind the
+// decision to the caller's tenant: the approval's `tokenId` is an
+// `oauth_agent_tokens.id`, so we confirm that token belongs to the owner's
+// tenant before flipping the state. This is what makes approve()/consume()
+// reachable (they had ZERO callers) and turns the gate from reject-only into
+// a real approve → execute path.
+async function resolveApprovalTenant(
+  db: unknown,
+  tokenId: string,
+): Promise<string | null> {
+  if (!db) return null;
+  try {
+    const rows = await (db as {
+      select: (s: Record<string, unknown>) => {
+        from: (t: unknown) => {
+          where: (p: unknown) => {
+            limit: (n: number) => Promise<ReadonlyArray<{ tenantId: string }>>;
+          };
+        };
+      };
+    })
+      .select({ tenantId: oauthAgentTokens.tenantId })
+      .from(oauthAgentTokens)
+      .where(eq(oauthAgentTokens.id, tokenId))
+      .limit(1);
+    return rows[0]?.tenantId ?? null;
+  } catch (err) {
+    moduleLogger.error('mcp.approval.tenantLookup.failed', {
+      err: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
+}
+
+app.post('/actions/approve', authMiddleware, async (c) => {
+  const auth = c.get('auth') as { tenantId?: string; userId?: string } | undefined;
+  const db = c.get('db');
+  if (!auth?.tenantId) return c.json({ success: false, error: 'unauthorized' }, 401);
+  let approvalId: unknown;
+  try {
+    approvalId = (await c.req.json())?.approvalId;
+  } catch {
+    approvalId = undefined;
+  }
+  if (typeof approvalId !== 'string' || approvalId.length === 0) {
+    return c.json({ success: false, error: 'approvalId required' }, 400);
+  }
+  const approval = await approvalStore.get(approvalId);
+  if (!approval) return c.json({ success: false, error: 'unknown approval' }, 404);
+  const ownerTenant = await resolveApprovalTenant(db, approval.tokenId);
+  if (!ownerTenant || ownerTenant !== auth.tenantId) {
+    // Fail-closed: never approve an action belonging to another tenant (or
+    // one whose owning token we cannot resolve).
+    return c.json({ success: false, error: 'forbidden' }, 403);
+  }
+  const approved = await approvalStore.approve(approvalId, auth.userId ?? auth.tenantId);
+  if (approved.status === 'expired') {
+    return c.json({ success: false, error: 'expired', status: approved.status }, 410);
+  }
+  moduleLogger.warn('mcp.four-eye.owner-approved', {
+    approvalId,
+    tool: approved.toolName,
+    tenantId: auth.tenantId,
+  });
+  return c.json({ success: true, data: { approvalId, status: approved.status } }, 200);
+});
+
+app.post('/actions/deny', authMiddleware, async (c) => {
+  const auth = c.get('auth') as { tenantId?: string; userId?: string } | undefined;
+  const db = c.get('db');
+  if (!auth?.tenantId) return c.json({ success: false, error: 'unauthorized' }, 401);
+  let approvalId: unknown;
+  try {
+    approvalId = (await c.req.json())?.approvalId;
+  } catch {
+    approvalId = undefined;
+  }
+  if (typeof approvalId !== 'string' || approvalId.length === 0) {
+    return c.json({ success: false, error: 'approvalId required' }, 400);
+  }
+  const approval = await approvalStore.get(approvalId);
+  if (!approval) return c.json({ success: false, error: 'unknown approval' }, 404);
+  const ownerTenant = await resolveApprovalTenant(db, approval.tokenId);
+  if (!ownerTenant || ownerTenant !== auth.tenantId) {
+    return c.json({ success: false, error: 'forbidden' }, 403);
+  }
+  const denied = await approvalStore.deny(approvalId, auth.userId ?? auth.tenantId);
+  return c.json({ success: true, data: { approvalId, status: denied.status } }, 200);
 });
 
 export const mcpPublicRouter = app;
