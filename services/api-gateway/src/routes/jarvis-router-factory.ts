@@ -865,26 +865,14 @@ export function createJarvisRouter(config: JarvisRouterConfig): Hono {
           // (provider / model / internal detail) is logged server-side, never
           // forwarded to the wire.
           //
-          // NOTE: the kind is read through a widened structural view. The
-          // `KernelStreamEvent` union carries this `error` member in source, but
-          // the api-gateway resolves central-intelligence via its built `.d.ts`,
-          // which can lag a freshly-added member; the structural read keeps this
-          // consumer correct against the runtime frame regardless of that lag.
-          if ((ev as { kind: string }).kind === 'error') {
-            const errEvt = ev as unknown as {
-              reason?: unknown;
-              partial?: unknown;
-            };
+          if (ev.kind === 'error') {
             logger.error(
               {
                 wiring: 'jarvis-router-factory',
                 surface: config.surface,
                 threadId: body.threadId,
-                reason:
-                  typeof errEvt.reason === 'string'
-                    ? errEvt.reason
-                    : String(errEvt.reason),
-                partial: errEvt.partial === true,
+                reason: ev.reason,
+                partial: ev.partial,
               },
               'jarvis /stream: kernel emitted terminal error frame (mid-stream degrade)',
             );
