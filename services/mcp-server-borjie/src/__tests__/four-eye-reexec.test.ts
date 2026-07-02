@@ -59,6 +59,7 @@ describe('four-eye re-exec reachability (finding b)', () => {
       toolName: 'mining_drafts_list',
       arguments: {},
       expiresAt: Date.now() + 60_000,
+      initiatedBy: 'agent-initiator',
     });
 
     // RED-before: with approval still `pending`, execute must NOT run.
@@ -136,6 +137,7 @@ describe('four-eye re-exec reachability (finding b)', () => {
       toolName: 'mining_drafts_list',
       arguments: {},
       expiresAt: Date.now() + 60_000,
+      initiatedBy: 'agent-initiator',
     });
     await d.dispatch({
       request: {
@@ -180,6 +182,7 @@ describe('four-eye re-exec reachability (finding b)', () => {
       toolName: 'mining_drafts_list',
       arguments: {},
       expiresAt: Date.now() + 60_000,
+      initiatedBy: 'agent-initiator',
     });
     const r = await d.dispatch({
       request: {

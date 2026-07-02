@@ -49,6 +49,13 @@ export const JSON_RPC_SAMPLING_UNSUPPORTED = -32010;
 export const JSON_RPC_APPROVAL_PENDING = -32011;
 export const JSON_RPC_APPROVAL_DENIED = -32012;
 export const JSON_RPC_APPROVAL_EXPIRED = -32013;
+/**
+ * Four-eye separation-of-duties violation: the approver identity is the
+ * same principal that initiated the pending action. A four-eye /
+ * kill-switch / sovereign gate is not two-person control if the initiator
+ * can approve their own request, so self-approval is rejected.
+ */
+export const JSON_RPC_APPROVAL_SELF = -32014;
 export const JSON_RPC_RATE_LIMIT_EXCEEDED = -32099;
 
 /** Build a JSON-RPC notification envelope (id-less message). */

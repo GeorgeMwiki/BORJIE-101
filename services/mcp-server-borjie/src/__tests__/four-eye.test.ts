@@ -53,6 +53,7 @@ describe('approval store', () => {
       toolName: 'kill_switch.open',
       arguments: {},
       expiresAt: 2_000,
+      initiatedBy: 'agent-initiator',
     });
     expect(a.status).toBe('pending');
     const approved = await store.approve(a.id, 'owner-1');
@@ -69,6 +70,7 @@ describe('approval store', () => {
       toolName: 'sovereign.act',
       arguments: {},
       expiresAt: 100,
+      initiatedBy: 'agent-initiator',
     });
     t = 1_000;
     const r = await store.approve(a.id, 'owner');
@@ -82,6 +84,7 @@ describe('approval store', () => {
       toolName: 'sovereign.act',
       arguments: {},
       expiresAt: Date.now() + 60_000,
+      initiatedBy: 'agent-initiator',
     });
     const denied = await store.deny(a.id, 'owner');
     expect(denied.status).toBe('denied');
@@ -96,6 +99,7 @@ describe('buildPendingApprovalResponse', () => {
       toolName: 'kill_switch.open',
       arguments: {},
       expiresAt: 61_000,
+      initiatedBy: 'agent-initiator',
     });
     const resp = buildPendingApprovalResponse({
       approval: a,

@@ -41,6 +41,20 @@ export function requiresFourEye(toolName: string): boolean {
   return false;
 }
 
+/**
+ * Thrown when a four-eye approval is attempted by the SAME principal that
+ * initiated the action. Separation-of-duties requires approver ≠ initiator;
+ * the dispatcher maps this to `JSON_RPC_APPROVAL_SELF` (-32014).
+ */
+export class SelfApprovalError extends Error {
+  readonly approvalId: string;
+  constructor(approvalId: string) {
+    super(`self-approval rejected: approver must differ from initiator (${approvalId})`);
+    this.name = 'SelfApprovalError';
+    this.approvalId = approvalId;
+  }
+}
+
 export type ApprovalStatus =
   | 'pending'
   | 'approved'
@@ -56,6 +70,13 @@ export interface ActionApproval {
   readonly status: ApprovalStatus;
   readonly requestedAt: number;
   readonly expiresAt: number;
+  /**
+   * Canonical identity of the principal that INITIATED the action. This is
+   * the load-bearing field for four-eye separation-of-duties: the approver
+   * must be a DIFFERENT principal, so the approve path rejects any approver
+   * whose identity equals `initiatedBy` (self-approval).
+   */
+  readonly initiatedBy: string;
   readonly approvedAt?: number;
   readonly approvedBy?: string;
   readonly deniedAt?: number;
@@ -68,6 +89,7 @@ export interface ApprovalStore {
     readonly toolName: string;
     readonly arguments: Readonly<Record<string, unknown>>;
     readonly expiresAt: number;
+    readonly initiatedBy: string;
   }): Promise<ActionApproval>;
   get(id: string): Promise<ActionApproval | null>;
   approve(id: string, approver: string): Promise<ActionApproval>;
@@ -90,6 +112,7 @@ export function createInMemoryApprovalStore(deps: {
       readonly toolName: string;
       readonly arguments: Readonly<Record<string, unknown>>;
       readonly expiresAt: number;
+      readonly initiatedBy: string;
     }): Promise<ActionApproval> {
       const id = newId();
       const approval: ActionApproval = Object.freeze({
@@ -100,6 +123,7 @@ export function createInMemoryApprovalStore(deps: {
         status: 'pending',
         requestedAt: now(),
         expiresAt: input.expiresAt,
+        initiatedBy: input.initiatedBy,
       });
       approvals.set(id, approval);
       return approval;
@@ -111,6 +135,11 @@ export function createInMemoryApprovalStore(deps: {
       const existing = approvals.get(id);
       if (!existing) throw new Error(`unknown approval: ${id}`);
       if (existing.status !== 'pending') return existing;
+      // Separation-of-duties: the approver MUST be a different principal
+      // than the initiator. Enforced at the store so no caller can bypass.
+      if (approver === existing.initiatedBy) {
+        throw new SelfApprovalError(id);
+      }
       if (existing.expiresAt < now()) {
         const expired: ActionApproval = Object.freeze({ ...existing, status: 'expired' });
         approvals.set(id, expired);

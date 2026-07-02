@@ -47,6 +47,7 @@ import {
   JSON_RPC_APPROVAL_PENDING,
   JSON_RPC_APPROVAL_DENIED,
   JSON_RPC_APPROVAL_EXPIRED,
+  JSON_RPC_APPROVAL_SELF,
   JSON_RPC_RATE_LIMIT_EXCEEDED,
   type JsonRpcRequest,
   type JsonRpcResponse,
@@ -109,6 +110,7 @@ import {
   createInMemoryApprovalStore,
   requiresFourEye,
   buildPendingApprovalResponse,
+  SelfApprovalError,
 } from './four-eye.js';
 import {
   type WorkspaceProvider,
@@ -165,6 +167,19 @@ export interface DispatcherInput {
 const PROTOCOL_VERSION = '2024-11-05';
 const SERVER_NAME = 'borjie-mcp-server';
 const SERVER_VERSION = '0.2.0';
+
+/**
+ * Canonical resolver for the four-eye principal identity. Both the
+ * initiator (at create) and the approver (at actions/approve) are resolved
+ * through THIS single function so the two identities are compared on the
+ * same axis. The owner id is the authoritative principal for four-eye
+ * separation-of-duties; the opaque agent-token cannot substitute because a
+ * single owner can mint many tokens (self-approval would slip through a
+ * token-only comparison).
+ */
+function resolveApproverIdentity(auth: BorjieMcpAuthContext): string {
+  return auth.ownerId;
+}
 
 export function createDispatcher(deps: DispatcherDeps) {
   const now = deps.now ?? (() => new Date());
@@ -503,12 +518,14 @@ export function createDispatcher(deps: DispatcherDeps) {
 
     // ─── actions/approve — owner approves a pending four-eye row ─────
     // The owner reaches this via the owner-web /oauth/actions/approve
-    // page → gateway, carrying the SAME agent-token bearer the agent
-    // used to initiate (the page is owner-authenticated at the gateway
-    // layer; here we bind the approval to the token that owns it). This
-    // flips the approval pending → approved so `actions/execute` becomes
-    // reachable — closing the dead-end where approve()/consume() had zero
-    // callers and the gate could only ever reject.
+    // page → gateway. Token-scoped isolation keeps a foreign token from
+    // touching the row, and four-eye SEPARATION-OF-DUTIES additionally
+    // requires the approver to be a DIFFERENT principal than the initiator
+    // — a gate whose approver can be the initiator is not two-person
+    // control. Both identities resolve through `resolveApproverIdentity`
+    // (canonical: the owner id), and an explicit distinct `approver` param
+    // lets a co-owner / second signer approve; self-approval is rejected
+    // with JSON_RPC_APPROVAL_SELF.
     if (method === 'actions/approve') {
       const auth = await deps.resolveAuthContext(bearerToken);
       if (!auth) return buildError(id, JSON_RPC_UNAUTHORIZED, 'authentication required');
@@ -519,13 +536,41 @@ export function createDispatcher(deps: DispatcherDeps) {
       }
       const approver = typeof params['approver'] === 'string'
         ? (params['approver'] as string)
-        : auth.ownerId;
+        : resolveApproverIdentity(auth);
       const existing = await approvalStore.get(approvalId);
       if (!existing) return buildError(id, JSON_RPC_METHOD_NOT_FOUND, `unknown approval: ${approvalId}`);
       if (existing.tokenId !== auth.agentTokenId) {
         return buildError(id, JSON_RPC_FORBIDDEN, 'approval does not belong to this token');
       }
-      const approved = await approvalStore.approve(approvalId, approver);
+      // Separation-of-duties: approver ≠ initiator. Checked here for a
+      // clear -32014 error and re-enforced inside the store so no caller
+      // can bypass it.
+      if (approver === existing.initiatedBy) {
+        log('warning', 'mcp.four-eye.self-approval-rejected', {
+          approvalId,
+          tool: existing.toolName,
+        });
+        return buildError(
+          id,
+          JSON_RPC_APPROVAL_SELF,
+          'four-eye approver must differ from the initiator (separation of duties)',
+          { approvalId, status: existing.status },
+        );
+      }
+      let approved: Awaited<ReturnType<ApprovalStore['approve']>>;
+      try {
+        approved = await approvalStore.approve(approvalId, approver);
+      } catch (err) {
+        if (err instanceof SelfApprovalError) {
+          return buildError(
+            id,
+            JSON_RPC_APPROVAL_SELF,
+            'four-eye approver must differ from the initiator (separation of duties)',
+            { approvalId, status: existing.status },
+          );
+        }
+        throw err;
+      }
       if (approved.status === 'expired') {
         return buildError(id, JSON_RPC_APPROVAL_EXPIRED, 'approval expired', {
           approvalId,
@@ -893,6 +938,9 @@ export function createDispatcher(deps: DispatcherDeps) {
       toolName: args.toolName,
       arguments: args.args,
       expiresAt,
+      // The initiator's canonical identity — the approver must differ from
+      // this for four-eye separation-of-duties (see actions/approve).
+      initiatedBy: resolveApproverIdentity(args.auth),
     });
     const payload = buildPendingApprovalResponse({
       approval,
