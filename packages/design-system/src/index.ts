@@ -254,6 +254,13 @@ export * from './components/Avatar';
 // Skeleton
 export * from './components/Skeleton';
 
+// Interaction + state primitives (design parity wave)
+export * from './components/Reveal';
+export * from './components/ErrorState';
+export * from './components/Stepper';
+export * from './components/FieldWithHelp';
+export { useReducedMotion } from './hooks/useReducedMotion';
+
 // Spinner
 export * from './components/Spinner';
 

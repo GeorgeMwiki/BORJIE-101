@@ -2,28 +2,70 @@ import * as React from 'react';
 import { Slot } from '@radix-ui/react-slot';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../lib/utils';
+import { useReducedMotion } from '../hooks/useReducedMotion';
+
+/**
+ * Press micro-interaction classes.
+ *
+ * The scale-down "press" and hover "elevation" are LAYOUT-affecting motion,
+ * so they must honour `prefers-reduced-motion`. The gate is expressed two
+ * ways for defense-in-depth:
+ *
+ *  1. As this PURE, unit-testable helper — when `reduceMotion` is true the
+ *     transform utilities drop out ENTIRELY, so no scale/translate class is
+ *     ever emitted. Fed at runtime by the canonical `useReducedMotion` hook
+ *     (SSR-safe, live), it is the JS-level gate.
+ *  2. The `motion-safe:` variant on the emitted utilities is the CSS-layer
+ *     backstop — even if `reduceMotion` were unknown at render (e.g. an SSR
+ *     first paint), the browser still suppresses the motion under a reduced-
+ *     motion preference.
+ *
+ * `pressClasses(false)` → press + hover-lift enabled (still motion-safe gated).
+ * `pressClasses(true)`  → identity-only; no scale, no translate, ever.
+ */
+export function pressClasses(reduceMotion: boolean): string {
+  if (reduceMotion) return '';
+  return 'motion-safe:active:scale-[0.97] motion-safe:hover:-translate-y-px';
+}
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50',
+  // Base: crisp focus-visible ring on the brand token (--ring is copper),
+  // spring-eased transform+color transitions, disabled/loading affordances.
+  'group relative inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-[transform,box-shadow,background-color,color] duration-fast ease-spring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none aria-disabled:pointer-events-none aria-disabled:opacity-50 aria-disabled:shadow-none',
   {
     variants: {
       variant: {
-        default: 'bg-primary text-primary-foreground hover:bg-primary/90',
-        primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
-        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-        danger: 'bg-danger text-danger-foreground hover:bg-danger/90 focus-visible:ring-ring',
-        outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
+        // Solid copper with a subtle inner top-highlight (::before gloss) and
+        // hover glow — depth without a new color. Shared by default/primary.
+        default:
+          'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 hover:shadow-glow before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-1/2 before:rounded-t-md before:bg-gradient-to-b before:from-white/15 before:to-transparent',
+        primary:
+          'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 hover:shadow-glow before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-1/2 before:rounded-t-md before:bg-gradient-to-b before:from-white/15 before:to-transparent',
+        // IGNITION — the premium hero CTA. Copper gradient wash + copper glow
+        // that intensifies on hover. Uses the canonical brand tokens only.
+        ignite:
+          'bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-glow-lg before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-1/2 before:rounded-t-md before:bg-gradient-to-b before:from-white/20 before:to-transparent',
+        secondary:
+          'bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80 hover:shadow-sm',
+        destructive:
+          'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 hover:shadow-md',
+        danger:
+          'bg-danger text-danger-foreground shadow-sm hover:bg-danger/90 hover:shadow-md focus-visible:ring-ring',
+        outline:
+          'border border-input bg-background hover:bg-accent hover:text-accent-foreground hover:shadow-sm',
         ghost: 'hover:bg-accent hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
-        success: 'bg-success text-success-foreground hover:bg-success/90 focus-visible:ring-ring',
-        warning: 'bg-warning text-warning-foreground hover:bg-warning/90 focus-visible:ring-ring',
+        success:
+          'bg-success text-success-foreground shadow-sm hover:bg-success/90 hover:shadow-md focus-visible:ring-ring',
+        warning:
+          'bg-warning text-warning-foreground shadow-sm hover:bg-warning/90 hover:shadow-md focus-visible:ring-ring',
       },
       size: {
         default: 'h-10 px-4 py-2',
         sm: 'h-9 rounded-md px-3 text-xs',
         lg: 'h-11 rounded-md px-8 text-base',
         xl: 'h-12 rounded-md px-10 text-base',
+        // Icon sizes meet WCAG 2.2 AA (2.5.8) 24px min target; 40px comfortable.
         icon: 'h-10 w-10',
         'icon-sm': 'h-8 w-8',
         'icon-lg': 'h-12 w-12',
@@ -69,10 +111,15 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const Comp = asChild ? Slot : 'button';
+    // JS-level reduced-motion gate: when the user prefers reduced motion the
+    // press/hover transform utilities are never emitted at all (belt); the
+    // `motion-safe:` variant inside them is the CSS-layer braces.
+    const reduceMotion = useReducedMotion();
     return (
       <Comp
         className={cn(
           buttonVariants({ variant, size, className }),
+          pressClasses(reduceMotion),
           fullWidth && 'w-full'
         )}
         ref={ref}
@@ -108,11 +155,14 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             />
           </svg>
         ) : (
-          leftIcon && <span className="mr-2 flex-shrink-0">{leftIcon}</span>
+          leftIcon && (
+            <span className="relative mr-2 flex-shrink-0">{leftIcon}</span>
+          )
         )}
-        {children}
+        {/* `relative` keeps the label above the ::before gloss overlay. */}
+        <span className="relative">{children}</span>
         {!loading && rightIcon && (
-          <span className="ml-2 flex-shrink-0">{rightIcon}</span>
+          <span className="relative ml-2 flex-shrink-0">{rightIcon}</span>
         )}
       </Comp>
     );
