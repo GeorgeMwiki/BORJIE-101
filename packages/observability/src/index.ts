@@ -115,6 +115,45 @@ export type { AuditLoggerConfig } from './audit/audit-logger.js';
 export { AuditLogger, AuditEventBuilder } from './audit/audit-logger.js';
 
 // ============================================================================
+// Audit - Offline hash-chain verify + integrity metric (egress operationalization)
+//
+// Offline-verifiable audit egress: recompute the in-process hash-chained
+// audit trail's head from a portable export with ZERO DB access + an OTel
+// integrity-failure metric/alert. Consumed by offline-chain-verify-cli and any
+// live verify cron.
+// ============================================================================
+
+export type {
+  SerializedAuditEvent,
+  AuditChainExport,
+  OfflineVerifyResult,
+  OfflineVerifyOptions,
+  ChainBreakReason,
+} from './audit/offline-chain-verify.js';
+
+export {
+  serializedAuditEventSchema,
+  auditChainExportSchema,
+  verifyAuditChainExport,
+  recomputeThisHash,
+  recomputeSignature,
+  GENESIS_PREV_HASH_V2,
+} from './audit/offline-chain-verify.js';
+
+export type {
+  AuditIntegrityAlert,
+  AuditIntegrityAlertHook,
+  AuditIntegrityRecorder,
+  AuditIntegrityRecorderOptions,
+} from './audit/integrity-metric.js';
+
+export {
+  createAuditIntegrityRecorder,
+  AUDIT_CHAIN_VERIFY_TOTAL,
+  AUDIT_CHAIN_INTEGRITY_FAILURES_TOTAL,
+} from './audit/integrity-metric.js';
+
+// ============================================================================
 // Audit - Simple API
 // ============================================================================
 

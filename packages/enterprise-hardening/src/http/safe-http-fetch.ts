@@ -47,7 +47,9 @@ export type SafeHttpFetchErrorCode =
   | 'denied-not-in-allowlist'
   | 'denied-port'
   | 'timeout'
-  | 'network-error';
+  | 'network-error'
+  | 'too-many-redirects'
+  | 'invalid-redirect';
 
 export class SafeHttpFetchError extends Error {
   readonly code: SafeHttpFetchErrorCode;
@@ -91,6 +93,14 @@ export interface SafeHttpFetchOptions {
   readonly dnsLookup?: (
     host: string,
   ) => Promise<ReadonlyArray<LookupAddress>>;
+  /**
+   * Maximum number of redirects to follow. Each hop's `Location` is
+   * RE-SCREENED (scheme, port, internal-IP denylist, DNS-resolved IP, and the
+   * same allowlist) before it is followed — a redirect can never escape the
+   * SSRF policy the initial URL was held to. Defaults to 5. Set to 0 to reject
+   * any redirect outright.
+   */
+  readonly maxRedirects?: number;
 }
 
 export interface SafeHttpFetchResult {
