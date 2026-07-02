@@ -24,6 +24,7 @@ import { describe, it, expect } from 'vitest';
 import {
   createBrainKernel,
   createBrainCache,
+  thoughtCacheKey,
   type BrainDecision,
   type KernelStreamEvent,
   type Sensor,
@@ -85,6 +86,34 @@ function streamingSensor(
       yield { kind: 'turn_start' as const, modelId: `${id}-model`, sensorId: id };
       for (const ev of events) yield ev;
       yield { kind: 'stop' as const, stopReason: 'end_turn' as const, latencyMs: 7 };
+    },
+  };
+}
+
+/**
+ * D19 harness — a stream-capable sensor that yields `preThrowDeltas` and then
+ * THROWS mid-stream (simulating a provider fault). Its non-stream `call()` also
+ * throws so a fallback cannot silently rescue the turn.
+ */
+function faultingStreamSensor(
+  id: string,
+  preThrowDeltas: ReadonlyArray<string>,
+  message = 'provider stream aborted',
+): Sensor {
+  return {
+    id,
+    modelId: `${id}-model`,
+    priority: 1,
+    capabilities: ['thinking', 'fast'],
+    async call(_args: SensorCallArgs): Promise<SensorCallResult> {
+      throw new Error(message);
+    },
+    async *callStream(_args: SensorCallArgs) {
+      yield { kind: 'turn_start' as const, modelId: `${id}-model`, sensorId: id };
+      for (const text of preThrowDeltas) {
+        yield { kind: 'text_delta' as const, text };
+      }
+      throw new Error(message);
     },
   };
 }
@@ -382,5 +411,59 @@ describe('brain kernel — thinkStream (token-level streaming)', () => {
     if (decision.kind === 'answer' || decision.kind === 'softened') {
       expect(decision.text).toBe('Same answer.');
     }
+  });
+
+  // ───────────────────────────────────────────────────────────────────
+  // D19 — HONEST MID-STREAM DEGRADE. A provider throw mid-stream must NOT
+  // be swallowed into a fabricated done(answer) with empty/partial text,
+  // and must NOT be cached. The stream surfaces a terminal `error` event.
+  // ───────────────────────────────────────────────────────────────────
+
+  it('surfaces an honest error event on a mid-stream provider throw AFTER partial deltas, and does NOT fabricate a done', async () => {
+    const sensor = faultingStreamSensor('claude', ['Collec', 'tion is ']);
+    const cache = createBrainCache({ clock: () => 0 });
+    const kernel = createBrainKernel({ sensors: [sensor], cache });
+    const request = makeRequest({ threadId: 'd19-partial' });
+
+    const events = await collect(kernel.thinkStream(request));
+
+    // (1) partial deltas were forwarded live before the fault
+    const deltas = events.filter((e) => e.kind === 'text_delta');
+    expect(deltas.length).toBe(2);
+
+    // (2) a terminal, honest error event is emitted
+    const errors = events.filter(
+      (e) => e.kind === 'error',
+    ) as Array<Extract<KernelStreamEvent, { kind: 'error' }>>;
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.partial).toBe(true);
+    expect(typeof errors[0]!.reason).toBe('string');
+    expect(errors[0]!.reason.length).toBeGreaterThan(0);
+
+    // (3) NO fabricated done(answer) with empty/partial text
+    expect(events.some((e) => e.kind === 'done')).toBe(false);
+    // ...and the error is the LAST event (terminal).
+    expect(events[events.length - 1]!.kind).toBe('error');
+
+    // (4) nothing cached — the phantom turn is not replayable
+    expect(cache.get(thoughtCacheKey(request))).toBeNull();
+  });
+
+  it('surfaces an error event when the sensor throws before ANY delta (partial=false) and caches nothing', async () => {
+    const sensor = faultingStreamSensor('claude', []);
+    const cache = createBrainCache({ clock: () => 0 });
+    const kernel = createBrainKernel({ sensors: [sensor], cache });
+    const request = makeRequest({ threadId: 'd19-empty' });
+
+    const events = await collect(kernel.thinkStream(request));
+
+    expect(events.some((e) => e.kind === 'text_delta')).toBe(false);
+    const errors = events.filter(
+      (e) => e.kind === 'error',
+    ) as Array<Extract<KernelStreamEvent, { kind: 'error' }>>;
+    expect(errors).toHaveLength(1);
+    expect(errors[0]!.partial).toBe(false);
+    expect(events.some((e) => e.kind === 'done')).toBe(false);
+    expect(cache.get(thoughtCacheKey(request))).toBeNull();
   });
 });

@@ -535,6 +535,19 @@ export type KernelStreamEvent =
   // POSTURE + sure/unsure/would-need axes (NEVER the audit math).
   // Existing consumers that switch on `kind` ignore it cleanly.
   | { readonly kind: 'self_model'; readonly selfModel: SelfModelFrame }
+  // Honest mid-stream degrade (D19). A provider throw mid-stream MUST NOT
+  // fabricate a completed `done` with empty/partial text. When the sensor
+  // faults after ≥0 deltas, the kernel emits this TERMINAL `error` event
+  // instead of a `done` and stops — nothing is cached, no truncated turn is
+  // presented as complete. This restores fail-loud parity with the buffered
+  // `think()` path. Existing consumers that switch on `kind` ignore it and
+  // simply see no `done`; SSE consumers surface the degrade.
+  | {
+      readonly kind: 'error';
+      readonly reason: string;
+      /** True when some text was streamed before the fault (partial turn). */
+      readonly partial: boolean;
+    }
   | { readonly kind: 'done'; readonly decision: BrainDecision };
 
 // ─────────────────────────────────────────────────────────────────────

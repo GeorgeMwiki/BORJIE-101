@@ -2734,8 +2734,25 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
               break;
             }
           }
-        } catch {
+        } catch (streamErr) {
+          // D19 — HONEST MID-STREAM DEGRADE. A provider throw mid-stream is a
+          // real failure, at parity with the buffered `think()` path (which
+          // rethrows). We MUST NOT swallow it and fall through to a fabricated
+          // `done(answer)` with empty/partial text, nor cache that phantom.
+          // Emit a terminal `error` event and STOP — the customer sees an
+          // honest degrade, never a truncated answer dressed as a completed
+          // turn. `partial` distinguishes "nothing streamed" from "cut off".
           sensorLatencyMs = clock().getTime() - sensorStart;
+          const reason =
+            streamErr instanceof Error && streamErr.message
+              ? streamErr.message
+              : 'SENSOR_STREAM_FAULT';
+          yield {
+            kind: 'error',
+            reason,
+            partial: accumulatedText.length > 0,
+          };
+          return;
         }
       } else {
         const single = await router.call(sensorArgs, required);
@@ -2917,6 +2934,22 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
       // deciders until a later validated wave flips the gatekeeper to
       // enforce. No-op when `deps.safetyGatekeeper` is absent.
       runKernelShadowGatekeeper(deps, req, decision, gates, citations);
+
+      // D19 — EMPTY-TEXT DONE GUARD. `pickDecisionShape` has no empty-text
+      // guard: a non-refusal decision (answer / softened) with empty text is a
+      // fabricated completed turn. This can only arise from a silent sensor
+      // fault or a degenerate empty settle-parse — a tool-only turn (empty text
+      // but ≥1 tool_call) is legitimate and exempt. Rather than cache + `done`
+      // an empty answer as a completed turn, surface an honest `error` degrade,
+      // fail-loud, and cache nothing.
+      if (
+        (decision.kind === 'answer' || decision.kind === 'softened') &&
+        finalText.trim().length === 0 &&
+        toolCalls.length === 0
+      ) {
+        yield { kind: 'error', reason: 'EMPTY_ANSWER_DEGRADE', partial: false };
+        return;
+      }
 
       cache.set(cacheKey, decision);
       if (deps.provenanceSink) {
