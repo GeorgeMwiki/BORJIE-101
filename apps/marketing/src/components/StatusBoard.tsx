@@ -97,12 +97,14 @@ const POLL_INTERVAL_MS = 30_000;
  * Resolve the Intl BCP-47 tag for the active marketing locale
  * (locale-follows-the-user). A bare `toLocaleString()` renders the
  * timestamp with the visitor's HOST default — an English-by-omission
- * format under the `sw` surface (the zero-mix canon forbids that). Both
- * launch tags are Tanzania-region so the date/time reads in the operator
- * jurisdiction, mirroring packages/genui/src/format.ts (`TZS: sw-TZ`).
+ * format under the `sw` surface (the zero-mix canon forbids that). The
+ * `en` tag is `en-GB`, matching the app-wide canon (owner-web
+ * `lib/format.ts`, workforce `home/owner/format.ts`, buyer `lib/locale.ts`
+ * all resolve `en → en-GB`); `sw → sw-TZ` reads in the operator
+ * jurisdiction.
  */
 const BCP47_FOR_LOCALE: Readonly<Record<Locale, string>> = Object.freeze({
-  en: 'en-TZ',
+  en: 'en-GB',
   sw: 'sw-TZ',
 });
 

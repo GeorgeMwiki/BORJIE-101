@@ -67,7 +67,13 @@ export function alternateLanguages(path: string): Record<string, string> {
  */
 export function buildSegmentMetadata(input: SegmentMetadataInput): Metadata {
   const { path, locale, title, description } = input;
-  const canonical = `${BASE}${path}`;
+  const languages = alternateLanguages(path);
+  // SELF-REFERENCING canonical per locale: a `/sw` page must canonicalize to
+  // its OWN `/sw`-prefixed URL, not the shared EN URL. Pointing every `sw`
+  // page's canonical at the EN URL contradicts its own hreflang and tells
+  // Google to drop the entire `/sw` surface from the index. `en` (and any
+  // non-sw locale) canonicalizes to the shared EN URL.
+  const canonical = locale === 'sw' ? languages.sw : languages.en;
   const ogImage = input.ogImage ?? '/og-image.png';
 
   return {
@@ -75,7 +81,7 @@ export function buildSegmentMetadata(input: SegmentMetadataInput): Metadata {
     description,
     alternates: {
       canonical,
-      languages: alternateLanguages(path),
+      languages,
     },
     openGraph: {
       title,

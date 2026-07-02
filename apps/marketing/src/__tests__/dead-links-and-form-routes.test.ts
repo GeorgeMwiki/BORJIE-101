@@ -156,8 +156,11 @@ describe('StatusBoard timestamp threads the active locale (no host-default leak)
     expect(src).toContain('toLocaleString(props.bcp47)');
   });
 
-  it('maps both launch locales to Tanzania-region tags (mirrors genui/format)', () => {
-    expect(src).toContain("en: 'en-TZ'");
+  it('maps en to the app-wide en-GB canon and sw to sw-TZ (no en-TZ leak)', () => {
+    // `en → en-GB` matches the whole app (owner-web/workforce/buyer all
+    // resolve `en → en-GB`); a StatusBoard-only `en-TZ` was a canon break.
+    expect(src).toContain("en: 'en-GB'");
     expect(src).toContain("sw: 'sw-TZ'");
+    expect(src).not.toContain("en: 'en-TZ'");
   });
 });

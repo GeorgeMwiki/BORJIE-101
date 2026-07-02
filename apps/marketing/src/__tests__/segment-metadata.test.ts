@@ -139,11 +139,18 @@ describe('converted static-metadata pages: pageMeta SEO copy', () => {
           title: t.metaTitle,
           description: t.metaDescription,
         });
-        // per-route canonical, not the homepage
-        expect(String(meta.alternates?.canonical).endsWith(path)).toBe(true);
-        expect(String(meta.alternates?.canonical)).not.toMatch(/borjie\.co\.tz$/);
         // full hreflang set + active-locale OG token (zero-mix SEO-L3)
         const langs = meta.alternates?.languages ?? {};
+        // SELF-REFERENCING canonical per locale: an `sw` page canonicalizes to
+        // its own `/sw`-prefixed URL, `en` to the shared EN URL — NEVER every
+        // locale to the EN URL (that de-indexes the whole /sw surface).
+        const canonical = String(meta.alternates?.canonical);
+        expect(canonical).toBe(locale === 'sw' ? langs.sw : langs.en);
+        // sw self-canonicalizes under `/sw`; en points at the shared EN URL —
+        // neither ever the bare homepage.
+        expect(canonical.includes('/sw')).toBe(locale === 'sw');
+        expect(canonical.endsWith(path)).toBe(true);
+        expect(canonical).not.toMatch(/borjie\.co\.tz$/);
         expect(langs).toHaveProperty('en');
         expect(langs).toHaveProperty('sw');
         expect(langs).toHaveProperty('x-default');
