@@ -696,6 +696,36 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0369_opportunity_scanner_backing.sql",
+      "down": "down/0369_down_opportunity_scanner_backing.sql",
+      "reverses": "Drops the 15 opportunity-scanner backing tables 0369 creates (13 tenant-scoped with FORCE RLS + tenant-isolation + service-role bypass, 2 shared reference). Dev/staging only — DATA LOSS: the opportunity scanner re-darks its tax/regulator/marketplace/capital/energy/ops/vendors/peer/carbon/workforce slices (degrade to null). No money/licence/ledger records touched.",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0370_risk_scanner_backing.sql",
+      "down": "down/0370_down_risk_scanner_backing.sql",
+      "reverses": "Drops the 16 risk-scanner backing tables + the production_mom_summary view 0370 creates (FORCE RLS + tenant-isolation + service-role bypass). Dev/staging only — DATA LOSS: the risk scanner re-darks its AR/payroll/fuel/equipment/regulator/contract/dispute/WHT slices (degrade to null; the flagship cash.runway_below_90d stops firing). No money/licence/ledger records touched.",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0373_external_benchmarks_idempotency.sql",
+      "down": "down/0373_down_external_benchmarks_idempotency.sql",
+      "reverses": "Drops the external_benchmarks (source, metric_id, as_of) UNIQUE constraint 0373 adds. Dev/staging only — the de-duplication the up-migration performed is NOT reversible (duplicate rows were removed); dropping the constraint only restores the pre-0373 table shape. No money/licence/ledger records touched.",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }

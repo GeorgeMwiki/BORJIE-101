@@ -17,6 +17,11 @@
  */
 
 import { sql } from 'drizzle-orm';
+import {
+  createDegradedReadCollector,
+  noteSliceFault,
+  type DegradedReadCollector,
+} from './degraded';
 import type { ScanState } from './types';
 
 export interface ScanStateResolverDb {
@@ -46,6 +51,7 @@ function num(v: unknown): number | null {
 async function resolveFuelSlice(
   db: ScanStateResolverDb,
   tenantId: string,
+  degraded: DegradedReadCollector,
 ): Promise<ScanState['fuel']> {
   try {
     const tenantResult = await db.execute(sql`
@@ -97,7 +103,10 @@ async function resolveFuelSlice(
            AND po.created_at >= NOW() - INTERVAL '180 days'
       `);
       supplierCount = Number(rowsOf(supplierResult)[0]?.supplier_count ?? 0);
-    } catch {
+    } catch (err) {
+      // Sub-query degrades supplierCount to 0 without nulling the slice, but a
+      // MISSING procurement relation is still a self-reportable infra gap.
+      noteSliceFault(degraded, err);
       supplierCount = 0;
     }
 
@@ -108,7 +117,8 @@ async function resolveFuelSlice(
       tonnesProducedRolling30d: tonnes,
       supplierCount,
     };
-  } catch {
+  } catch (err) {
+    noteSliceFault(degraded, err);
     return null;
   }
 }
@@ -118,6 +128,7 @@ async function resolveFuelSlice(
 async function resolveFxSlice(
   db: ScanStateResolverDb,
   tenantId: string,
+  degraded: DegradedReadCollector,
 ): Promise<ScanState['fx']> {
   try {
     const fixResult = await db.execute(sql`
@@ -169,7 +180,8 @@ async function resolveFxSlice(
       botGoldWindowOpen: open,
       parcelOzReady: oz,
     };
-  } catch {
+  } catch (err) {
+    noteSliceFault(degraded, err);
     return null;
   }
 }
@@ -179,6 +191,7 @@ async function resolveFxSlice(
 async function resolveTaxSlice(
   db: ScanStateResolverDb,
   tenantId: string,
+  degraded: DegradedReadCollector,
 ): Promise<ScanState['tax']> {
   try {
     const result = await db.execute(sql`
@@ -200,7 +213,8 @@ async function resolveTaxSlice(
       altRoyaltyRatePct: num(row.alt_rate),
       quarterlyRoyaltyTzs: num(row.quarter_amount),
     };
-  } catch {
+  } catch (err) {
+    noteSliceFault(degraded, err);
     return null;
   }
 }
@@ -208,6 +222,7 @@ async function resolveTaxSlice(
 async function resolveRegulatorSlice(
   db: ScanStateResolverDb,
   tenantId: string,
+  degraded: DegradedReadCollector,
 ): Promise<ScanState['regulator']> {
   try {
     const result = await db.execute(sql`
@@ -233,7 +248,8 @@ async function resolveRegulatorSlice(
       tenantQualifiesForAmnesty: Boolean(row.qualifies ?? false),
       estimatedPenaltyAvoidedTzs: num(row.penalty),
     };
-  } catch {
+  } catch (err) {
+    noteSliceFault(degraded, err);
     return null;
   }
 }
@@ -243,6 +259,7 @@ async function resolveRegulatorSlice(
 async function resolveEstateSlice(
   db: ScanStateResolverDb,
   tenantId: string,
+  degraded: DegradedReadCollector,
 ): Promise<ScanState['estate']> {
   try {
     // estate_entities is a tree: a subsidiary is any active entity that sits
@@ -296,7 +313,8 @@ async function resolveEstateSlice(
       overdueSuccessionReviewCount: overdue,
       forestryEntityCount: forestry,
     };
-  } catch {
+  } catch (err) {
+    noteSliceFault(degraded, err);
     return null;
   }
 }
@@ -306,6 +324,7 @@ async function resolveEstateSlice(
 async function resolveMarketplaceSlice(
   db: ScanStateResolverDb,
   tenantId: string,
+  degraded: DegradedReadCollector,
 ): Promise<ScanState['marketplace']> {
   try {
     const result = await db.execute(sql`
@@ -326,7 +345,8 @@ async function resolveMarketplaceSlice(
       latestBuyerOfferParcelOzEquivalent: num(row.oz),
       latestBuyerName: row.buyer == null ? null : String(row.buyer),
     };
-  } catch {
+  } catch (err) {
+    noteSliceFault(degraded, err);
     return null;
   }
 }
@@ -336,6 +356,7 @@ async function resolveMarketplaceSlice(
 async function resolveWorkforceSlice(
   db: ScanStateResolverDb,
   tenantId: string,
+  degraded: DegradedReadCollector,
 ): Promise<ScanState['workforce']> {
   try {
     const apprenticeResult = await db.execute(sql`
@@ -379,7 +400,8 @@ async function resolveWorkforceSlice(
       icaCertExpiringIn60dCount: expiring,
       icaCertPerCertFeeTzs: fee,
     };
-  } catch {
+  } catch (err) {
+    noteSliceFault(degraded, err);
     return null;
   }
 }
@@ -389,6 +411,7 @@ async function resolveWorkforceSlice(
 async function resolveInsuranceSlice(
   db: ScanStateResolverDb,
   tenantId: string,
+  degraded: DegradedReadCollector,
 ): Promise<ScanState['insurance']> {
   try {
     const policyResult = await db.execute(sql`
@@ -426,7 +449,8 @@ async function resolveInsuranceSlice(
       currentAnnualPremiumTzs: num(policyRow.premium),
       bestMarketQuoteTzs: bestQuote,
     };
-  } catch {
+  } catch (err) {
+    noteSliceFault(degraded, err);
     return null;
   }
 }
@@ -436,6 +460,7 @@ async function resolveInsuranceSlice(
 async function resolvePeerSlice(
   db: ScanStateResolverDb,
   tenantId: string,
+  degraded: DegradedReadCollector,
 ): Promise<ScanState['peer']> {
   try {
     const percentileResult = await db.execute(sql`
@@ -466,7 +491,8 @@ async function resolvePeerSlice(
       p75Pattern: patternRow?.pattern == null ? null : String(patternRow.pattern),
       tenantUsesP75Pattern: Boolean(patternRow?.tenant_uses ?? false),
     };
-  } catch {
+  } catch (err) {
+    noteSliceFault(degraded, err);
     return null;
   }
 }
@@ -476,6 +502,7 @@ async function resolvePeerSlice(
 async function resolveVendorsSlice(
   db: ScanStateResolverDb,
   tenantId: string,
+  degraded: DegradedReadCollector,
 ): Promise<ScanState['vendors']> {
   try {
     const result = await db.execute(sql`
@@ -496,7 +523,8 @@ async function resolveVendorsSlice(
         annualSpendTzs: Number(r.annual_spend ?? 0),
       })),
     };
-  } catch {
+  } catch (err) {
+    noteSliceFault(degraded, err);
     return null;
   }
 }
@@ -506,6 +534,7 @@ async function resolveVendorsSlice(
 async function resolveCapitalSlice(
   db: ScanStateResolverDb,
   tenantId: string,
+  degraded: DegradedReadCollector,
 ): Promise<ScanState['capital']> {
   try {
     const loanResult = await db.execute(sql`
@@ -555,7 +584,8 @@ async function resolveCapitalSlice(
       idleCashOver90dTzs: num(cashRow.idle),
       tibillsYieldPct: yieldPct,
     };
-  } catch {
+  } catch (err) {
+    noteSliceFault(degraded, err);
     return null;
   }
 }
@@ -565,6 +595,7 @@ async function resolveCapitalSlice(
 async function resolveCounterpartiesSlice(
   db: ScanStateResolverDb,
   tenantId: string,
+  degraded: DegradedReadCollector,
 ): Promise<ScanState['counterparties']> {
   try {
     const result = await db.execute(sql`
@@ -591,7 +622,8 @@ async function resolveCounterpartiesSlice(
         parcelOzEquivalent: Number(row.oz ?? 0),
       },
     };
-  } catch {
+  } catch (err) {
+    noteSliceFault(degraded, err);
     return null;
   }
 }
@@ -601,6 +633,7 @@ async function resolveCounterpartiesSlice(
 async function resolveCarbonSlice(
   db: ScanStateResolverDb,
   tenantId: string,
+  degraded: DegradedReadCollector,
 ): Promise<ScanState['carbon']> {
   try {
     const hectaresResult = await db.execute(sql`
@@ -623,7 +656,8 @@ async function resolveCarbonSlice(
       eligibleHectares: ha,
       tzsPerHectarePerYear: rate,
     };
-  } catch {
+  } catch (err) {
+    noteSliceFault(degraded, err);
     return null;
   }
 }
@@ -633,6 +667,7 @@ async function resolveCarbonSlice(
 async function resolveEnergySlice(
   db: ScanStateResolverDb,
   tenantId: string,
+  degraded: DegradedReadCollector,
 ): Promise<ScanState['energy']> {
   try {
     const result = await db.execute(sql`
@@ -652,7 +687,8 @@ async function resolveEnergySlice(
       solarHybridTzsPerKwh: num(row.solar),
       monthlyKwhConsumption: num(row.kwh),
     };
-  } catch {
+  } catch (err) {
+    noteSliceFault(degraded, err);
     return null;
   }
 }
@@ -662,6 +698,7 @@ async function resolveEnergySlice(
 async function resolveOpsSlice(
   db: ScanStateResolverDb,
   tenantId: string,
+  degraded: DegradedReadCollector,
 ): Promise<ScanState['ops']> {
   try {
     const result = await db.execute(sql`
@@ -689,7 +726,8 @@ async function resolveOpsSlice(
       downstreamProcessingTzsPerTonne: num(row.downstream),
       stockpileAgeP90Days: num(row.stockpile),
     };
-  } catch {
+  } catch (err) {
+    noteSliceFault(degraded, err);
     return null;
   }
 }
@@ -704,8 +742,12 @@ async function resolveOpsSlice(
 export async function resolveScanState(
   db: ScanStateResolverDb,
   tenantId: string,
+  degraded?: DegradedReadCollector,
 ): Promise<ScanState> {
   const nowIso = new Date().toISOString();
+  // Every slice threads the SAME collector so an undefined-table /
+  // undefined-column fault in ANY slice is recorded once, tenant-wide.
+  const sink = degraded ?? createDegradedReadCollector();
   const [
     fuel,
     fx,
@@ -723,21 +765,21 @@ export async function resolveScanState(
     energy,
     ops,
   ] = await Promise.all([
-    resolveFuelSlice(db, tenantId),
-    resolveFxSlice(db, tenantId),
-    resolveTaxSlice(db, tenantId),
-    resolveRegulatorSlice(db, tenantId),
-    resolveEstateSlice(db, tenantId),
-    resolveMarketplaceSlice(db, tenantId),
-    resolveWorkforceSlice(db, tenantId),
-    resolveInsuranceSlice(db, tenantId),
-    resolvePeerSlice(db, tenantId),
-    resolveVendorsSlice(db, tenantId),
-    resolveCapitalSlice(db, tenantId),
-    resolveCounterpartiesSlice(db, tenantId),
-    resolveCarbonSlice(db, tenantId),
-    resolveEnergySlice(db, tenantId),
-    resolveOpsSlice(db, tenantId),
+    resolveFuelSlice(db, tenantId, sink),
+    resolveFxSlice(db, tenantId, sink),
+    resolveTaxSlice(db, tenantId, sink),
+    resolveRegulatorSlice(db, tenantId, sink),
+    resolveEstateSlice(db, tenantId, sink),
+    resolveMarketplaceSlice(db, tenantId, sink),
+    resolveWorkforceSlice(db, tenantId, sink),
+    resolveInsuranceSlice(db, tenantId, sink),
+    resolvePeerSlice(db, tenantId, sink),
+    resolveVendorsSlice(db, tenantId, sink),
+    resolveCapitalSlice(db, tenantId, sink),
+    resolveCounterpartiesSlice(db, tenantId, sink),
+    resolveCarbonSlice(db, tenantId, sink),
+    resolveEnergySlice(db, tenantId, sink),
+    resolveOpsSlice(db, tenantId, sink),
   ]);
 
   return Object.freeze({
@@ -758,5 +800,36 @@ export async function resolveScanState(
     carbon: carbon ?? null,
     energy: energy ?? null,
     ops: ops ?? null,
+  });
+}
+
+/**
+ * Result of a resolve that self-reports infra degradation. `state` is the same
+ * `ScanState` `resolveScanState` returns; `unavailable` is TRUE when one or
+ * more backing relations were absent (undefined-table / undefined-column),
+ * with `degradedRelations` naming them.
+ *
+ * This kills the "null-slice false-green": a caller can distinguish an honest
+ * empty slice (`unavailable === false`) from a slice that could not read its
+ * backing data (`unavailable === true`). A genuine empty result never sets
+ * `unavailable`.
+ */
+export interface ScanStateReport {
+  readonly state: ScanState;
+  readonly unavailable: boolean;
+  readonly degradedRelations: ReadonlyArray<string>;
+}
+
+export async function resolveScanStateReport(
+  db: ScanStateResolverDb,
+  tenantId: string,
+): Promise<ScanStateReport> {
+  const degraded = createDegradedReadCollector();
+  const state = await resolveScanState(db, tenantId, degraded);
+  const degradedRelations = [...degraded.relations].sort();
+  return Object.freeze({
+    state,
+    unavailable: degradedRelations.length > 0,
+    degradedRelations,
   });
 }

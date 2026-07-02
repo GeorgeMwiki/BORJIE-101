@@ -22,6 +22,12 @@
 import { sql } from 'drizzle-orm';
 import { RISK_RULES } from './scan-rules';
 import {
+  createDegradedReadCollector,
+  isUndefinedRelationError,
+  undefinedRelationName,
+  type DegradedReadCollector,
+} from './degraded';
+import {
   scoreRisk,
   SEVERITY_WEIGHT,
   type Risk,
@@ -67,14 +73,27 @@ function asNum(v: unknown): number | null {
   return null;
 }
 
+/**
+ * Execute a resolver read fail-soft. A genuine empty result set stays `[]`
+ * (no signal). But an undefined-table / undefined-column error is an infra
+ * DEGRADATION — the backing relation was never provisioned here — so we record
+ * the missing relation into `degraded` before returning `[]`, letting the
+ * scanner self-report an UNAVAILABLE signal instead of a silent all-clear.
+ * Every other error still degrades quietly (a faulted slice must never crash
+ * the whole scan).
+ */
 async function safeExecute(
   db: DbLike,
   query: unknown,
+  degraded?: DegradedReadCollector,
 ): Promise<ReadonlyArray<Record<string, unknown>>> {
   try {
     const res = await db.execute(query);
     return rowsOf(res);
-  } catch {
+  } catch (err) {
+    if (degraded && isUndefinedRelationError(err)) {
+      degraded.record(undefinedRelationName(err));
+    }
     return [];
   }
 }
@@ -84,6 +103,7 @@ async function safeExecute(
 async function resolveCashFlow(
   db: DbLike,
   tenantId: string,
+  degraded: DegradedReadCollector,
 ): Promise<Partial<RiskScannerState>> {
   // Cash on hand = sum of the LATEST balance per account (not the sum of
   // the whole append-only history). `cash_balances` is keyed
@@ -98,6 +118,7 @@ async function resolveCashFlow(
       WHERE tenant_id = ${tenantId}
       ORDER BY account_id, recorded_at DESC
     ) AS latest`,
+    degraded,
   );
   const cashOnHandTzs = asNum(cashRows[0]?.cash_total) ?? null;
 
@@ -112,6 +133,7 @@ async function resolveCashFlow(
     WHERE tenant_id = ${tenantId}
       AND state = 'actual'
       AND ts > NOW() - INTERVAL '30 days'`,
+    degraded,
   );
   const dailyBurn = asNum(burnRows[0]?.daily_burn) ?? null;
   let cashRunwayDays: number | null = null;
@@ -126,6 +148,7 @@ async function resolveCashFlow(
       COALESCE(SUM(amount_tzs), 0)::bigint AS total
     FROM accounts_receivable
     WHERE tenant_id = ${tenantId}`,
+    degraded,
   );
   const overdue = asNum(arRows[0]?.overdue) ?? 0;
   const monthly = asNum(arRows[0]?.total) ?? 0;
@@ -140,6 +163,7 @@ async function resolveCashFlow(
     WHERE tenant_id = ${tenantId}
     ORDER BY next_run_at ASC
     LIMIT 1`,
+    degraded,
   );
   const payrollDueInDays = asNum(payrollRows[0]?.days_to_run);
   const payrollAmountTzs = asNum(payrollRows[0]?.amount);
@@ -156,6 +180,7 @@ async function resolveCashFlow(
 async function resolveRegulatory(
   db: DbLike,
   tenantId: string,
+  degraded: DegradedReadCollector,
 ): Promise<Partial<RiskScannerState>> {
   // `licences` uses `expiry_date` (not `expires_at`).
   const nemcRows = await safeExecute(
@@ -168,6 +193,7 @@ async function resolveRegulatory(
       AND status = 'active'
     ORDER BY expiry_date ASC
     LIMIT 1`,
+    degraded,
   );
   const nemcEiaDaysToExpiry = asNum(nemcRows[0]?.days_left);
 
@@ -181,6 +207,7 @@ async function resolveRegulatory(
       AND status = 'active'
     ORDER BY expiry_date ASC
     LIMIT 1`,
+    degraded,
   );
   const botExportLicenceDaysToExpiry = asNum(botRows[0]?.days_left);
 
@@ -201,6 +228,7 @@ async function resolveRegulatory(
       AND due_at < NOW()
     ORDER BY due_at ASC
     LIMIT 1`,
+    degraded,
   );
   const traFilingDaysOverdue = asNum(traRows[0]?.days_overdue);
   const traPenaltyAccrualTzs = null;
@@ -216,6 +244,7 @@ async function resolveRegulatory(
 async function resolveOperational(
   db: DbLike,
   tenantId: string,
+  degraded: DegradedReadCollector,
 ): Promise<Partial<RiskScannerState>> {
   const prodRows = await safeExecute(
     db,
@@ -226,6 +255,7 @@ async function resolveOperational(
     WHERE tenant_id = ${tenantId}
     ORDER BY month_offset DESC
     LIMIT 3`,
+    degraded,
   );
   let productionMomMonthsDown = 0;
   let productionMomDeltaPct: number | null = null;
@@ -249,6 +279,7 @@ async function resolveOperational(
       )::int AS days_left
     FROM fuel_inventory
     WHERE tenant_id = ${tenantId}`,
+    degraded,
   );
   const fuelDaysRemaining = asNum(fuelRows[0]?.days_left);
 
@@ -263,6 +294,7 @@ async function resolveOperational(
       AND failed_at > NOW() - INTERVAL '30 days'
     GROUP BY equipment_kind
     HAVING COUNT(*) >= 2`,
+    degraded,
   );
   const equipmentRepeatFailures = eqRows.map((r) => ({
     equipmentKind: String(r.equipment_kind ?? 'unknown'),
@@ -281,6 +313,7 @@ async function resolveOperational(
 async function resolveHrAndCompliance(
   db: DbLike,
   tenantId: string,
+  degraded: DegradedReadCollector,
 ): Promise<Partial<RiskScannerState>> {
   const attRows = await safeExecute(
     db,
@@ -289,6 +322,7 @@ async function resolveHrAndCompliance(
     WHERE tenant_id = ${tenantId}
       AND role IN ('supervisor', 'site_manager')
       AND separated_at > NOW() - INTERVAL '90 days'`,
+    degraded,
   );
   const supervisorAttrition90d = asNum(attRows[0]?.attrition_count) ?? 0;
 
@@ -304,6 +338,7 @@ async function resolveHrAndCompliance(
       AND cert_code ILIKE 'ICA%'
       AND expires_at < NOW()
       AND status = 'active'`,
+    degraded,
   );
   const operatorsWithExpiredIcaActive = asNum(icaRows[0]?.expired_active) ?? 0;
 
@@ -316,6 +351,7 @@ async function resolveHrAndCompliance(
     WHERE tenant_id = ${tenantId}
     ORDER BY draft_date DESC
     LIMIT 1`,
+    degraded,
   );
   const royaltyDraftPctDeviation = asNum(royRows[0]?.dev_pct);
 
@@ -326,6 +362,7 @@ async function resolveHrAndCompliance(
       MAX(CASE WHEN regulator = 'osha' AND status_tone = 'amber' THEN 1 ELSE 0 END)::int AS osha_amber
     FROM regulator_status
     WHERE tenant_id = ${tenantId}`,
+    degraded,
   );
   const nemcAmber = (asNum(regRows[0]?.nemc_amber) ?? 0) > 0;
   const oshaAmber = (asNum(regRows[0]?.osha_amber) ?? 0) > 0;
@@ -336,6 +373,7 @@ async function resolveHrAndCompliance(
     FROM incidents
     WHERE tenant_id = ${tenantId}
       AND status = 'open'`,
+    degraded,
   );
   const openIncidents = asNum(incRows[0]?.open_count) ?? 0;
 
@@ -352,6 +390,7 @@ async function resolveHrAndCompliance(
 async function resolveCounterpartyAndMarket(
   db: DbLike,
   tenantId: string,
+  degraded: DegradedReadCollector,
 ): Promise<Partial<RiskScannerState>> {
   const buyerRows = await safeExecute(
     db,
@@ -363,6 +402,7 @@ async function resolveCounterpartyAndMarket(
     FROM buyer_credit_signals
     WHERE tenant_id = ${tenantId}
     LIMIT 10`,
+    degraded,
   );
   const buyerLatePayments = buyerRows.map((r) => ({
     buyerId: String(r.buyer_id ?? 'unknown'),
@@ -381,6 +421,7 @@ async function resolveCounterpartyAndMarket(
     WHERE tenant_id = ${tenantId}
       AND window_days = 60
     LIMIT 10`,
+    degraded,
   );
   const supplierQualityIssues = supRows.map((r) => ({
     supplierId: String(r.supplier_id ?? 'unknown'),
@@ -396,6 +437,7 @@ async function resolveCounterpartyAndMarket(
     WHERE asset = 'gold'
     ORDER BY captured_at DESC
     LIMIT 1`,
+    degraded,
   );
   const lbmaFixDelta30dSigma = asNum(lbmaRows[0]?.sigma_delta);
 
@@ -407,6 +449,7 @@ async function resolveCounterpartyAndMarket(
     WHERE pair = 'USD/TZS'
     ORDER BY captured_at DESC
     LIMIT 1`,
+    degraded,
   );
   const fxUsdTzsVolatilityPctIntraday = asNum(fxRows[0]?.vol_pct);
 
@@ -421,6 +464,7 @@ async function resolveCounterpartyAndMarket(
     FROM sales
     WHERE tenant_id = ${tenantId}
       AND ts > NOW() - INTERVAL '30 days'`,
+    degraded,
   );
   const monthlyRevenueTzs = asNum(revRows[0]?.monthly_revenue);
 
@@ -436,6 +480,7 @@ async function resolveCounterpartyAndMarket(
 async function resolveEstateAndSecurity(
   db: DbLike,
   tenantId: string,
+  degraded: DegradedReadCollector,
 ): Promise<Partial<RiskScannerState>> {
   // `succession_plans` uses `last_review_at` (not `last_reviewed_at`) and
   // carries no principal age column — the age field stays null (no
@@ -449,6 +494,7 @@ async function resolveEstateAndSecurity(
     WHERE tenant_id = ${tenantId}
     ORDER BY last_review_at ASC
     LIMIT 1`,
+    degraded,
   );
   const successionReviewOverdueDays = asNum(sucRows[0]?.days_overdue);
   const principalOwnerAgeYears = null;
@@ -467,6 +513,7 @@ async function resolveEstateAndSecurity(
       AND expires_at < NOW() + INTERVAL '60 days'
     ORDER BY expires_at ASC
     LIMIT 20`,
+    degraded,
   );
   const insurancePoliciesExpiring30d = insRows
     .map((r) => ({
@@ -483,6 +530,7 @@ async function resolveEstateAndSecurity(
     WHERE tenant_id = ${tenantId}
       AND event_kind = 'access_anomaly'
       AND occurred_at > NOW() - INTERVAL '1 hour'`,
+    degraded,
   );
   const accessAnomaliesLastHour = asNum(accRows[0]?.anomaly_count) ?? 0;
 
@@ -494,6 +542,7 @@ async function resolveEstateAndSecurity(
     FROM security_audit_events
     WHERE tenant_id = ${tenantId}
       AND occurred_at > NOW() - INTERVAL '15 minutes'`,
+    degraded,
   );
   const failedAuthSpike = asNum(faRows[0]?.failed_auths) ?? 0;
   const suspiciousActionCount = asNum(faRows[0]?.suspicious) ?? 0;
@@ -511,6 +560,7 @@ async function resolveEstateAndSecurity(
 async function resolveReputationalAndTax(
   db: DbLike,
   tenantId: string,
+  degraded: DegradedReadCollector,
 ): Promise<Partial<RiskScannerState>> {
   // `grievances` uses `raised_by_kind` (not `party_type`) and `raised_at`
   // (not `created_at`).
@@ -521,6 +571,7 @@ async function resolveReputationalAndTax(
     WHERE tenant_id = ${tenantId}
       AND raised_by_kind = 'community'
       AND raised_at > NOW() - INTERVAL '60 days'`,
+    degraded,
   );
   const csrGrievances60d = asNum(csrRows[0]?.grievance_count) ?? 0;
 
@@ -530,6 +581,7 @@ async function resolveReputationalAndTax(
     FROM cda_milestones
     WHERE tenant_id = ${tenantId}
       AND status = 'overdue'`,
+    degraded,
   );
   const cdaMilestonesOverdue = asNum(cdaRows[0]?.overdue_count) ?? 0;
 
@@ -540,6 +592,7 @@ async function resolveReputationalAndTax(
       COALESCE(SUM(provision_tzs), 0)::numeric AS provision
     FROM withholding_tax_summary
     WHERE tenant_id = ${tenantId}`,
+    degraded,
   );
   const withholdingTaxPayableTzs = asNum(whRows[0]?.payable);
   const withholdingProvisionTzs = asNum(whRows[0]?.provision);
@@ -551,6 +604,7 @@ async function resolveReputationalAndTax(
       MAX(EXTRACT(DAY FROM (NOW() - last_filed_at))::int) AS overdue_days
     FROM tra_correspondence
     WHERE tenant_id = ${tenantId}`,
+    degraded,
   );
   const traInquiryOpen = Boolean(traRows[0]?.open_flag);
   const traFilingOverdueDays = asNum(traRows[0]?.overdue_days);
@@ -568,6 +622,7 @@ async function resolveReputationalAndTax(
 async function resolveLegal(
   db: DbLike,
   tenantId: string,
+  degraded: DegradedReadCollector,
 ): Promise<Partial<RiskScannerState>> {
   const conRows = await safeExecute(
     db,
@@ -587,6 +642,7 @@ async function resolveLegal(
       AND expires_at < NOW() + INTERVAL '60 days'
     ORDER BY annual_value_tzs DESC NULLS LAST
     LIMIT 3`,
+    degraded,
   );
   const top3ContractsExpiring60d = conRows.map((r) => ({
     contractId: String(r.id ?? 'unknown'),
@@ -607,6 +663,7 @@ async function resolveLegal(
       AND opened_at > NOW() - INTERVAL '90 days'
     GROUP BY counterparty_id, counterparty_name
     HAVING COUNT(*) >= 2`,
+    degraded,
   );
   const disputeEscalations = dispRows.map((r) => ({
     counterpartyId: String(r.counterparty_id ?? 'unknown'),
@@ -617,6 +674,7 @@ async function resolveLegal(
   const scopeRows = await safeExecute(
     db,
     sql`SELECT id, name FROM sites WHERE tenant_id = ${tenantId} LIMIT 50`,
+    degraded,
   );
   const knownScopes = scopeRows.map((r) => ({
     id: String(r.id ?? 'unknown'),
@@ -685,6 +743,7 @@ function emptyState(tenantId: string, nowIso: string): RiskScannerState {
 export async function buildScannerState(
   tenantId: string,
   deps: RiskScannerDeps,
+  degraded?: DegradedReadCollector,
 ): Promise<RiskScannerState> {
   const nowIso = (deps.now?.() ?? new Date()).toISOString();
   const base = emptyState(tenantId, nowIso);
@@ -694,16 +753,19 @@ export async function buildScannerState(
       : base;
   }
 
+  // Every resolver threads the SAME collector so an undefined-table /
+  // undefined-column fault in ANY slice is recorded once, tenant-wide.
+  const sink = degraded ?? createDegradedReadCollector();
   const [cash, regulatory, operational, hrAndComp, cpAndMkt, estAndSec, repAndTax, legal] =
     await Promise.all([
-      resolveCashFlow(deps.db, tenantId),
-      resolveRegulatory(deps.db, tenantId),
-      resolveOperational(deps.db, tenantId),
-      resolveHrAndCompliance(deps.db, tenantId),
-      resolveCounterpartyAndMarket(deps.db, tenantId),
-      resolveEstateAndSecurity(deps.db, tenantId),
-      resolveReputationalAndTax(deps.db, tenantId),
-      resolveLegal(deps.db, tenantId),
+      resolveCashFlow(deps.db, tenantId, sink),
+      resolveRegulatory(deps.db, tenantId, sink),
+      resolveOperational(deps.db, tenantId, sink),
+      resolveHrAndCompliance(deps.db, tenantId, sink),
+      resolveCounterpartyAndMarket(deps.db, tenantId, sink),
+      resolveEstateAndSecurity(deps.db, tenantId, sink),
+      resolveReputationalAndTax(deps.db, tenantId, sink),
+      resolveLegal(deps.db, tenantId, sink),
     ]);
 
   const combined: RiskScannerState = {
@@ -811,6 +873,39 @@ export async function scanRisks(
 ): Promise<ReadonlyArray<Risk>> {
   const state = await buildScannerState(tenantId, deps);
   return evaluateRisks(state, options);
+}
+
+/**
+ * Result of a scan that self-reports infra degradation. `risks` is the same
+ * ranked list `scanRisks` returns; `unavailable` is TRUE when one or more
+ * backing relations were absent (undefined-table / undefined-column), with
+ * `degradedRelations` naming them.
+ *
+ * This is the surface that kills the "empty-table false-green": a caller can
+ * distinguish an honest all-clear (`unavailable === false`, empty `risks`)
+ * from a scan that could not read its backing data (`unavailable === true`).
+ * A genuine no-rows result never sets `unavailable`.
+ */
+export interface RiskScanReport {
+  readonly risks: ReadonlyArray<Risk>;
+  readonly unavailable: boolean;
+  readonly degradedRelations: ReadonlyArray<string>;
+}
+
+export async function scanRisksReport(
+  tenantId: string,
+  deps: RiskScannerDeps,
+  options?: ScanRisksOptions,
+): Promise<RiskScanReport> {
+  const degraded = createDegradedReadCollector();
+  const state = await buildScannerState(tenantId, deps, degraded);
+  const risks = evaluateRisks(state, options);
+  const degradedRelations = [...degraded.relations].sort();
+  return Object.freeze({
+    risks,
+    unavailable: degradedRelations.length > 0,
+    degradedRelations,
+  });
 }
 
 // ─── Catalog metadata ──────────────────────────────────────────────

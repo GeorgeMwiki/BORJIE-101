@@ -533,4 +533,65 @@ SELECT
 FROM ranked
 WHERE month_offset BETWEEN 0 AND 5;
 
+-- =========================================================================
+-- 18. SERVICE-ROLE BYPASS — symmetry with 0369 / 0372.
+--
+-- Each table above carries FORCE ROW LEVEL SECURITY + a tenant-isolation
+-- policy, but NO service-role bypass. That asymmetry is a DARK-WORKER gap:
+-- an out-of-band writer / refresh cron (companion seed
+-- `seeds/risk-scanner-backing.seed.ts`, and any future ingest job) runs under
+-- `withServiceRoleContext` (tenant='__system__' + app.is_service_role='true'),
+-- which matches NO tenant-isolation policy — so under FORCE RLS its
+-- INSERT/UPDATE/DELETE silently touch zero rows (the exact RLS-darkness class
+-- migrations 0342/0354/0357 close for the spine tables). The risk-scanner
+-- request path is UNAFFECTED (each table's own tenant-isolation policy + FORCE
+-- survive); this only re-opens the OUT-OF-BAND write path to the service role.
+--
+-- `production_mom_summary` is a SECURITY INVOKER VIEW that inherits its base
+-- table's RLS — it gets NO policy (a view cannot carry one).
+--
+-- Idempotent: pg_policies-guarded CREATE POLICY + pg_roles-guarded anon REVOKE.
+-- =========================================================================
+DO $$
+DECLARE
+  tbl text;
+  backing_tables text[] := ARRAY[
+    'accounts_receivable',
+    'payroll_schedule',
+    'fuel_inventory',
+    'equipment_failures',
+    'workforce_separations',
+    'royalty_drafts_with_trend',
+    'regulator_status',
+    'buyer_credit_signals',
+    'supplier_quality_signals',
+    'security_audit_events',
+    'cda_milestones',
+    'withholding_tax_summary',
+    'tra_correspondence',
+    'contracts',
+    'contract_renewal_workflows',
+    'disputes'
+  ];
+BEGIN
+  FOREACH tbl IN ARRAY backing_tables LOOP
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policies
+       WHERE schemaname = 'public' AND tablename = tbl
+         AND policyname = tbl || '_service_role_bypass'
+    ) THEN
+      EXECUTE format(
+        'CREATE POLICY %I ON %I FOR ALL '
+        || 'USING (current_setting(''app.is_service_role'', true) = ''true'') '
+        || 'WITH CHECK (current_setting(''app.is_service_role'', true) = ''true'');',
+        tbl || '_service_role_bypass', tbl
+      );
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+      EXECUTE format('REVOKE ALL ON public.%I FROM anon;', tbl);
+    END IF;
+  END LOOP;
+END $$;
+
 COMMIT;
