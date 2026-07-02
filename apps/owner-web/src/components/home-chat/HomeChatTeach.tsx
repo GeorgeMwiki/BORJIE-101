@@ -1478,6 +1478,7 @@ function TeachBubble({
             headline={t('teach.degradedHeadline')}
             body={message.brainState.marker.reason}
             affectedAriaLabel={t('teach.degradedAffected')}
+            learnMoreLabel={t('teach.degradedLearnMore')}
           />
         </div>
       ) : null}

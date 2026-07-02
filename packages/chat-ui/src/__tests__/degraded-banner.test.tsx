@@ -113,6 +113,31 @@ describe('DegradedBanner', () => {
     expect(link.getAttribute('href')).toBe('/healthz/dependencies');
   });
 
+  it('defaults the learn-more label to English "Learn more"', () => {
+    const degraded: DegradedMarker = {
+      reason: 'r',
+      affected_capabilities: [],
+    };
+    render(<DegradedBanner degraded={degraded} />);
+    expect(screen.getByTestId('degraded-learn-more')).toHaveTextContent(
+      'Learn more',
+    );
+  });
+
+  it('honours the learnMoreLabel i18n override (zero-mix)', () => {
+    const degraded: DegradedMarker = {
+      reason: 'r',
+      affected_capabilities: [],
+    };
+    render(
+      <DegradedBanner degraded={degraded} learnMoreLabel="Jifunze zaidi" />,
+    );
+    const link = screen.getByTestId('degraded-learn-more');
+    expect(link).toHaveTextContent('Jifunze zaidi');
+    // no English token leaks when a localised label is supplied
+    expect(link.textContent).not.toContain('Learn more');
+  });
+
   it('honours custom headline + body i18n overrides', () => {
     const degraded: DegradedMarker = {
       reason: 'x',

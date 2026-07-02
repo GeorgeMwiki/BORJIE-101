@@ -79,6 +79,46 @@ function extractDegradedMarker(message: ChatMessage): DegradedMarker | null {
   };
 }
 
+/**
+ * Localised copy for the shared DegradedBanner on the floating widget.
+ * The widget knows the active language (`resolvedLanguage`) but has no
+ * i18n dictionary, so it carries a minimal single-locale copy set for
+ * this one banner — otherwise the banner's English defaults leak into a
+ * Swahili surface (a zero-mix violation). Keeps headline/body/learn-more/
+ * aria all in the active locale.
+ */
+function degradedBannerCopy(
+  lang: Language,
+  reason: string,
+): {
+  headline: string;
+  body: string;
+  learnMoreLabel: string;
+  affectedAriaLabel: string;
+} {
+  const hasReason = typeof reason === 'string' && reason.length > 0;
+  if (lang === 'sw') {
+    return {
+      headline:
+        'Ubongo wa AI unafanya kazi kwa hali ya akiba. Baadhi ya vipengele vya kina vinaweza kuwa na mipaka.',
+      body: hasReason
+        ? `Sababu: ${reason}`
+        : 'Mtoa huduma wa akiba anahudumia jibu hili wakati tunarejesha huduma kuu.',
+      learnMoreLabel: 'Jifunze zaidi',
+      affectedAriaLabel: 'Uwezo ulioathiriwa',
+    };
+  }
+  return {
+    headline:
+      'AI brain operating in fallback mode. Some advanced features may be limited.',
+    body: hasReason
+      ? `Reason: ${reason}`
+      : 'A fallback provider is serving this answer while we restore the primary service.',
+    learnMoreLabel: 'Learn more',
+    affectedAriaLabel: 'Affected capabilities',
+  };
+}
+
 export function MessageBubble({
   message,
   personaName,
@@ -91,6 +131,9 @@ export function MessageBubble({
   const isUser = message.role === 'user';
   const degraded = extractDegradedMarker(message);
   const resolvedLanguage: Language = inlineLanguage ?? message.language;
+  const degradedCopy = degraded
+    ? degradedBannerCopy(resolvedLanguage, degraded.reason)
+    : null;
   return (
     <li
       data-testid="message-bubble"
@@ -106,7 +149,16 @@ export function MessageBubble({
       }}
     >
       <span style={{ fontSize: 11, color: '#64748b' }}>{isUser ? 'You' : personaName}</span>
-      {degraded ? <DegradedBanner degraded={degraded} compact /> : null}
+      {degraded && degradedCopy ? (
+        <DegradedBanner
+          degraded={degraded}
+          compact
+          headline={degradedCopy.headline}
+          body={degradedCopy.body}
+          learnMoreLabel={degradedCopy.learnMoreLabel}
+          affectedAriaLabel={degradedCopy.affectedAriaLabel}
+        />
+      ) : null}
       <div
         style={{
           maxWidth: '80%',

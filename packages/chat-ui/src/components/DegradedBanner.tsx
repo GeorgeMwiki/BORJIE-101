@@ -70,6 +70,13 @@ export interface DegradedBannerProps {
    */
   readonly affectedAriaLabel?: string;
   /**
+   * Optional override label for the "Learn more" link (i18n). Defaults
+   * to the English 'Learn more' for backward compatibility — consumer
+   * apps on a bilingual surface MUST pass a localised string so no
+   * English token leaks into a non-English active locale (zero-mix).
+   */
+  readonly learnMoreLabel?: string;
+  /**
    * Optional className for outer container — picked up only when the
    * consuming app uses a styled-components / Tailwind layer that wants
    * to override positioning. Inline styles still apply.
@@ -193,6 +200,7 @@ export function DegradedBanner({
   headline,
   body,
   affectedAriaLabel = 'Affected capabilities',
+  learnMoreLabel = 'Learn more',
   className,
   style,
 }: DegradedBannerProps): JSX.Element | null {
@@ -244,7 +252,7 @@ export function DegradedBanner({
         data-testid="degraded-learn-more"
         style={styles.link}
       >
-        Learn more
+        {learnMoreLabel}
       </a>
     </aside>
   );

@@ -314,6 +314,7 @@ export const en = {
     degradedHeadline:
       'AI brain operating in fallback mode. Some advanced features may be limited.',
     degradedAffected: 'Affected capabilities',
+    degradedLearnMore: 'Learn more',
     hintHandoff: 'Connect me with a human advisor.',
     hintSimpler: 'Explain that more simply.',
     hintCmdk: 'Show me what I can do from here.',
