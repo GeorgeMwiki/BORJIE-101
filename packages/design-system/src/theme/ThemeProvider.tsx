@@ -71,7 +71,9 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 const VALID_THEMES: ReadonlySet<Theme> = new Set(['light', 'dark', 'system']);
 
 function readSystemScheme(): ResolvedTheme {
-  if (typeof window === 'undefined') return 'dark';
+  // Light-first canon: the SSR fallback (no `window` to read the OS scheme) is
+  // LIGHT, so first paint is never a dark flash on a light-default surface.
+  if (typeof window === 'undefined') return 'light';
   return window.matchMedia('(prefers-color-scheme: dark)').matches
     ? 'dark'
     : 'light';
@@ -113,7 +115,11 @@ function applySchemeToRoot(
 
 export function ThemeProvider({
   children,
-  defaultTheme = 'dark',
+  // Light-first canon: a surface that forgets to pass `defaultTheme` boots
+  // LIGHT, never dark. Every current surface sets its own explicitly
+  // (owner/admin=light; marketing/mobile deliberately dark), so this only
+  // guards a future unset surface from a canon-violating dark default.
+  defaultTheme = 'light',
   storageKey = 'borjie-theme',
   enableSystem = true,
   disableTransitionOnChange = false,
