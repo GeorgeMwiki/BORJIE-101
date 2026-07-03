@@ -5,6 +5,7 @@ import { SectionCard } from '@/components/shared/SectionCard';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { fmtNum, formatMoney, LAUNCH_CURRENCY } from '@/lib/format';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeError } from '@/lib/api-client';
 import { inventorySurfaceStrings as S } from '@/i18n/strings/inventory-surface';
 import {
   useInventoryReorder,
@@ -144,7 +145,9 @@ export function InventorySurface({
           <EmptyState
             title={pickByLocale(locale, S.reorderLoadFailedTitle)}
             description={
-              (reorder.error as Error)?.message ?? pickByLocale(locale, S.unknownError)
+              reorder.error
+                ? localizeError(reorder.error, locale)
+                : pickByLocale(locale, S.unknownError)
             }
             hint="GET /api/v1/mining/inventory/reorder"
           />
@@ -181,7 +184,9 @@ export function InventorySurface({
           <EmptyState
             title={pickByLocale(locale, S.onHandLoadFailedTitle)}
             description={
-              (onHand.error as Error)?.message ?? pickByLocale(locale, S.unknownError)
+              onHand.error
+                ? localizeError(onHand.error, locale)
+                : pickByLocale(locale, S.unknownError)
             }
             hint="GET /api/v1/mining/inventory/analytics/on-hand-value"
           />

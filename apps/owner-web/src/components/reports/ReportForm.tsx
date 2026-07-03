@@ -10,6 +10,7 @@ import { REPORT_CATALOGUE, type ReportKind } from '@/lib/types/reports';
 import { useGenerateReport } from '@/lib/queries/reports';
 import { Toast } from '@/components/shared/Toast';
 import { useLocale, pickByLocale } from '@/lib/locale';
+import { localizeError } from '@/lib/api-client';
 import { reportFormStrings as S } from '@/i18n/strings/report-form';
 
 const schema = z.object({
@@ -110,8 +111,9 @@ export function ReportForm() {
         {mutation.isError ? (
           <p role="alert" aria-live="assertive" className="text-xs text-destructive">
             {pickByLocale(locale, S.errorPrefix)}{' '}
-            {(mutation.error as Error)?.message ??
-              pickByLocale(locale, S.errorUnknown)}
+            {mutation.error
+              ? localizeError(mutation.error, locale)
+              : pickByLocale(locale, S.errorUnknown)}
           </p>
         ) : null}
         <Button

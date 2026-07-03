@@ -25,6 +25,7 @@ import {
   type UiMaintenanceKind,
 } from '@/lib/queries/maintenance';
 import { useLocale, pickByLocale } from '@/lib/locale';
+import { localizeError } from '@/lib/api-client';
 import type { Locale } from '@/lib/locale-shared';
 import { fleetMaintenanceStrings as S } from '@/i18n/strings/fleet-maintenance-page';
 
@@ -172,7 +173,7 @@ export function NewMaintenanceModal({
           {mutation.isError ? (
             <Alert variant="error">
               {pickByLocale(locale, S.submitErrorPrefix)}:{' '}
-              {(mutation.error as Error)?.message ?? pickByLocale(locale, S.unknownError)}
+              {mutation.error ? localizeError(mutation.error, locale) : pickByLocale(locale, S.unknownError)}
             </Alert>
           ) : null}
         </ModalBody>

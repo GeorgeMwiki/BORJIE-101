@@ -126,8 +126,13 @@ async function call<T>(
   }
 
   if (!res.ok || !json || json.success === false) {
-    const message = json?.error?.message ?? `request failed with HTTP ${res.status}`;
-    throw new TrainingGatewayError(message, res.status);
+    // Internal dev/Sentry field only — carried on the thrown error's
+    // `.message`, NEVER rendered as copy (consumers branch on `.status` /
+    // `instanceof` and render localised `tr.t(...)`). Named `devMessage` per
+    // the api-client convention so it is unambiguously not user-facing.
+    const devMessage =
+      json?.error?.message ?? `request failed with HTTP ${res.status}`;
+    throw new TrainingGatewayError(devMessage, res.status);
   }
   return json;
 }

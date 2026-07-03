@@ -6,7 +6,7 @@ import { getCsrfHeaders } from '@/lib/csrf';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import { bcp47For } from '@/lib/format';
-import { localizeError } from '@/lib/api-client';
+import { ApiError, localizeError } from '@/lib/api-client';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
 import { Toast } from '@/components/shared/Toast';
 
@@ -90,13 +90,21 @@ export function ConnectedAgentsList({
         | { success?: false; error?: { code: string; message: string } }
         | null;
       if (!res.ok || !json || !('success' in json) || !json.success) {
-        const message =
+        // Localize by the stable gateway CODE — never the raw English envelope
+        // `message` (rendering that under `sw` is language MIXING). The raw
+        // message is kept only as the ApiError dev/Sentry field, never copy.
+        const code =
+          (json && 'error' in json && json.error?.code) || undefined;
+        const devMessage =
           (json && 'error' in json && json.error?.message) ||
-          pickByLocale(locale, S.connectedAgentsList.httpProblem).replace(
-            '{status}',
-            String(res.status),
-          );
-        setState({ kind: 'error', message });
+          `HTTP ${res.status}`;
+        setState({
+          kind: 'error',
+          message: localizeError(
+            new ApiError(devMessage, res.status, code),
+            locale,
+          ),
+        });
         return;
       }
       const tokens = json.data;

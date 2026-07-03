@@ -81,6 +81,8 @@ describe('raw-error-render scanner self-validation (RED-on-seeded)', () => {
     /\{\s*(?:err|error|e|cause)\.message\s*\}/,
     /instanceof\s+Error\s*\?\s*[A-Za-z0-9_.]*\.message\s*:\s*(?:t\(|pickByLocale\(|copy\.|S\.|JS\.|COPY\.|[A-Za-z0-9_]+\.(?:sw|en)\b)/,
     /\b(?:message|error|detail|title|description)\s*:\s*[^,;\n]*\binstanceof\s+Error\s*\?\s*[A-Za-z0-9_.]*\.message\b/,
+    /\bas\s+Error\s*\)\s*\??\.message\s*\?\?\s*(?:t\(|pickByLocale\(|copy\.|S\.|JS\.|COPY\.|[A-Za-z0-9_]+\.(?:sw|en)\b)/,
+    /\b(?:const\s+message|message)\s*(?:=|:)\s*[^;\n]*(?:\.error\?\.message\b|\berror_description\b)/,
   ];
   const matches = (s: string): boolean => PATTERNS.some((re) => re.test(s));
 
@@ -140,6 +142,34 @@ describe('raw-error-render scanner self-validation (RED-on-seeded)', () => {
     ).toBe(true);
   });
 
+  // ── pattern 6: laundered cast-then-nullish render (this round) ──
+  it('FLAGS `(query.error as Error)?.message ?? pickByLocale(...)`', () => {
+    expect(
+      matches('(query.error as Error)?.message ?? pickByLocale(locale, S.unknownError)'),
+    ).toBe(true);
+  });
+
+  it('FLAGS `(x.error as Error).message ?? t(...)` (no optional chain)', () => {
+    expect(matches('(spend.error as Error).message ?? t("flows.failed")')).toBe(true);
+  });
+
+  // ── pattern 7: raw envelope laundered through a slot-named local (this round) ──
+  it('FLAGS `const message = json.error?.message || pickByLocale(...)`', () => {
+    expect(
+      matches("const message = (json && 'error' in json && json.error?.message) || pickByLocale(locale, S.x)"),
+    ).toBe(true);
+  });
+
+  it('FLAGS `const message = json.error_description || ...`', () => {
+    expect(
+      matches("const message = (json && 'error_description' in json && json.error_description) || fallback;"),
+    ).toBe(true);
+  });
+
+  it('FLAGS `phase.message` state assigned error_description', () => {
+    expect(matches('setPhase({ kind: "error", message: json.error_description })')).toBe(true);
+  });
+
   // ── negatives: the localised replacement + internal-only shapes pass ──
   it('PASSES the localised replacement (no bare .message)', () => {
     expect(matches('setError(localizeApiError(err, locale))')).toBe(false);
@@ -171,5 +201,31 @@ describe('raw-error-render scanner self-validation (RED-on-seeded)', () => {
     // A bare-string fallback with no user-facing slot KEY and no JSX wrapper
     // is below the user-facing signature (it is the internal-dev shape).
     expect(matches("x instanceof Error ? x.message : 'stream read failed'")).toBe(false);
+  });
+
+  // ── pattern 6/7 negatives: the CANONICAL FIX shapes pass ──
+  it('PASSES the pattern-6 fix `query.error ? localizeError(query.error, locale) : pickByLocale(...)`', () => {
+    expect(
+      matches('query.error ? localizeError(query.error, locale) : pickByLocale(locale, S.unknownError)'),
+    ).toBe(false);
+  });
+
+  it('PASSES `(x.error as Error)?.message ?? "plain-string"` (no localised fallback)', () => {
+    // Internal cast-then-nullish with a bare-string fallback is below the
+    // user-facing signature — pattern 6 keys on the LOCALISED fallback.
+    expect(matches("(reorder.error as Error)?.message ?? 'load failed'")).toBe(false);
+  });
+
+  it('PASSES the pattern-7 fix — `.error?.message` kept ONLY as the ApiError dev arg', () => {
+    // The connected-agents / jurisdiction fix binds the raw envelope to an
+    // INTERNAL `devMessage` (not a `message` slot) and feeds it to
+    // localizeError(new ApiError(devMessage,…)). The rendered `message:` slot
+    // carries the localised string, never the raw wire value.
+    expect(
+      matches("const devMessage = (json && 'error' in json && json.error?.message) || `HTTP ${res.status}`;"),
+    ).toBe(false);
+    expect(
+      matches('message: localizeError(new ApiError(devMessage, res.status, code), locale)'),
+    ).toBe(false);
   });
 });

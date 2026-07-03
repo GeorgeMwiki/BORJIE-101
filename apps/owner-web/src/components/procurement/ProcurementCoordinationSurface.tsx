@@ -5,6 +5,7 @@ import { SectionCard } from '@/components/shared/SectionCard';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { fmtNum, fmtPct } from '@/lib/format';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeError } from '@/lib/api-client';
 import {
   procurementSurfaceStrings as S,
   budgetAlertLevelLabels,
@@ -277,7 +278,9 @@ export function ProcurementCoordinationSurface({
           <EmptyState
             title={pickByLocale(locale, S.spendLoadFailedTitle)}
             description={
-              (spend.error as Error)?.message ?? pickByLocale(locale, S.unknownError)
+              spend.error
+                ? localizeError(spend.error, locale)
+                : pickByLocale(locale, S.unknownError)
             }
             hint="GET /api/v1/mining/procurement-coordination/analytics/spend-by-vendor"
           />
@@ -311,7 +314,9 @@ export function ProcurementCoordinationSurface({
           <EmptyState
             title={pickByLocale(locale, S.budgetsLoadFailedTitle)}
             description={
-              (budgets.error as Error)?.message ?? pickByLocale(locale, S.unknownError)
+              budgets.error
+                ? localizeError(budgets.error, locale)
+                : pickByLocale(locale, S.unknownError)
             }
             hint="GET /api/v1/mining/procurement-coordination/budgets"
           />
@@ -345,7 +350,9 @@ export function ProcurementCoordinationSurface({
           <EmptyState
             title={pickByLocale(locale, S.vendorsLoadFailedTitle)}
             description={
-              (vendors.error as Error)?.message ?? pickByLocale(locale, S.unknownError)
+              vendors.error
+                ? localizeError(vendors.error, locale)
+                : pickByLocale(locale, S.unknownError)
             }
             hint="GET /api/v1/mining/procurement-coordination/vendors"
           />

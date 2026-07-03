@@ -58,6 +58,24 @@ import { join } from 'node:path';
  *     class). `const x = …` assignments are NOT matched (those feed
  *     internal throws / dev fields), only an object property whose KEY is a
  *     known user-facing slot.
+ *  6. (<x> as Error).message ?? <LOCALISED>              — the LAUNDERED
+ *     cast-then-nullish render: `(query.error as Error)?.message ??
+ *     pickByLocale(...)`. The raw gateway `.message` paints as copy whenever
+ *     it is present, localised ONLY on the null branch — the exact
+ *     English-over-Swahili mix the `instanceof Error ? … : localised`
+ *     pattern (4) never saw, because the cast + `??` launders the raw
+ *     message through a react-query `error` slot straight into a `<Alert>` /
+ *     `<EmptyState description>` / bare JSX. (fleet / procurement / cockpit /
+ *     inventory / reports / doc-chat class.)
+ *  7. (message|phase|const <slot>) = … (.error?.message | error_description)
+ *     — the raw gateway/OAuth envelope string laundered through a
+ *     SLOT-NAMED local (`const message = json.error?.message || …` /
+ *     `= json.error_description || …`) that is later rendered. The `||` /
+ *     `??` fallback is localised, but the raw envelope value is the FIRST
+ *     operand, so it renders whenever the gateway sends it. Keyed on
+ *     `.error?.message` / `error_description` (the raw-wire shapes) so the
+ *     already-localised `= localizeError(...)` assignment does NOT match.
+ *     (connected-agents / oauth-confirm class.)
  *
  * Deliberately broad: a false positive just keeps a file on the allowlist
  * one cycle longer (the safe direction). The localised replacement
@@ -82,6 +100,21 @@ const RAW_ERROR_PATTERNS: readonly RegExp[] = [
   // state-field / prop assigned the raw message. Keyed on the slot name so a
   // `const x =` internal assignment (dev message / throw arg) is NOT matched.
   /\b(?:message|error|detail|title|description)\s*:\s*[^,;\n]*\binstanceof\s+Error\s*\?\s*[A-Za-z0-9_.]*\.message\b/,
+  // `(<x> as Error)?.message ?? <LOCALISED>` — the LAUNDERED cast-then-nullish
+  // render. The raw gateway `.message` off a react-query `error` slot paints
+  // as copy whenever present, localised only on the null branch = mixing. The
+  // localised fallback set mirrors pattern 4 (the i18n call shapes) so a bare
+  // internal `(x as Error)?.message ?? 'plain'` (no user-facing localiser) is
+  // below the signature and does NOT match.
+  /\bas\s+Error\s*\)\s*\??\.message\s*\?\?\s*(?:t\(|pickByLocale\(|copy\.|S\.|JS\.|COPY\.|[A-Za-z0-9_]+\.(?:sw|en)\b)/,
+  // `<slot> = … (.error?.message | error_description) …` — the raw gateway /
+  // OAuth envelope string laundered through a SLOT-NAMED local / state field
+  // that is later rendered. Matches a `const message =` / `phase.message =` /
+  // `message:` (a user-facing slot) whose value pulls the raw wire shape
+  // `.error?.message` or `error_description`. The internal `devMessage` name is
+  // NOT in the slot set, so the localizeError(new ApiError(devMessage,…)) fix
+  // (which keeps `.error?.message` only as the ApiError dev arg) does NOT match.
+  /\b(?:const\s+message|message)\s*(?:=|:)\s*[^;\n]*(?:\.error\?\.message\b|\berror_description\b)/,
 ];
 
 /** Strip whole-line comments so `.message` in a doc-comment never trips it. */

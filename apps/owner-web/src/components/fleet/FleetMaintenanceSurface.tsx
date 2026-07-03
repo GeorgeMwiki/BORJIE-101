@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { MaintenanceTable } from '@/components/fleet/MaintenanceTable';
 import { useMaintenanceList } from '@/lib/queries/maintenance';
 import { useLocale, pickByLocale } from '@/lib/locale';
+import { localizeError } from '@/lib/api-client';
 import type { Locale } from '@/lib/locale-shared';
 import { fleetMaintenanceStrings as S } from '@/i18n/strings/fleet-maintenance-page';
 
@@ -58,7 +59,7 @@ export function FleetMaintenanceSurface({ locale: seeded }: FleetMaintenanceSurf
         ) : events.isError ? (
           <EmptyState
             title={pickByLocale(locale, S.loadErrorTitle)}
-            description={(events.error as Error)?.message ?? pickByLocale(locale, S.unknownError)}
+            description={events.error ? localizeError(events.error, locale) : pickByLocale(locale, S.unknownError)}
             hint="GET /api/v1/mining/maintenance"
           />
         ) : (events.data ?? []).length === 0 ? (

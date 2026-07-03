@@ -9,6 +9,7 @@ import { Send, Loader2 } from 'lucide-react';
 import type { DocumentRecord } from '@/lib/types/documents';
 import { askDocument, type DocChatAnswer } from '@/lib/queries/doc-chat';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeError } from '@/lib/api-client';
 import { docChatStrings as S } from '@/i18n/strings/doc-chat';
 
 const schema = z.object({
@@ -138,8 +139,13 @@ export function DocChatPane({ document, onAnchor }: DocChatPaneProps) {
             {pickByLocale(
               locale,
               S.agentUnreachable(
-                (ask.error as Error)?.message ??
-                  pickByLocale(locale, S.unknownError),
+                // Localize the gateway error by its stable CODE — the detail
+                // spliced into the localized sentence must itself be
+                // single-language (a raw English `.message` here would MIX
+                // under `sw`).
+                ask.error
+                  ? localizeError(ask.error, locale)
+                  : pickByLocale(locale, S.unknownError),
               ),
             )}
           </div>

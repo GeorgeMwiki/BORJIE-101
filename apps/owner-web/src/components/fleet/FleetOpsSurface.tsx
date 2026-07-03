@@ -15,6 +15,7 @@ import { SectionCard } from '@/components/shared/SectionCard';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { fmtNum, fmtDate } from '@/lib/format';
 import { useLocale, pickByLocale } from '@/lib/locale';
+import { localizeError } from '@/lib/api-client';
 import type { Locale } from '@/lib/locale-shared';
 import { useFleetOpsTco, type FleetOpsTco, type VehicleTcoRow } from '@/lib/queries/fleet-ops';
 import { fleetOpsStrings as S } from '@/i18n/strings/fleet-ops-surface';
@@ -148,7 +149,7 @@ export function FleetOpsSurface({ locale: seeded }: FleetOpsSurfaceProps) {
         ) : tco.isError ? (
           <EmptyState
             title={pickByLocale(locale, S.loadErrorTitle)}
-            description={(tco.error as Error)?.message ?? pickByLocale(locale, S.unknownError)}
+            description={tco.error ? localizeError(tco.error, locale) : pickByLocale(locale, S.unknownError)}
             hint="GET /api/v1/mining/fleet-ops/tco"
           />
         ) : (tco.data?.vehicles ?? []).length === 0 ? (

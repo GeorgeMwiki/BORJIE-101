@@ -132,7 +132,7 @@ export function BrowserMic({
       <span className="sr-only" role="status" aria-live="polite">
         {isActive ? labels.listening : ''}
         {showFallbackNotice ? ` ${labels.fallbackNotice}` : ''}
-        {state.error ? ` ${labels.error}: ${state.error}` : ''}
+        {state.error ? ` ${labels.error}` : ''}
       </span>
     </>
   );

@@ -9,6 +9,7 @@ import { MaintenanceTable } from '@/components/fleet/MaintenanceTable';
 import { NewMaintenanceModal } from '@/components/fleet/NewMaintenanceModal';
 import { useMaintenanceList } from '@/lib/queries/maintenance';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeError } from '@/lib/api-client';
 import { fleetMaintenanceStrings as S } from '@/i18n/strings/fleet-maintenance-page';
 
 /**
@@ -93,7 +94,7 @@ export function MaintenancePageBody({
           ) : events.isError ? (
             <EmptyState
               title={pickByLocale(locale, S.loadErrorTitle)}
-              description={(events.error as Error)?.message ?? pickByLocale(locale, S.unknownError)}
+              description={events.error ? localizeError(events.error, locale) : pickByLocale(locale, S.unknownError)}
               hint="GET /api/v1/mining/maintenance"
             />
           ) : (

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { getCsrfHeaders } from '@/lib/csrf';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
-import { localizeError } from '@/lib/api-client';
+import { ApiError, localizeError } from '@/lib/api-client';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
 import { Button } from '@borjie/design-system';
 
@@ -51,6 +51,30 @@ function scopeLabel(scope: string, locale: Locale): string {
   return entry ? pickByLocale(locale, entry) : scope;
 }
 
+/**
+ * Localize an OAuth-device error envelope by its STABLE `error` CODE — never
+ * the raw English `error_description` / `error` off the wire (rendering that
+ * under `sw` is language MIXING). The OAuth `error` enum
+ * (invalid_request / expired_token / not_found / access_denied / invalid_grant
+ * / server_error) is the locale-neutral code; `localizeError` resolves it to
+ * single-language copy (a known code → its localized message, any other → the
+ * generic localized fallback). The raw `error_description` is retained ONLY as
+ * the ApiError dev/Sentry field, never as rendered copy.
+ */
+function localizeOAuthError(
+  json: { error?: string; error_description?: string } | null,
+  status: number,
+  fallbackDevMessage: string,
+  locale: Locale,
+): string {
+  const code = json && typeof json.error === 'string' ? json.error : undefined;
+  const devMessage =
+    (json && typeof json.error_description === 'string' && json.error_description) ||
+    (json && typeof json.error === 'string' && json.error) ||
+    fallbackDevMessage;
+  return localizeError(new ApiError(devMessage, status, code), locale);
+}
+
 export function OAuthConfirmPanel({
   initialLocale,
 }: {
@@ -80,14 +104,16 @@ export function OAuthConfirmPanel({
           | null;
         if (cancelled) return;
         if (!res.ok || !json || 'error' in json) {
-          const message =
-            (json && 'error_description' in json && json.error_description) ||
-            (json && 'error' in json && json.error) ||
-            pickByLocale(locale, S.oauthConfirm.commProblem).replace(
-              '{status}',
-              String(res.status),
-            );
-          setPhase({ kind: 'error', message });
+          const envelope = json && 'error' in json ? json : null;
+          setPhase({
+            kind: 'error',
+            message: localizeOAuthError(
+              envelope,
+              res.status,
+              `HTTP ${res.status}`,
+              locale,
+            ),
+          });
           return;
         }
         setPhase({ kind: 'ready', details: json });
@@ -145,14 +171,16 @@ export function OAuthConfirmPanel({
           );
           return;
         }
-        const message =
-          (json && 'error_description' in json && json.error_description) ||
-          (json && 'error' in json && json.error) ||
-          pickByLocale(locale, S.oauthConfirm.httpProblem).replace(
-            '{status}',
-            String(res.status),
-          );
-        setPhase({ kind: 'error', message });
+        const envelope = json && 'error' in json ? json : null;
+        setPhase({
+          kind: 'error',
+          message: localizeOAuthError(
+            envelope,
+            res.status,
+            `HTTP ${res.status}`,
+            locale,
+          ),
+        });
         return;
       }
       setPhase({ kind: 'approved', countdown: 5 });

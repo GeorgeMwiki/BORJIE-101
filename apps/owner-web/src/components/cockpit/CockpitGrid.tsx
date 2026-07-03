@@ -16,6 +16,7 @@ import { RefreshButton } from '@/components/shared/RefreshButton';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { fmtTime } from '@/lib/format';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeError } from '@/lib/api-client';
 import { cockpitClusterStrings as S } from '@/i18n/strings/cockpit-cluster';
 
 interface CockpitGridProps {
@@ -45,8 +46,9 @@ export function CockpitGrid({ initialLocale }: CockpitGridProps = {}) {
       <EmptyState
         title={pickByLocale(locale, S.grid.errorTitle)}
         description={
-          (query.error as Error)?.message ??
-          pickByLocale(locale, S.grid.errorBody)
+          query.error
+            ? localizeError(query.error, locale)
+            : pickByLocale(locale, S.grid.errorBody)
         }
         hint="GET /api/v1/mining/cockpit/daily-brief"
         action={
