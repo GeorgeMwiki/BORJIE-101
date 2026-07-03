@@ -27,7 +27,10 @@ export interface Listing {
   readonly mineral: Mineral
   readonly title: string
   readonly grade: string
-  readonly quantityKg: number
+  // `null` = no quantity attribute on the listing (a legitimate state — quantity
+  // lives in the free-form attributes JSON and may be absent). NEVER a 0 sentinel
+  // (which renders "0 g" as a fabricated parcel weight); the render shows "— kg".
+  readonly quantityKg: number | null
   readonly originSite: string
   readonly originRegion: string
   readonly seller: Seller

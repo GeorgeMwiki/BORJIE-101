@@ -80,7 +80,9 @@ export function PlaceBidSheet({ visible, onClose, listing }: PlaceBidSheetProps)
     submitMutation.mutate({
       listingId: listing.id,
       offerTzsPerKg: parseBidPrice(values.bidPrice),
-      quantityKg: listing.quantityKg,
+      // Listing may carry no quantity attribute (quantityKg null) — submit 0,
+      // the gateway's documented "absent quantity" convention (bids.hono.ts).
+      quantityKg: listing.quantityKg ?? 0,
       paymentTerms: values.paymentTerms,
       notes: values.notes ?? '',
       termsAccepted: true

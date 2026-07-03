@@ -117,13 +117,21 @@ function attrStr(attrs: Record<string, unknown>, key: string): string {
   return typeof v === 'string' ? v : ''
 }
 
-function attrPositiveNumber(attrs: Record<string, unknown>, ...keys: readonly string[]): number {
+/**
+ * Returns `null` (not a 0 sentinel) when NO key
+ * carries a positive value — so an absent quantity renders "— kg", never a
+ * fabricated "0 g".
+ */
+function attrPositiveNumberOrNull(
+  attrs: Record<string, unknown>,
+  ...keys: readonly string[]
+): number | null {
   for (const key of keys) {
     const raw = attrs[key]
     const n = typeof raw === 'number' ? raw : Number(raw)
     if (Number.isFinite(n) && n > 0) return n
   }
-  return 0
+  return null
 }
 
 function stringArray(value: unknown): readonly string[] {
@@ -195,7 +203,8 @@ export function mapListing(raw: RawListingRow): Listing {
   const sellerTenantId =
     typeof raw.sellerTenantId === 'string' ? raw.sellerTenantId : ''
   const sellerName = typeof raw.sellerName === 'string' ? raw.sellerName : ''
-  const quantityKg = attrPositiveNumber(attrs, 'quantityKg', 'quantity_kg')
+  // Absent quantity stays NULL (not a fabricated 0 → "0 g"); render shows "— kg".
+  const quantityKg = attrPositiveNumberOrNull(attrs, 'quantityKg', 'quantity_kg')
   // An absent/non-finite price stays NULL (not a fabricated 0) — the marketplace
   // priceTzs is nullable (solicit-bids listing), and the render layer shows the
   // honest "price on request" placeholder for null.
@@ -203,7 +212,7 @@ export function mapListing(raw: RawListingRow): Listing {
   const priceTzsPerKg =
     priceHintTzs == null
       ? null
-      : quantityKg > 0
+      : quantityKg != null && quantityKg > 0
         ? priceHintTzs / quantityKg
         : priceHintTzs
   const originSite = attrStr(attrs, 'originSite') || attrStr(attrs, 'origin')

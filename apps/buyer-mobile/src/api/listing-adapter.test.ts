@@ -64,11 +64,12 @@ describe('mapListing', () => {
     expect(listing.priceTzsPerKg).toBe(10_000_000)
   })
 
-  it('falls back per-kg to the total when quantity is absent', () => {
+  it('keeps quantity NULL when absent (never a fabricated 0) + per-kg falls back to the total', () => {
     const listing = mapListing(
       rawRow({ attributes: { mineral: 'coltan', grade: 'A', region: 'Kagera' } })
     )
-    expect(listing.quantityKg).toBe(0)
+    // Absent quantity → null (renders "— kg"), never 0 (which renders "0 g").
+    expect(listing.quantityKg).toBeNull()
     expect(listing.priceHintTzs).toBe(120_000_000)
     expect(listing.priceTzsPerKg).toBe(120_000_000)
   })

@@ -44,7 +44,12 @@ export function formatTzs(
   return `${code} ${sign}${abs.toFixed(0)}`
 }
 
-export function formatKg(kg: number): string {
+export function formatKg(kg: number | null | undefined): string {
+  // An ABSENT quantity (null/undefined/non-finite) renders an honest "— kg", never
+  // a fabricated "0 g" — a marketplace listing can carry no quantityKg attribute.
+  if (kg == null || !Number.isFinite(kg)) {
+    return '— kg'
+  }
   if (kg < 1) {
     return `${(kg * 1000).toFixed(0)} g`
   }
