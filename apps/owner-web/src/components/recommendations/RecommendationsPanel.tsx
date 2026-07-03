@@ -107,17 +107,16 @@ export function RecommendationsPanel({
       {matchQ.data && (
         <div className="space-y-4">
           {matchQ.data.topK.length === 0 ? (
-            // `note` is an English backend diagnostic when present; the
-            // localized parity copy renders otherwise.
-            matchQ.data.note ? (
-              <p lang="en" className="text-xs text-neutral-400">
-                {matchQ.data.note}
-              </p>
-            ) : (
-              <p className="text-xs text-neutral-400">
-                {pickByLocale(locale, S.noCandidates)}
-              </p>
-            )
+            // Always render the localized empty-state copy — NEVER the raw
+            // backend `note` (an English diagnostic), which would show English
+            // to a sw owner (zero-mix) and raw backend text to any owner. The
+            // diagnostic is kept only as an aria annotation for debugging.
+            <p
+              className="text-xs text-neutral-400"
+              {...(matchQ.data.note ? { 'aria-description': matchQ.data.note } : {})}
+            >
+              {pickByLocale(locale, S.noCandidates)}
+            </p>
           ) : (
             <>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] uppercase tracking-wide text-neutral-500">

@@ -290,12 +290,16 @@ export function LicencesList({ locale = 'en' }: LicencesListProps): JSX.Element 
                         {pickByLocale(locale, LC.list.dormancyLabel)}{' '}
                         <span
                           className={
-                            row.dormancyScore > 0.5
+                            // dormancyScore is a 0–100 smallint (DB column +
+                            // the cockpit DormancyCard treat it that way); it is
+                            // NOT a 0–1 fraction. Threshold + render on that scale
+                            // (a 40 is "40%", not "4000%").
+                            row.dormancyScore > 50
                               ? 'text-warning'
                               : 'text-neutral-400'
                           }
                         >
-                          {Math.round(row.dormancyScore * 100)}%
+                          {Math.round(row.dormancyScore)}%
                         </span>
                       </div>
                     ) : null}
