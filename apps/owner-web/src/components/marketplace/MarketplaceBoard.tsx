@@ -72,11 +72,15 @@ export function MarketplaceBoard({
     const open = data.outbound.filter((o) => o.status === 'open').length;
     const matched = data.outbound.filter((o) => o.status === 'matched').length;
     const counters = data.outbound.filter((o) => o.status === 'counter').length;
-    const avgUsd =
+    const avgPrice =
       data.outbound.length > 0
-        ? data.outbound.reduce((acc, o) => acc + o.priceUsd, 0) /
+        ? data.outbound.reduce((acc, o) => acc + o.price, 0) /
           data.outbound.length
         : 0;
+    // The currency code is DATA carried on the listing row (TZS-denominated by
+    // schema today); read it from the first listing and fall back to the
+    // launch-primary code — never a hardcoded display currency in the JSX.
+    const avgCurrency = data.outbound[0]?.currencyCode ?? LAUNCH_CURRENCY;
     return [
       {
         label: isSw ? S.mktMetricOpenLabel.sw : S.mktMetricOpenLabel.en,
@@ -101,12 +105,12 @@ export function MarketplaceBoard({
       },
       {
         label: isSw ? S.mktMetricAvgLabel.sw : S.mktMetricAvgLabel.en,
-        value: formatMoney(avgUsd, 'USD', locale),
+        value: formatMoney(avgPrice, avgCurrency, locale),
         sub: isSw ? S.mktMetricAvgSub.sw : S.mktMetricAvgSub.en,
         icon: Star,
       },
     ];
-  }, [data, isSw]);
+  }, [data, isSw, locale]);
 
   if (query.isPending) {
     return (
@@ -169,7 +173,7 @@ export function MarketplaceBoard({
                       {o.listing}
                     </div>
                     <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="font-mono">{formatMoney(o.priceUsd, 'USD', locale)}</span>
+                      <span className="font-mono">{formatMoney(o.price, o.currencyCode, locale)}</span>
                       <span className="rounded-full border border-border bg-background px-1.5 text-tiny">
                         LBMA
                       </span>

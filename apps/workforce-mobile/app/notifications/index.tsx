@@ -26,6 +26,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Stack, useRouter } from 'expo-router'
 
 import { useI18n } from '../../src/i18n/useI18n'
+import { formatDateTime, formatInteger } from '../../src/i18n/locale-format'
 import { tokens } from '../../src/ui-litfin'
 import {
   useInbox,
@@ -82,9 +83,15 @@ function describeBody(item: InboxItem, sw: boolean): string {
   }
   if (item.kind === 'payroll.committed') {
     const net = typeof payload.netTotalTzs === 'number' ? payload.netTotalTzs : 0
-    return sw
-      ? `Jumla halisi TZS ${net.toLocaleString('sw-TZ')}`
-      : `Net total TZS ${net.toLocaleString('en-US')}`
+    // Currency + digit-grouping are DATA/locale-driven, never hardcoded: the ISO
+    // code comes from the payload (default to the launch currency only when the
+    // producer omits it — a KE/UG/NG tenant sends its own code), and the amount
+    // groups via the active-locale formatter (formatInteger), not a bare
+    // toLocaleString('sw-TZ')/('en-US') literal. Only the prose is locale-gated.
+    const currencyCode =
+      typeof payload.currencyCode === 'string' ? payload.currencyCode : 'TZS'
+    const amount = `${currencyCode} ${formatInteger(net, sw ? 'sw' : 'en')}`
+    return sw ? `Jumla halisi ${amount}` : `Net total ${amount}`
   }
   if (item.kind === 'rfb.dispatched') {
     const siteId = typeof payload.siteId === 'string' ? payload.siteId : ''
@@ -206,7 +213,7 @@ function Row({ item, sw, onPress, unread }: RowProps): JSX.Element {
       <Text style={styles.rowBody}>{describeBody(item, sw)}</Text>
       <View style={styles.rowFooter}>
         <Text style={styles.rowTime}>
-          {new Date(item.emittedAt).toLocaleString(sw ? 'sw-TZ' : 'en-US')}
+          {formatDateTime(item.emittedAt, sw ? 'sw' : 'en')}
         </Text>
         {link ? (
           <Text style={styles.rowAction}>{sw ? 'Fungua' : 'Open'}</Text>

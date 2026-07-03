@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/api-client';
+import { LAUNCH_CURRENCY } from '@/lib/format';
 
 export const marketplaceKeys = {
   listings: () => ['marketplace', 'listings'] as const,
@@ -17,10 +18,19 @@ export const marketplaceKeys = {
 
 /**
  * Front-end shape for a marketplace listing.
+ *
+ * MONEY CANON: the `marketplace_listings` row is TZS-denominated by schema
+ * (the `price_tzs` numeric column → a numeric STRING on the wire) and carries
+ * NO per-row ISO currency code. So the adapter parses that string into
+ * `price` and carries a `currencyCode` that defaults to the launch-primary
+ * code (`LAUNCH_CURRENCY`) — the code is DATA threaded to `formatMoney`, never
+ * a hardcoded `'USD'`/`'TZS'` display literal. A future per-row currency
+ * column threads through this same field with zero render change.
  */
 export interface OutboundListing {
   readonly listing: string;
-  readonly priceUsd: number;
+  readonly price: number;
+  readonly currencyCode: string;
   readonly status: string;
 }
 
@@ -56,12 +66,27 @@ export interface MarketplaceResult {
   readonly inbound: ReadonlyArray<InboundPartner>;
 }
 
+/**
+ * Raw listing row as the gateway returns it (GET
+ * /api/v1/mining/marketplace/listings → `{ ...marketplaceListings, ... }`
+ * spread flat). The price arrives as `priceTzs`: a numeric STRING (Drizzle
+ * `numeric` column) or null. There is NO nested `price` object and NO ISO
+ * currency-code column on the row — the schema is TZS-denominated.
+ */
 interface RawListing {
   readonly id?: string;
   readonly title?: string;
   readonly attributes?: Record<string, unknown>;
-  readonly price?: { readonly currency?: string; readonly amount?: number };
+  readonly priceTzs?: string | number | null;
+  readonly currencyCode?: string | null;
   readonly status?: string;
+}
+
+/** Parse a numeric wire value (string | number | null) to a finite number. */
+function toFinitePrice(value: string | number | null | undefined): number {
+  if (value == null) return 0;
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : 0;
 }
 
 interface RawRfbRow {
@@ -89,12 +114,17 @@ function adaptListings(raw: unknown): MarketplaceResult {
   const outbound: OutboundListing[] = [];
   for (const item of raw as ReadonlyArray<RawListing>) {
     const attrs = item.attributes ?? {};
+    // The row carries no ISO currency code (TZS-denominated by schema), so
+    // default to the launch-primary code as DATA — a KE/UG/NG tenant threading
+    // an explicit `currencyCode` renders its own currency with zero change.
+    const currencyCode =
+      typeof item.currencyCode === 'string' && item.currencyCode.length > 0
+        ? item.currencyCode
+        : LAUNCH_CURRENCY;
     outbound.push({
       listing: item.title ?? (typeof attrs.mineral === 'string' ? attrs.mineral : item.id ?? '—'),
-      priceUsd:
-        item.price?.currency === 'USD' && typeof item.price.amount === 'number'
-          ? item.price.amount
-          : 0,
+      price: toFinitePrice(item.priceTzs),
+      currencyCode,
       status: item.status ?? 'open',
     });
   }
