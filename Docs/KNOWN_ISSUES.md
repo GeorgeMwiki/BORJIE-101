@@ -567,7 +567,28 @@ workforce-mobile gate into `apps/buyer-mobile/src/__tests__/`, calibrating the
 shrink-only allowlist to buyer-mobile's current inline-ternary usage so the count
 can only go DOWN. Defense-in-depth; no user-visible defect today.
 
-End of register. **Open KI count: 0 user-reachable customer-facing; 1 incomplete feature (KI-017); 10 non-customer residuals (KI-018 admin-i18n nav-fixed, KI-019 audit-sweep tail-truncation, KI-020 scoop loanword, KI-021 marketing domain glossary, KI-022 sw.approved dead file, KI-023 orphaned legacy worker screens, KI-024 O-M-21 mock, KI-025 BidsInbox launch-currency, KI-026 buyer WalletBar orphaned, KI-027 buyer-mobile zero-mix gate gap).**
+### KI-028 — cockpit `grammes*` fields internally carry ORE TONNES (naming hygiene) — **REGISTERED 2026-07-03 — LOW (internal, no user-visible defect)**
+
+`services/api-gateway/src/routes/mining/cockpit.hono.ts` production slot fields
+`grammesToday`/`grammesMtd`/`grammesTargetToday`/`grammesTargetMtd` (and the
+owner-web `DailyBriefResponse.production` type + adapter) are NAMED grammes but
+carry run-of-mine ORE TONNES (the gateway computes tonnes, not gold assay grammes).
+The round-12 T3 fix relabelled the owner-web ProductionCard display to tonnes (t)
+so the USER sees the correct unit — no user-visible defect remains. The internal
+field-name still lies. **Fix (hygiene, coordinated):** rename the contract
+`grammes*` → `tonnes*` across gateway + OpenAPI schema + owner-web type/adapter/
+card. Deferred to avoid a wide rename for zero user benefit; the display is honest.
+
+### KI-029 — marketing OwnerSignInForm renders raw English auth error (orphaned) — **REGISTERED 2026-07-03 — LOW (unmounted, not launch-reachable)**
+
+`apps/marketing/src/components/auth/OwnerSignInForm.tsx` renders the raw Supabase
+`error.message`/`err.message` (zero-mix under sw), the same class round-12 closed
+on the mounted BuyerSignInForm. It is ORPHANED — `/sign-in` is a pure `redirect()`
+to owner-web with ZERO importers of this component — so no user reaches it. **Fix
+(defensive):** apply the same classify-then-localize pattern (spawned as a
+background task chip). Latent until the component is mounted.
+
+End of register. **Open KI count: 0 user-reachable customer-facing; 1 incomplete feature (KI-017); 12 non-customer residuals (KI-018 admin-i18n nav-fixed, KI-019 audit-sweep tail-truncation, KI-020 scoop loanword, KI-021 marketing domain glossary, KI-022 sw.approved dead file, KI-023 orphaned legacy worker screens, KI-024 O-M-21 mock, KI-025 BidsInbox launch-currency, KI-026 buyer WalletBar orphaned, KI-027 buyer-mobile zero-mix gate gap, KI-028 grammes-field naming, KI-029 OwnerSignInForm orphaned).**
 
 ---
 
