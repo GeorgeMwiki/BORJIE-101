@@ -19,7 +19,8 @@ import {
   TASK_AGENT_REGISTRY,
   TASK_AGENTS,
 } from '@borjie/ai-copilot/task-agents';
-import { authMiddleware } from '../middleware/hono-auth';
+import { authMiddleware, requireRole } from '../middleware/hono-auth';
+import { UserRole } from '../types/user-role';
 import { routeCatch } from '../utils/safe-error';
 
 import { withSecurityEvents } from '@borjie/observability';
@@ -148,7 +149,19 @@ const RunBodySchema = z
   })
   .passthrough();
 
-app.post('/:id/run', zValidator('json', RunBodySchema), withSecurityEvents({ action: 'task-agent.create', resource: 'task-agent', severity: 'info' }, async (c: any) => {
+// Manually triggering a state-mutating task agent is an org-management action —
+// gate it to the operational tier (owner/admins/site-manager/accountant), never
+// a field worker (MAINTENANCE_STAFF) or a marketplace buyer (RESIDENT). Fail-closed.
+const TASK_AGENT_RUN_ROLES = [
+  UserRole.OWNER,
+  UserRole.TENANT_ADMIN,
+  UserRole.PROPERTY_MANAGER,
+  UserRole.ACCOUNTANT,
+  UserRole.SUPER_ADMIN,
+  UserRole.ADMIN,
+] as const;
+
+app.post('/:id/run', zValidator('json', RunBodySchema), requireRole(...TASK_AGENT_RUN_ROLES), withSecurityEvents({ action: 'task-agent.create', resource: 'task-agent', severity: 'info' }, async (c: any) => {
   const id = c.req.param('id');
   const body = c.req.valid('json');
   const auth = c.get('auth') ?? {};
