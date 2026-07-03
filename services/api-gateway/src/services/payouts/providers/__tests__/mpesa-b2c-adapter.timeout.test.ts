@@ -121,7 +121,7 @@ describe('createMpesaB2CAdapter — Daraja timeout (AbortController)', () => {
     vi.restoreAllMocks();
   });
 
-  it('fires AbortController and surfaces a failed result when Daraja B2C hangs > timeout', async () => {
+  it('fires AbortController and surfaces an INDETERMINATE result (never failed→retry) when Daraja B2C hangs > timeout', async () => {
     const { fn, callCount, abortObserved } = makeHangingFetch({ hangOnCall: 'b2c' });
     const adapter = createMpesaB2CAdapter(
       { ...CONFIG, timeoutMs: 50 }, // short timeout for fast test
@@ -132,8 +132,11 @@ describe('createMpesaB2CAdapter — Daraja timeout (AbortController)', () => {
     const result = await adapter.send(VALID_INPUT);
     const elapsed = Date.now() - start;
 
-    expect(result.status).toBe('failed');
-    expect(result.failureReason).toMatch(/mpesa_b2c_network_error/i);
+    // A timed-out B2C POST may already have debited — it MUST be indeterminate
+    // (routed to reconciliation), NEVER 'failed' (which the worker auto-retries
+    // → double-debit on a rail that does not dedup on the wire key).
+    expect(result.status).toBe('indeterminate');
+    expect(result.failureReason).toMatch(/mpesa_b2c_network_error_indeterminate/i);
     // The error message must reference the abort, not a generic fetch.
     expect(result.failureReason ?? '').toMatch(/abort|timeout/i);
     expect(abortObserved()).toBe(true);

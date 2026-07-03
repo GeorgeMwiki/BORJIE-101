@@ -242,7 +242,7 @@ import { createTaskCommitmentBinder } from './composition/org-loop/task-commitme
 // the real-time delegation lane a production caller (previously zero callers).
 import { createOrgLoopDueSweep } from './composition/org-loop/org-loop-due-sweep';
 import { createDrizzleOrgLoopRunRepository } from '@borjie/database';
-import { withServiceRoleContext, withTenantContext } from '@borjie/database';
+import { withServiceRoleContext, withTenantContext, getTenantRegion } from '@borjie/database';
 import { tapCockpitEvents } from './services/cockpit-events';
 // HITL approval consumer — the owner's approve/dismiss verbs over parked
 // HIGH/sovereign org-loop runs (late-bound to the orchestrator; 503 until
@@ -819,6 +819,20 @@ import { regulatoryFilingsRouter as opsRegulatoryFilingsRouter } from './routes/
 import { regulatoryZonesRouter } from './routes/regulatory/zones.hono.js';
 import { createRemindersDispatchWorker } from './workers/reminders-dispatch.worker';
 import { createSettlementDrainWorker } from './workers/settlement-drain.worker';
+// Wave PAYOUTS-DRAIN-WIRE (monthly-close-disbursement-no-dispatch closeout).
+// The monthly-close orchestrator enqueues `MonthlyCloseDisbursementProposed`
+// outbox events (disbursement-adapter.ts) but the ONLY consumer,
+// createPayoutsWorker, was never composed — owner payouts piled up
+// status='pending' forever. This is the missing money-out consumer. The
+// provider is the REAL env-driven rail (M-Pesa B2C / EFT) or a typed
+// FAIL-LOUD provider — never an always-success stub in production.
+import { createPayoutsWorker } from './services/payouts/payouts-worker';
+import {
+  createPayoutProviderFromEnv,
+  createStubPayoutProvider,
+} from './services/payouts/stub-payout-provider';
+import { createEftStubAdapter } from './services/payouts/providers/eft-stub-adapter';
+import { resolvePayoutLedgerPort } from './services/payouts/payout-ledger-port';
 // Wave 3 (R2) — owner saved-search alert worker. The pure worker was built +
 // tested but never composed/started, so saved-search alerts never fired. The
 // wiring module builds the three real ports (DbLike / SearchExecutor /
@@ -4135,6 +4149,87 @@ const settlementDrainWorker = serviceRegistry.db
       },
     };
 
+// Wave PAYOUTS-DRAIN-WIRE (monthly-close-disbursement-no-dispatch closeout).
+// Consumes the `MonthlyCloseDisbursementProposed` outbox events the monthly-
+// close orchestrator enqueues (services/api-gateway/src/services/monthly-close/
+// disbursement-adapter.ts) — the missing money-OUT consumer. Each row is the
+// external owner disbursement (M-Pesa B2C / EFT). Runs on the dedicated
+// service-role worker pool; its outbox statements bind the service-role GUC
+// (admitted by migration 0376) so FORCE-RLS does not darken the drain. The
+// per-row CAS claim (pending → processing) makes multi-replica runs safe.
+//
+// PROVIDER (honest, fail-loud): `createPayoutProviderFromEnv` wires the REAL
+// env-driven rail when M-Pesa / EFT is configured; when nothing is configured
+// it returns null and we fall back to the FAIL-LOUD EFT adapter
+// (EFT_NOT_CONFIGURED) — a payout row is marked `published` ONLY after money
+// actually moves. The always-success stub is used ONLY in test/dev so wiring
+// tests keep passing; production NEVER fabricates a payout. Region resolver is
+// bound from `getTenantRegion` per the documented composition contract.
+// Inert in test mode and when BORJIE_PAYOUTS_WORKER_DISABLED=true.
+const payoutRegionResolver = (tenantId: string): Promise<string | null> =>
+  serviceRegistry.db
+    ? getTenantRegion(
+        serviceRegistry.db as Parameters<typeof getTenantRegion>[0],
+        tenantId,
+      )
+    : Promise.resolve(null);
+const payoutProvider =
+  process.env.NODE_ENV === 'test'
+    ? createStubPayoutProvider()
+    : createPayoutProviderFromEnv(process.env, {
+        regionResolver: payoutRegionResolver,
+      }) ?? createEftStubAdapter({ regionResolver: payoutRegionResolver });
+const payoutsWorker = serviceRegistry.db
+  ? createPayoutsWorker({
+      db: notificationWorkerDb as unknown as {
+        execute(q: unknown): Promise<unknown>;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        transaction?: (...args: any[]) => any;
+      },
+      provider: payoutProvider,
+      logger,
+      // Blocker 4 — money-out ledger leg. Resolves the REAL LedgerService-backed
+      // adapter registered by registerProductionLedgerPorts (null in no-db/dev,
+      // in which case the worker skips ledger posting rather than fabricate one).
+      // Conditionally spread so we never pass an explicit `undefined` under
+      // exactOptionalPropertyTypes.
+      ...(resolvePayoutLedgerPort()
+        ? { ledgerPort: resolvePayoutLedgerPort() as NonNullable<
+            ReturnType<typeof resolvePayoutLedgerPort>
+          > }
+        : {}),
+      // Blocker 5 — kill-switch gate, fail-closed. Engaged when the PLATFORM
+      // kill-switch is open OR the tenant's `killswitch_payment_reversal` flag
+      // is on. A throw inside → worker treats as ENGAGED (fail-closed). A
+      // payout must never fire while the switch is engaged.
+      isKillSwitchEngaged: async ({ tenantId }) => {
+        const platformOpen = Boolean(
+          (
+            serviceRegistry as unknown as {
+              killSwitch?: { isOpen?: () => boolean };
+            }
+          ).killSwitch?.isOpen?.(),
+        );
+        if (platformOpen) return true;
+        const ff = serviceRegistry.featureFlags;
+        if (!ff) return false;
+        return ff.isEnabled(tenantId, 'killswitch_payment_reversal');
+      },
+      intervalMs:
+        Number(process.env.BORJIE_PAYOUTS_INTERVAL_MS ?? 5_000) || 5_000,
+      enabled:
+        process.env.NODE_ENV !== 'test' &&
+        process.env.BORJIE_PAYOUTS_WORKER_DISABLED !== 'true',
+    })
+  : {
+      start() {},
+      stop() {},
+      async runOnce() {
+        return { processed: 0, failed: 0 };
+      },
+      async runForever() {},
+    };
+
 // ── Wave-C C4 — proactive-intel regulation readers (owner-resolver + posture) ─
 // Both built from EXISTING services: the `users(tenant_id, is_owner)` SELECT the
 // mwikila-autonomous worker already uses, and the durable owner-style service over
@@ -5225,6 +5320,12 @@ if (require.main === module) {
   // (pending → processing) also makes multi-replica runs safe. Inert by
   // default in test mode / when BORJIE_SETTLEMENT_DRAIN_DISABLED=true.
   withClusterLeader(settlementDrainWorker, lockIdFor('settlement-drain')).start();
+  // Wave PAYOUTS-DRAIN-WIRE — drain `MonthlyCloseDisbursementProposed` outbox
+  // events (monthly-close disbursements) to the external owner payout rail
+  // (M-Pesa B2C / EFT). Leader-gated like the sibling resident workers; the
+  // per-row CAS claim (pending → processing) also makes multi-replica runs
+  // safe. Inert by default in test mode / when BORJIE_PAYOUTS_WORKER_DISABLED=true.
+  withClusterLeader(payoutsWorker, lockIdFor('payouts')).start();
   // Wave 2 (W2b) — proactive-intel insight loop (cluster-leader gated so only one
   // instance ticks). Surfaces MD-authored proactive insights onto the cockpit bus.
   withClusterLeader(proactiveIntelWorker, lockIdFor('proactive-intel')).start();

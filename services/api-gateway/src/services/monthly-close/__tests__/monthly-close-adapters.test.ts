@@ -24,6 +24,44 @@ const noopLogger = {
   warn: vi.fn(),
 };
 
+/**
+ * Flatten a drizzle `sql` chunk to a text blob (static SQL fragments + bound
+ * param values) so tests can substring-assert on the emitted SQL shape.
+ */
+function captureSqlText(q: unknown): string {
+  if (q && typeof q === 'object') {
+    const queryChunks = (q as { queryChunks?: unknown }).queryChunks;
+    if (Array.isArray(queryChunks)) {
+      return queryChunks
+        .map((c) => {
+          if (c == null) return '';
+          if (typeof c === 'string') return c;
+          if (typeof c === 'object') {
+            const obj = c as Record<string, unknown>;
+            if (typeof obj.value !== 'undefined') {
+              const v = obj.value;
+              if (v == null) return '';
+              if (Array.isArray(v)) return v.join('');
+              return typeof v === 'object' ? JSON.stringify(v) : String(v);
+            }
+            try {
+              return JSON.stringify(obj);
+            } catch {
+              return '';
+            }
+          }
+          return String(c);
+        })
+        .join(' ');
+    }
+  }
+  try {
+    return JSON.stringify(q);
+  } catch {
+    return String(q);
+  }
+}
+
 function makeDb(rowsByCall: ReadonlyArray<readonly Record<string, unknown>[]>) {
   let i = 0;
   const execute = vi.fn(async () => {
@@ -255,8 +293,9 @@ describe('createDrizzleDisbursementAdapter', () => {
     expect(breakdown.destination).toBe('owner:owner-99');
   });
 
-  it('queues the disbursement into event_outbox on execute', async () => {
-    const execute = vi.fn(async () => []);
+  it('queues the disbursement into event_outbox on execute (row inserted)', async () => {
+    // ON CONFLICT ... RETURNING id — a fresh insert returns exactly one row.
+    const execute = vi.fn(async () => [{ id: 'evt_1' }]);
     const adapter = createDrizzleDisbursementAdapter(
       { execute },
       noopLogger,
@@ -271,6 +310,33 @@ describe('createDrizzleDisbursementAdapter', () => {
     });
     expect(out.disbursementId).toBe('disb_idem-A');
     expect(out.status).toBe('queued_in_outbox');
+    expect(execute).toHaveBeenCalledTimes(1);
+    // The INSERT must carry the ON CONFLICT ... DO NOTHING dedup guard.
+    const q = execute.mock.calls[0]?.[0];
+    const text = captureSqlText(q);
+    expect(text).toContain('ON CONFLICT');
+    expect(text).toContain('DO NOTHING');
+    expect(text).toContain('correlation_id');
+  });
+
+  it('BLOCKER 2: a duplicate producer INSERT is a NO-OP (ON CONFLICT DO NOTHING)', async () => {
+    // Postgres returns ZERO rows from `RETURNING id` when ON CONFLICT DO NOTHING
+    // suppresses the insert (the row already exists from a prior orchestrator
+    // run of the same run+owner). The adapter must report the idempotent
+    // no-op status — NOT a second queued proposal — so the owner is not paid
+    // twice from a duplicated producer call.
+    const execute = vi.fn(async () => []); // no row returned ⇒ conflict suppressed
+    const adapter = createDrizzleDisbursementAdapter({ execute }, noopLogger);
+    const out = await adapter.executeDisbursement({
+      tenantId: 'tenant-A',
+      ownerId: 'owner-1',
+      amountMinor: 100_000,
+      currency: 'KES',
+      destination: 'owner:owner@example.com',
+      idempotencyKey: 'run-9:owner-1',
+    });
+    expect(out.disbursementId).toBe('disb_run-9:owner-1');
+    expect(out.status).toBe('already_queued_idempotent');
     expect(execute).toHaveBeenCalledTimes(1);
   });
 

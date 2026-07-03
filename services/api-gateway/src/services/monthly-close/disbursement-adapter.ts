@@ -212,14 +212,23 @@ export function createDrizzleDisbursementAdapter(
       const disbursementId = `disb_${idempotencyKey}`;
 
       // Outbox-pattern: persist the proposal as a `MonthlyCloseDisbursementProposed`
-      // event so the eventual payouts worker can drain it. The
-      // (correlation_id) ON CONFLICT path keeps the call idempotent
-      // even under orchestrator retries — the same idempotency key
-      // produces the same outbox row.
+      // event so the payouts worker can drain it.
+      //
+      // DOUBLE-PAY BARRIER (real money out): the INSERT is guarded by
+      // `ON CONFLICT ... DO NOTHING` on the PARTIAL UNIQUE index
+      // `event_outbox_disbursement_dedup_uniq` (migration 0377) over
+      // (tenant_id, event_type, correlation_id) WHERE
+      // event_type='MonthlyCloseDisbursementProposed'. `correlation_id` is the
+      // orchestrator idempotencyKey (`${run.id}:${ownerId}`), so a RETRY of the
+      // same run+owner is a NO-OP — it never enqueues a second proposal, and
+      // the owner cannot be disbursed twice from a duplicated producer call.
+      // The conflict target names the exact partial-index predicate so Postgres
+      // resolves to this index (not the non-unique correlation btree). We read
+      // back whether a row was actually inserted to report an honest status.
       try {
         const eventId = `evt_${randomUUID()}`;
         const sequenceNumber = Date.now();
-        await exec(sql`
+        const insertRes = await exec(sql`
           INSERT INTO event_outbox (
             id, tenant_id, event_type, aggregate_type, aggregate_id,
             payload, metadata, sequence_number, version, status, priority,
@@ -245,11 +254,19 @@ export function createDrizzleDisbursementAdapter(
             ${sequenceNumber}, 1, 'pending', 'normal',
             0, 5, ${idempotencyKey}, NOW()
           )
+          ON CONFLICT (tenant_id, event_type, correlation_id)
+            WHERE event_type = 'MonthlyCloseDisbursementProposed'
+              AND correlation_id IS NOT NULL
+          DO NOTHING
+          RETURNING id
         `);
 
+        const inserted = asRows(insertRes).length > 0;
         return {
           disbursementId,
-          status: 'queued_in_outbox',
+          // Honest status: a retry that hit the dedup guard is idempotent —
+          // the proposal already exists and will be drained exactly once.
+          status: inserted ? 'queued_in_outbox' : 'already_queued_idempotent',
         };
       } catch (err) {
         logger.warn(

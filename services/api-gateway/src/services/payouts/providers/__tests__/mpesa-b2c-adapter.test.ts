@@ -161,11 +161,13 @@ describe('createMpesaB2CAdapter — wire shape', () => {
     }) as unknown as typeof fetch;
     const adapter = createMpesaB2CAdapter(CONFIG, {
       fetch: fetchImpl,
-      correlationSuffix: () => 'CORR',
     });
     await adapter.send(VALID_INPUT);
     const body = JSON.parse(String((captured?.init?.body) ?? '{}'));
-    expect(body.OriginatorConversationID).toBe('idem-1-CORR');
+    // DETERMINISTIC wire key (double-pay barrier 1): OriginatorConversationID
+    // is the idempotencyKey verbatim — NO random suffix. A retry re-sends the
+    // exact same id so Safaricom cannot be debited twice under response-timeout.
+    expect(body.OriginatorConversationID).toBe('idem-1');
     expect(body.InitiatorName).toBe('BorjieInitiator');
     expect(body.SecurityCredential).toBe('ENCRYPTED_SUPER_SECRET');
     expect(body.CommandID).toBe('BusinessPayment');
@@ -264,15 +266,28 @@ describe('createMpesaB2CAdapter — HTTP errors', () => {
     expect(result.failureReason).toContain('Insufficient funds');
   });
 
-  it('returns failed when the network call throws', async () => {
+  it('returns INDETERMINATE when the network call throws (may have debited — never auto-retry)', async () => {
     const fetchImpl = vi.fn()
       .mockResolvedValueOnce(jsonResponse(200, { access_token: 'tok', expires_in: 3599 }))
       .mockRejectedValueOnce(new Error('ECONNRESET')) as unknown as typeof fetch;
     const adapter = createMpesaB2CAdapter(CONFIG, { fetch: fetchImpl });
     const result = await adapter.send(VALID_INPUT);
-    expect(result.status).toBe('failed');
-    expect(result.failureReason).toContain('mpesa_b2c_network_error');
+    // A dropped/reset connection ON the B2C POST is ambiguous — Safaricom may
+    // have received + debited it. Must be indeterminate, not a retryable failure.
+    expect(result.status).toBe('indeterminate');
+    expect(result.failureReason).toContain('mpesa_b2c_network_error_indeterminate');
     expect(result.failureReason).toContain('ECONNRESET');
+  });
+
+  it('returns INDETERMINATE on a B2C 5xx (server error after receipt — may have queued)', async () => {
+    const fetchImpl = makeFetchSequence([
+      jsonResponse(200, { access_token: 'tok', expires_in: 3599 }),
+      jsonResponse(503, { errorMessage: 'Service Unavailable' }),
+    ]);
+    const adapter = createMpesaB2CAdapter(CONFIG, { fetch: fetchImpl });
+    const result = await adapter.send(VALID_INPUT);
+    expect(result.status).toBe('indeterminate');
+    expect(result.failureReason).toContain('mpesa_b2c_http_503_indeterminate');
   });
 });
 
@@ -295,5 +310,145 @@ describe('createMpesaB2CAdapter — secret sanitisation', () => {
     expect(reason).not.toContain('CS_TEST');
     expect(reason).not.toContain('ENCRYPTED_SUPER_SECRET');
     expect(reason).toContain('***');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BLOCKER 1 — deterministic wire key + pre-send status guard (double-pay)
+// ---------------------------------------------------------------------------
+
+describe('createMpesaB2CAdapter — deterministic OriginatorConversationID (barrier 1)', () => {
+  function capturingFetch(): {
+    fn: typeof fetch;
+    b2cBodies: Array<Record<string, unknown>>;
+  } {
+    const b2cBodies: Array<Record<string, unknown>> = [];
+    const fn = vi.fn(async (url: unknown, init?: RequestInit) => {
+      if (String(url).includes('/oauth/')) {
+        return jsonResponse(200, { access_token: 'TOK', expires_in: 3599 });
+      }
+      b2cBodies.push(JSON.parse(String(init?.body ?? '{}')));
+      return jsonResponse(200, { ConversationID: 'AG_OK', ResponseCode: '0' });
+    }) as unknown as typeof fetch;
+    return { fn, b2cBodies };
+  }
+
+  it('re-dispatch of the SAME idempotencyKey sends the SAME OriginatorConversationID (no random drift)', async () => {
+    // Simulate the money double-pay scenario: the response to the first B2C
+    // POST timed out, the worker re-dispatched. The wire key MUST be identical.
+    const { fn, b2cBodies } = capturingFetch();
+    const adapter = createMpesaB2CAdapter(CONFIG, { fetch: fn });
+    await adapter.send(VALID_INPUT); // attempt 1
+    await adapter.send(VALID_INPUT); // attempt 2 (retry, same key)
+    expect(b2cBodies).toHaveLength(2);
+    expect(b2cBodies[0]?.OriginatorConversationID).toBe('idem-1');
+    // Identical across attempts — the core double-pay barrier.
+    expect(b2cBodies[1]?.OriginatorConversationID).toBe(
+      b2cBodies[0]?.OriginatorConversationID,
+    );
+  });
+
+  it('is a pure function of idempotencyKey — different keys ⇒ different ids', async () => {
+    const { fn, b2cBodies } = capturingFetch();
+    const adapter = createMpesaB2CAdapter(CONFIG, { fetch: fn });
+    await adapter.send({ ...VALID_INPUT, idempotencyKey: 'idem-A' });
+    await adapter.send({ ...VALID_INPUT, idempotencyKey: 'idem-B' });
+    expect(b2cBodies[0]?.OriginatorConversationID).toBe('idem-A');
+    expect(b2cBodies[1]?.OriginatorConversationID).toBe('idem-B');
+  });
+});
+
+describe('createMpesaB2CAdapter — pre-send transaction-status guard (barrier 2)', () => {
+  const TS_CONFIG = {
+    ...CONFIG,
+    transactionStatus: {
+      initiatorName: 'StatusInitiator',
+      securityCredential: 'STATUS_CRED',
+      partyA: '600000',
+      queueTimeoutUrl: 'https://example.com/status-timeout',
+      resultUrl: 'https://example.com/status-result',
+    },
+  };
+
+  it('does NOT re-POST when the status probe finds a prior attempt (already_sent)', async () => {
+    // OAuth, then status probe returns ResponseCode '0' (Daraja recognised the
+    // OriginatorConversationID ⇒ a prior send exists). No B2C POST must fire.
+    const calls: string[] = [];
+    const fn = vi.fn(async (url: unknown) => {
+      calls.push(String(url));
+      if (String(url).includes('/oauth/')) {
+        return jsonResponse(200, { access_token: 'TOK', expires_in: 3599 });
+      }
+      if (String(url).includes('/transactionstatus/')) {
+        return jsonResponse(200, {
+          ResponseCode: '0',
+          ResponseDescription: 'Accept the service request successfully.',
+        });
+      }
+      return jsonResponse(200, { ConversationID: 'SHOULD_NOT_HAPPEN', ResponseCode: '0' });
+    }) as unknown as typeof fetch;
+    const adapter = createMpesaB2CAdapter(TS_CONFIG, { fetch: fn });
+    const result = await adapter.send(VALID_INPUT);
+    expect(result.status).toBe('completed');
+    // Critical: NO paymentrequest POST — the guard blocked the second debit.
+    expect(calls.some((u) => u.includes('/b2c/v1/paymentrequest'))).toBe(false);
+    expect(calls.some((u) => u.includes('/transactionstatus/'))).toBe(true);
+  });
+
+  it('DOES POST when the status probe reports the txn was never seen (not_sent)', async () => {
+    let posted = false;
+    const fn = vi.fn(async (url: unknown) => {
+      if (String(url).includes('/oauth/')) {
+        return jsonResponse(200, { access_token: 'TOK', expires_in: 3599 });
+      }
+      if (String(url).includes('/transactionstatus/')) {
+        return jsonResponse(500, {
+          errorMessage: 'The OriginatorConversationID was not found',
+        });
+      }
+      posted = true;
+      return jsonResponse(200, { ConversationID: 'AG_NEW', ResponseCode: '0' });
+    }) as unknown as typeof fetch;
+    const adapter = createMpesaB2CAdapter(TS_CONFIG, { fetch: fn });
+    const result = await adapter.send(VALID_INPUT);
+    expect(result.status).toBe('completed');
+    expect(result.providerRef).toBe('AG_NEW');
+    expect(posted).toBe(true);
+  });
+
+  it('FAILS (no POST) when the status probe is inconclusive (fail-closed)', async () => {
+    let posted = false;
+    const fn = vi.fn(async (url: unknown) => {
+      if (String(url).includes('/oauth/')) {
+        return jsonResponse(200, { access_token: 'TOK', expires_in: 3599 });
+      }
+      if (String(url).includes('/transactionstatus/')) {
+        throw new Error('ECONNRESET');
+      }
+      posted = true;
+      return jsonResponse(200, { ConversationID: 'AG_X', ResponseCode: '0' });
+    }) as unknown as typeof fetch;
+    const adapter = createMpesaB2CAdapter(TS_CONFIG, { fetch: fn });
+    const result = await adapter.send(VALID_INPUT);
+    expect(result.status).toBe('failed');
+    expect(result.failureReason).toContain('mpesa_b2c_status_probe_inconclusive');
+    // Fail-closed on money-out: an inconclusive probe must NOT debit.
+    expect(posted).toBe(false);
+  });
+
+  it('skips the probe entirely when transactionStatus is unconfigured (disabled)', async () => {
+    const calls: string[] = [];
+    const fn = vi.fn(async (url: unknown) => {
+      calls.push(String(url));
+      if (String(url).includes('/oauth/')) {
+        return jsonResponse(200, { access_token: 'TOK', expires_in: 3599 });
+      }
+      return jsonResponse(200, { ConversationID: 'AG_OK', ResponseCode: '0' });
+    }) as unknown as typeof fetch;
+    const adapter = createMpesaB2CAdapter(CONFIG, { fetch: fn });
+    const result = await adapter.send(VALID_INPUT);
+    expect(result.status).toBe('completed');
+    expect(calls.some((u) => u.includes('/transactionstatus/'))).toBe(false);
+    expect(calls.some((u) => u.includes('/b2c/v1/paymentrequest'))).toBe(true);
   });
 });

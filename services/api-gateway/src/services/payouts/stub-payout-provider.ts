@@ -37,7 +37,16 @@ export type PayoutProviderInput = {
 
 export type PayoutProviderResult = {
   readonly providerRef: string;
-  readonly status: 'completed' | 'failed';
+  /**
+   * `completed` — money confirmed sent. `failed` — money DEFINITELY not sent
+   * (safe to retry). `indeterminate` — a money-out dispatch whose delivery could
+   * NOT be confirmed (e.g. a B2C POST whose response timed out; Safaricom may or
+   * may not have debited). An `indeterminate` result MUST NOT be auto-retried —
+   * the worker routes it to a non-retryable reconciliation (dead_letter) state so
+   * a human/probe reconciles before any re-send. Auto-retrying it would risk a
+   * double-debit on a rail (M-Pesa) that does not dedup on the wire key.
+   */
+  readonly status: 'completed' | 'failed' | 'indeterminate';
   readonly failureReason?: string;
 };
 
@@ -153,6 +162,28 @@ function readMpesaB2CConfig(env: NodeJS.ProcessEnv): MpesaB2CConfig | null {
   ) {
     return null;
   }
+  // Barrier 2 (double-pay probe) — OPTIONAL. When all Transaction-Status env
+  // vars are present, the adapter probes Daraja by the deterministic wire key
+  // BEFORE every B2C POST, so a retry of a request whose response timed out does
+  // NOT re-debit. When absent the probe stays disabled and a timed-out POST is
+  // handled as INDETERMINATE (routed to reconciliation, never auto-retried) —
+  // safe by default; configuring these makes indeterminate rows auto-resolvable.
+  const tsInitiator = env.MPESA_B2C_STATUS_INITIATOR_NAME;
+  const tsCredential = env.MPESA_B2C_STATUS_SECURITY_CREDENTIAL;
+  const tsPartyA = env.MPESA_B2C_STATUS_PARTY_A ?? shortcode;
+  const tsQueueTimeoutUrl = env.MPESA_B2C_STATUS_QUEUE_TIMEOUT_URL ?? queueTimeoutUrl;
+  const tsResultUrl = env.MPESA_B2C_STATUS_RESULT_URL ?? resultUrl;
+  const transactionStatus =
+    tsInitiator && tsCredential
+      ? {
+          initiatorName: tsInitiator,
+          securityCredential: tsCredential,
+          partyA: tsPartyA,
+          queueTimeoutUrl: tsQueueTimeoutUrl,
+          resultUrl: tsResultUrl,
+        }
+      : undefined;
+
   return {
     host,
     consumerKey,
@@ -162,5 +193,6 @@ function readMpesaB2CConfig(env: NodeJS.ProcessEnv): MpesaB2CConfig | null {
     shortcode,
     queueTimeoutUrl,
     resultUrl,
+    ...(transactionStatus ? { transactionStatus } : {}),
   };
 }

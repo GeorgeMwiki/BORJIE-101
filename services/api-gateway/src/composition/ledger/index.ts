@@ -87,6 +87,12 @@ import {
   __setPayrollProductionLedgerPort,
   __allowPayrollLedgerStub,
 } from '../../services/payroll/ledger-port';
+import type {
+  PayoutLedgerPort,
+  PayoutLedgerPostInput,
+  PayoutLedgerPostResult,
+} from '../../services/payouts/payout-ledger-port';
+import { __setPayoutProductionLedgerPort } from '../../services/payouts/payout-ledger-port';
 
 const moduleLogger = createLogger('ledger-production-wiring');
 
@@ -470,6 +476,125 @@ export function createPayrollLedgerAdapter(
 }
 
 // ────────────────────────────────────────────────────────────────────
+// Payout (monthly-close disbursement) money-out adapter — Blocker 4
+// ────────────────────────────────────────────────────────────────────
+
+/**
+ * Money-bound payout idempotency key. A stable SHA-256 over the outbox
+ * idempotencyKey AND the integer amount AND the currency, so the key is a pure
+ * function of the money content: ANY amount/currency change forces a fresh
+ * post, while a genuine reclaim/replay of the identical payout collides on the
+ * same key and replays the original journal (no double-post). Prefixed `pyt:`.
+ */
+export function payoutMoneyKey(
+  idempotencyKey: string,
+  amountMinor: number,
+  currency: string,
+): string {
+  const material = [idempotencyKey, amountMinor, currency].join(':');
+  const digest = createHash('sha256').update(material).digest('hex');
+  return `pyt:${idempotencyKey}:${digest.slice(0, 32)}`;
+}
+
+/**
+ * Monthly-close owner disbursement → 2-leg balanced clearing journal:
+ *   DR  seller_payable   net   (extinguish the liability owed to the owner)
+ *   CR  cash_clearing    net   (cash left the business via the rail)
+ *
+ * Posted ON SUCCESSFUL SEND by the payouts worker so the books reflect the
+ * money leaving. Idempotent on the money-key (deduped inside the atomic post's
+ * transaction), so a reclaim/replay returns the original journal.
+ */
+export function createPayoutLedgerAdapter(
+  db: DatabaseClient,
+  ledger: LedgerService,
+): PayoutLedgerPort {
+  return {
+    async post(
+      input: PayoutLedgerPostInput,
+    ): Promise<PayoutLedgerPostResult> {
+      const tenantId = input.tenantId;
+      const currency = await resolveTenantCurrency(db, tenantId);
+      const netMinor = toIntegerMinorUnits(input.amountMinor, 'payout_net');
+      if (netMinor <= 0) {
+        throw new Error(
+          `Payout net must be positive minor units (got ${netMinor}) for ` +
+            `owner ${input.ownerId} key ${input.idempotencyKey}`,
+        );
+      }
+
+      const payoutKey = payoutMoneyKey(
+        input.idempotencyKey,
+        netMinor,
+        currency,
+      );
+
+      const accounts = await ensureLedgerAccounts(db, {
+        tenantId,
+        currency,
+        keys: ['seller_payable', 'cash_clearing'],
+        createdBy: 'monthly-close-payout',
+      });
+
+      const meta = {
+        payoutKey,
+        idempotencyKey: input.idempotencyKey,
+        ownerId: input.ownerId,
+        providerRef: input.providerRef,
+      };
+
+      const lines = [
+        line(
+          accounts.seller_payable,
+          'DEBIT',
+          'OWNER_DISBURSEMENT',
+          netMinor,
+          currency,
+          'Owner disbursement — clear payable',
+          meta,
+        ),
+        line(
+          accounts.cash_clearing,
+          'CREDIT',
+          'OWNER_DISBURSEMENT',
+          netMinor,
+          currency,
+          'Owner disbursement — cash out',
+          meta,
+        ),
+      ];
+      assertBalanced(lines);
+
+      const request: CreateJournalEntryRequest = {
+        tenantId: tenantId as TenantId,
+        effectiveDate: new Date(),
+        lines,
+        createdBy: 'monthly-close-payout',
+      };
+
+      // `payoutKey` is the durable idempotency key — postJournalAtomic dedupes
+      // it inside the post tx, so a reclaim/replay returns the original journal.
+      const result = await ledger.postJournalEntry(request, {
+        idempotencyKey: payoutKey,
+      });
+
+      moduleLogger.info(
+        {
+          tenantId,
+          ownerId: input.ownerId,
+          journalId: result.journalId,
+          netMinor,
+          currency,
+          providerRef: input.providerRef,
+        },
+        'payout_ledger_post_committed',
+      );
+      return { journalId: result.journalId };
+    },
+  };
+}
+
+// ────────────────────────────────────────────────────────────────────
 // Composition-root entry point
 // ────────────────────────────────────────────────────────────────────
 
@@ -503,6 +628,10 @@ export function registerProductionLedgerPorts(
   const ledger = buildLedgerService(db);
   __setSettlementProductionLedgerPort(createSettlementLedgerAdapter(db, ledger));
   __setPayrollProductionLedgerPort(createPayrollLedgerAdapter(db, ledger));
+  // Monthly-close disbursement money-out leg (FIX: disburse-no-ledger,
+  // Blocker 4). The payouts worker posts this clearing journal on a successful
+  // send so real cash leaving via M-Pesa B2C / EFT is recorded in the books.
+  __setPayoutProductionLedgerPort(createPayoutLedgerAdapter(db, ledger));
 
   // Cooperative member-distribution money path (FIX: coop-distribute-no-ledger).
   // The adapter builds its own request-scoped LedgerService per post (the

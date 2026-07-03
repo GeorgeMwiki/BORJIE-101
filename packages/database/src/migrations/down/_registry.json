@@ -756,6 +756,17 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0377_event_outbox_disbursement_dedup.sql",
+      "down": "down/0377_down_event_outbox_disbursement_dedup.sql",
+      "reverses": "Drops the event_outbox_disbursement_dedup_uniq PARTIAL UNIQUE index on (tenant_id, event_type, correlation_id) WHERE event_type='MonthlyCloseDisbursementProposed'. WARNING: re-opens the monthly-close double-pay window (an orchestrator retry can re-insert a duplicate disbursement proposal and the owner is paid twice). The one-time duplicate-proposal dedupe the up-migration performed is NOT reversible (duplicate pending rows were deleted); the down only restores the pre-0377 non-unique index shape. Pure structural metadata — no live data touched by the drop. Dev/staging rollback only; never run in production.",
+      "criticality": "high",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }
