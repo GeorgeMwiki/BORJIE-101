@@ -9,6 +9,7 @@ import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { API_BASE_URL } from '../../src/api/config'
 import { request } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
+import { localizeApiError } from '@borjie/error-catalog'
 import { useOnlineStatus } from '../../src/offline/useOnlineStatus'
 import { useAuth } from '../../src/auth/useAuth'
 import { enqueueWrite } from '../../src/sync/queue'
@@ -20,7 +21,6 @@ const SCREEN_ID = 'W-M-10'
 const WAREHOUSE_PATH = '/api/v1/warehouse/items'
 
 const COPY = {
-  errorPrefix: 'Hitilafu: ',
   txnOk: 'Mwendo umeingia kwenye seva.',
   txnQueued: 'Mwendo umehifadhiwa offline.'
 } as const
@@ -72,7 +72,7 @@ export default function Screen(): JSX.Element {
 }
 
 function StoreIssueReturn(): JSX.Element {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const copy = t.workerScreens.statusCopy
   const { user } = useAuth()
   const { online } = useOnlineStatus()
@@ -175,7 +175,7 @@ function StoreIssueReturn(): JSX.Element {
         ) : null}
         {items.error && itemsErrorIsMissing ? <PreviewBanner kind="env-missing" /> : null}
         {items.error && !itemsErrorIsMissing ? (
-          <Text style={styles.errorText}>{COPY.errorPrefix}{items.error.message}</Text>
+          <Text style={styles.errorText}>{copy.errorPrefix}{localizeApiError(items.error.code, lang)}</Text>
         ) : null}
         {!items.isLoading && !items.error && itemRows.length === 0 ? (
           <View>
@@ -244,7 +244,7 @@ function StoreIssueReturn(): JSX.Element {
         {confirmation === 'ok' ? <Text style={styles.successText}>{COPY.txnOk}</Text> : null}
         {confirmation === 'queued' ? <Text style={styles.warnText}>{COPY.txnQueued}</Text> : null}
         {mutation.error && mutation.error.status !== 0 && mutation.error.status !== 503 ? (
-          <Text style={styles.errorText}>{COPY.errorPrefix}{mutation.error.message}</Text>
+          <Text style={styles.errorText}>{copy.errorPrefix}{localizeApiError(mutation.error.code, lang)}</Text>
         ) : null}
       </Section>
       <Section title="Mwendo wa hivi karibuni">
@@ -257,7 +257,7 @@ function StoreIssueReturn(): JSX.Element {
         ) : null}
         {itemId && movements.error && movesErrorIsMissing ? <PreviewBanner kind="env-missing" /> : null}
         {itemId && movements.error && !movesErrorIsMissing ? (
-          <Text style={styles.errorText}>{COPY.errorPrefix}{movements.error.message}</Text>
+          <Text style={styles.errorText}>{copy.errorPrefix}{localizeApiError(movements.error.code, lang)}</Text>
         ) : null}
         {itemId && !movements.isLoading && !movements.error && moveRows.length === 0 ? (
           <View>

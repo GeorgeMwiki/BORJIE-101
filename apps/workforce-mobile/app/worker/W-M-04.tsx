@@ -133,10 +133,11 @@ function ShiftReportForm(): JSX.Element {
       const entry = await enqueueWrite('shift_report', payload)
       setSubmitError(null)
       setSubmitted({ queueId: entry.id })
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : (t.common.errorGeneric ?? 'Submit failed')
-      setSubmitError(message)
+    } catch {
+      // Local queue-write failure carries no gateway error code; render the
+      // localized generic error, never the raw English `error.message` (which
+      // under `sw` is language mixing).
+      setSubmitError(t.common.errorGeneric)
     } finally {
       setSubmitting(false)
     }

@@ -8,6 +8,7 @@ import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { API_BASE_URL } from '../../src/api/config'
 import { request } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
+import { localizeApiError } from '@borjie/error-catalog'
 import { useOnlineStatus } from '../../src/offline/useOnlineStatus'
 import { useAuth } from '../../src/auth/useAuth'
 import { useI18n } from '../../src/i18n/useI18n'
@@ -20,7 +21,6 @@ const SCREEN_ID = 'W-M-22'
 const TRAINING_PATH = '/api/v1/training'
 
 const COPY = {
-  errorPrefix: 'Hitilafu: ',
   startedOk: 'Mafunzo yameanza kwenye seva.'
 } as const
 
@@ -56,7 +56,7 @@ export default function Screen(): JSX.Element {
 
 function TrainingLibrary(): JSX.Element {
   const { user } = useAuth()
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const copy = t.workerScreens.statusCopy
   const { online } = useOnlineStatus()
   const queryClient = useQueryClient()
@@ -122,7 +122,7 @@ function TrainingLibrary(): JSX.Element {
         ) : null}
         {list.error && networkError ? <PreviewBanner kind="env-missing" /> : null}
         {list.error && !networkError ? (
-          <Text style={styles.errorText}>{COPY.errorPrefix}{list.error.message}</Text>
+          <Text style={styles.errorText}>{copy.errorPrefix}{localizeApiError(list.error.code, lang)}</Text>
         ) : null}
         {!list.isLoading && !list.error && assignments.length === 0 ? (
           <View>
@@ -200,7 +200,7 @@ function TrainingLibrary(): JSX.Element {
           {confirmation === 'ok' ? <Text style={styles.successText}>{COPY.startedOk}</Text> : null}
           {completeMutation.error && completeMutation.error.status !== 0 && completeMutation.error.status !== 503 ? (
             <Text style={styles.errorText}>
-              {COPY.errorPrefix}{completeMutation.error.message}
+              {copy.errorPrefix}{localizeApiError(completeMutation.error.code, lang)}
             </Text>
           ) : null}
         </Section>

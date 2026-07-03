@@ -31,4 +31,11 @@ export const MOBILE_BUNDLE_SHARED_ALLOWLIST = new Set([
   // Swahili-adopted mining terms (see wm06ScoopOk = "Scoop imerekodiwa…").
   'Scoop',
   'SCOOP',
+  // Fixed bilingual DUAL-RENDER pair (O-M-09 licence-renewal toast renders the
+  // Swahili `renewSuccessSw` title + the English `renewSuccessEn` subtitle
+  // TOGETHER as a designed two-line widget). Each gloss is a single canonical
+  // string shared across locales — the Swahili gloss is identical in every
+  // bundle and the English gloss likewise — so both are legitimately `sw === en`.
+  'Ombi la upya limewasilishwa',
+  'Renewal request submitted',
 ]);

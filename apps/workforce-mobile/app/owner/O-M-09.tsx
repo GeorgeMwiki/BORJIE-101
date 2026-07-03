@@ -34,7 +34,7 @@ type RenewStatus =
   | { kind: 'idle' }
   | { kind: 'pending'; licenceId: string }
   | { kind: 'success'; licenceId: string }
-  | { kind: 'error'; licenceId: string; message: string }
+  | { kind: 'error'; licenceId: string }
 
 function LicenceCalendarView(): JSX.Element {
   const { t } = useI18n()
@@ -74,12 +74,11 @@ function LicenceCalendarView(): JSX.Element {
             setStatus({ kind: 'idle' })
           }, TOAST_AUTO_DISMISS_MS)
         },
-        onError: (error: Error) => {
-          setStatus({
-            kind: 'error',
-            licenceId: licence.id,
-            message: error.message
-          })
+        onError: () => {
+          // The row renders the localized `strings.renewFailed`; the raw
+          // English `error.message` is never surfaced (under `sw` that is
+          // language mixing).
+          setStatus({ kind: 'error', licenceId: licence.id })
         }
       })
     },

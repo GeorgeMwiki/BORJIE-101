@@ -9,6 +9,7 @@ import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { API_BASE_URL } from '../../src/api/config'
 import { request } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
+import { localizeApiError } from '@borjie/error-catalog'
 import { useOnlineStatus } from '../../src/offline/useOnlineStatus'
 import { useAuth } from '../../src/auth/useAuth'
 import { enqueueWrite } from '../../src/sync/queue'
@@ -21,7 +22,6 @@ const WAREHOUSE_PATH = '/api/v1/warehouse/items'
 const PPE_CATEGORY = 'PPE'
 
 const COPY = {
-  errorPrefix: 'Hitilafu: ',
   ackOk: 'Risiti ya PPE imethibitishwa kwenye seva.',
   ackQueued: 'Risiti imehifadhiwa offline.'
 } as const
@@ -61,7 +61,7 @@ export default function Screen(): JSX.Element {
 }
 
 function PpeReceipt(): JSX.Element {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const copy = t.workerScreens.statusCopy
   const { user } = useAuth()
   const { online } = useOnlineStatus()
@@ -139,7 +139,7 @@ function PpeReceipt(): JSX.Element {
         ) : null}
         {query.error && networkError ? <PreviewBanner kind="env-missing" /> : null}
         {query.error && !networkError ? (
-          <Text style={styles.errorText}>{COPY.errorPrefix}{query.error.message}</Text>
+          <Text style={styles.errorText}>{copy.errorPrefix}{localizeApiError(query.error.code, lang)}</Text>
         ) : null}
         {!query.isLoading && !query.error && items.length === 0 ? (
           <View>
@@ -188,7 +188,7 @@ function PpeReceipt(): JSX.Element {
         )}
         {!online ? <PreviewBanner kind="offline" /> : null}
         {mutation.error && mutation.error.status !== 0 && mutation.error.status !== 503 ? (
-          <Text style={styles.errorText}>{COPY.errorPrefix}{mutation.error.message}</Text>
+          <Text style={styles.errorText}>{copy.errorPrefix}{localizeApiError(mutation.error.code, lang)}</Text>
         ) : null}
       </Section>
     </View>

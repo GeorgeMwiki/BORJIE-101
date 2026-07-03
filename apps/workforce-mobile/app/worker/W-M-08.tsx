@@ -8,6 +8,7 @@ import { Button } from '../../src/forms/Button'
 import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { miningApi } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
+import { localizeApiError } from '@borjie/error-catalog'
 import { useOnlineStatus } from '../../src/offline/useOnlineStatus'
 import { useAuth } from '../../src/auth/useAuth'
 import { enqueueWrite } from '../../src/sync/queue'
@@ -52,7 +53,7 @@ export default function Screen(): JSX.Element {
 }
 
 function SampleView(): JSX.Element {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const copy = t.workerScreens.statusCopy
   const { user } = useAuth()
   const { online } = useOnlineStatus()
@@ -134,7 +135,7 @@ function SampleView(): JSX.Element {
       ) : null}
       {query.error && !networkError ? (
         <Section title={copy.wm08TodaySamples}>
-          <Text style={styles.errorText}>{copy.errorPrefix}{query.error.message}</Text>
+          <Text style={styles.errorText}>{copy.errorPrefix}{localizeApiError(query.error.code, lang)}</Text>
         </Section>
       ) : null}
       {!query.isLoading && !query.error && samples.length === 0 ? (
@@ -224,7 +225,7 @@ function SampleView(): JSX.Element {
             <Text style={styles.warnText}>{copy.wm08SealQueued}</Text>
           ) : null}
           {sealMutation.error && sealMutation.error.status !== 0 && sealMutation.error.status !== 503 ? (
-            <Text style={styles.errorText}>{copy.errorPrefix}{sealMutation.error.message}</Text>
+            <Text style={styles.errorText}>{copy.errorPrefix}{localizeApiError(sealMutation.error.code, lang)}</Text>
           ) : null}
         </Section>
       ) : null}

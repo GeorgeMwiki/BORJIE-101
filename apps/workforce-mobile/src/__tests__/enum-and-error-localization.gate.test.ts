@@ -192,6 +192,51 @@ function read(rel: string): string {
   return readFileSync(join(APP_ROOT, rel), 'utf8')
 }
 
+/**
+ * Strip line + block comments (string / template literals are KEPT), so a
+ * doc-comment that NAMES a forbidden pattern (e.g. "never the raw
+ * `error.message`") is not a false hit while real code renders remain visible.
+ */
+function stripComments(src: string): string {
+  let out = ''
+  let i = 0
+  const n = src.length
+  while (i < n) {
+    const c = src[i]
+    const c2 = src[i + 1]
+    if (c === '/' && c2 === '/') {
+      while (i < n && src[i] !== '\n') i++
+      continue
+    }
+    if (c === '/' && c2 === '*') {
+      i += 2
+      while (i < n && !(src[i] === '*' && src[i + 1] === '/')) i++
+      i += 2
+      continue
+    }
+    if (c === '"' || c === "'" || c === '`') {
+      const quote = c
+      out += quote
+      i++
+      while (i < n && src[i] !== quote) {
+        out += src[i]
+        if (src[i] === '\\') {
+          out += src[i + 1] ?? ''
+          i += 2
+          continue
+        }
+        i++
+      }
+      out += src[i] ?? ''
+      i++
+      continue
+    }
+    out += c
+    i++
+  }
+  return out
+}
+
 // Class B — converted enum-render sites. None may interpolate a raw enum
 // property directly inside JSX (`{x.status}` / `{x.severity}` / `{x.kind}` /
 // `{x.phase}`); every render must flow through a *Label() resolver.
@@ -223,29 +268,157 @@ describe('PART 2 — Class B render sites carry no raw enum interpolation', () =
 })
 
 // Class A — converted error-render sites. None may render a raw `*.message`
-// (envelope or Error) — errors must localize via `localizeApiError(code,...)`.
-const CLASS_A_FILES: ReadonlyArray<string> = [
+// (envelope or Error). Two groups:
+//   • CODE_LOCALIZED — a gateway error localized BY CODE via
+//     `localizeApiError(err.code, lang)`; MUST import the shared catalog AND
+//     carry no raw `.message`. The round-14 batch (worker field screens +
+//     owner approval screens) is added so a reverted conversion turns RED.
+//   • NO_RAW_MESSAGE — an error whose failure carries NO gateway code (a local
+//     queue-write in W-M-04 → localized `t.common.errorGeneric`; O-M-09's
+//     renewal toast → localized `strings.renewFailed`). These MUST carry no raw
+//     `.message` but do not import the code catalog.
+const CLASS_A_CODE_LOCALIZED: ReadonlyArray<string> = [
   'src/components/RequestTabChangeSheet.tsx',
   'src/documents/DocumentExplorer.tsx',
+  'app/worker/W-M-05.tsx',
+  'app/worker/W-M-06.tsx',
+  'app/worker/W-M-08.tsx',
+  'app/worker/W-M-10.tsx',
+  'app/worker/W-M-13.tsx',
+  'app/worker/W-M-15.tsx',
+  'app/worker/W-M-22.tsx',
+  'app/owner/O-M-03.tsx',
+  'app/owner/O-M-11.tsx',
 ]
 
-// Forbidden: setting state / building UI copy from a raw `.message`.
+const CLASS_A_NO_RAW_MESSAGE: ReadonlyArray<string> = [
+  'app/worker/W-M-04.tsx',
+  'app/owner/O-M-09.tsx',
+]
+
+// Forbidden: setting state / building UI copy from a raw `.message`, OR a JSX
+// `{<chain>.message}` render — a SINGLE-LINE member-chain to `.message` (multi-
+// segment + optional-chaining, `{mutation.error.message}` / `{err?.message}`)
+// with an OPTIONAL `??` fallback, EXCLUDING a `styles`-rooted StyleSheet ref. The
+// single-line anchor keeps a multi-line code block / object literal / call arg
+// that merely mentions `.message` from being a false hit. The prior form only
+// caught `setError…(x.message)` and single-segment `{ident.message}`, MISSING the
+// real leak shape `{mutation.error.message}` — a false-green this round closed.
 // (Logger / Error superclass `super(message)` calls are not user-render sites
 // and live in api/errors.ts + api.ts, which are excluded here.)
 const RAW_MESSAGE_RENDER =
-  /(setErrorMessage|setError)\([^)]*\b[\w$]+\.message\b/g
+  /(setErrorMessage|setError)\([^)]*\b[\w$]+\.message\b|\{\s*(?!styles\b)[\w$]+(?:\??\.[\w$]+)*\??\.message\s*(?:\?\?\s*[^{}\n]*)?\}/g
 
 describe('PART 2 — Class A error sites localize by code, not raw message', () => {
-  for (const file of CLASS_A_FILES) {
-    it(`${file} sets no error state from a raw .message`, () => {
-      const src = read(file)
+  for (const file of [...CLASS_A_CODE_LOCALIZED, ...CLASS_A_NO_RAW_MESSAGE]) {
+    it(`${file} sets no error state / renders no raw .message`, () => {
+      const src = stripComments(read(file))
       const hits = src.match(RAW_MESSAGE_RENDER) ?? []
       expect(hits, `raw .message render(s) in ${file}: ${hits.join(', ')}`).toEqual([])
     })
+  }
 
+  for (const file of CLASS_A_CODE_LOCALIZED) {
     it(`${file} imports localizeApiError from the shared catalog`, () => {
       const src = read(file)
       expect(src).toMatch(/from ['"]@borjie\/error-catalog['"]/)
     })
   }
+})
+
+// ─── PART 3 — bundle MT-artifact / untranslated-stub scanner ────────────────
+//
+// The canon (CLAUDE.md · language-engineering §7): NEVER ship a machine-
+// translation artifact or untranslated stub in a rendered bundle value. A
+// trailing code-fence (```), a raw backtick, a `TODO_TRANSLATE` marker, an
+// embedded model-output tag (`<budget:token_budget>…`), or an embedded newline
+// inside a value are all MT residue that reaches a render (the round that added
+// this gate cleaned `renewActionEn` = "Anza upya usajili\n```", `renewSuccessEn`
+// carrying a `<budget:token_budget>` tag, and `fuelLog.asset1` = "Excavator-1\n
+// (Kifaa cha Kuchimba-1)"). Reintroducing ANY of these into en.json / sw.json /
+// sw.approved.json turns this RED.
+//
+// Reads the RAW JSON text (not the parsed object) so an escaped `\n` / backtick
+// inside a value is visible before JSON normalization.
+
+const BUNDLE_FILES: ReadonlyArray<string> = [
+  'src/i18n/en.json',
+  'src/i18n/sw.json',
+  'src/i18n/sw.approved.json',
+]
+
+interface Artifact {
+  readonly path: string
+  readonly value: string
+  readonly reasons: ReadonlyArray<string>
+}
+
+function walkStrings(
+  node: unknown,
+  path: string,
+  out: Array<{ path: string; value: string }>,
+): void {
+  if (typeof node === 'string') {
+    out.push({ path, value: node })
+    return
+  }
+  if (Array.isArray(node)) {
+    node.forEach((v, i) => walkStrings(v, `${path}[${i}]`, out))
+    return
+  }
+  if (node && typeof node === 'object') {
+    for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+      walkStrings(v, path ? `${path}.${k}` : k, out)
+    }
+  }
+}
+
+function scanArtifacts(value: string): ReadonlyArray<string> {
+  const reasons: string[] = []
+  if (value.includes('```')) reasons.push('CODE_FENCE(```)')
+  // A stray backtick is never legitimate copy in these bundles.
+  if (value.includes('`')) reasons.push('BACKTICK')
+  if (value.includes('TODO_TRANSLATE')) reasons.push('TODO_TRANSLATE')
+  // Model-output / prompt-scaffold tags leaked into a value.
+  if (/<\/?[a-z_]+:[a-z_]+>/i.test(value) || value.includes('token_budget')) {
+    reasons.push('MODEL_TAG')
+  }
+  // An embedded newline inside a rendered value is an MT line-wrap artifact.
+  if (value.includes('\n') || value.includes('\r')) reasons.push('EMBEDDED_NEWLINE')
+  return reasons
+}
+
+describe('PART 3 — i18n bundles carry no MT artifacts / untranslated stubs', () => {
+  for (const file of BUNDLE_FILES) {
+    it(`${file} has no code-fence / backtick / TODO_TRANSLATE / model-tag / embedded-newline value`, () => {
+      const parsed = JSON.parse(read(file)) as unknown
+      const strings: Array<{ path: string; value: string }> = []
+      walkStrings(parsed, '', strings)
+      const artifacts: Artifact[] = []
+      for (const { path, value } of strings) {
+        const reasons = scanArtifacts(value)
+        if (reasons.length > 0) artifacts.push({ path, value, reasons })
+      }
+      const report = artifacts
+        .map((a) => `${a.path} [${a.reasons.join(',')}] -> ${JSON.stringify(a.value)}`)
+        .join('\n')
+      expect(artifacts, `MT artifact(s) in ${file}:\n${report}`).toEqual([])
+    })
+  }
+
+  it('the round-fixed artifact sites are clean (regression guard)', () => {
+    // These exact values were cleaned this round; re-introducing the artifact
+    // must turn the gate RED.
+    for (const file of ['src/i18n/sw.json', 'src/i18n/sw.approved.json']) {
+      const d = JSON.parse(read(file)) as {
+        licenceCalendar?: Record<string, string>
+        fuelLog?: Record<string, string>
+      }
+      const lc = d.licenceCalendar ?? {}
+      const fl = d.fuelLog ?? {}
+      expect(lc['renewActionEn'], `${file} renewActionEn dirty`).toBe('Anza upya usajili')
+      expect(scanArtifacts(lc['renewSuccessEn'] ?? ''), `${file} renewSuccessEn dirty`).toEqual([])
+      expect(scanArtifacts(fl['asset1'] ?? ''), `${file} fuelLog.asset1 dirty`).toEqual([])
+    }
+  })
 })

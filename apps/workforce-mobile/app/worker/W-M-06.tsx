@@ -8,6 +8,7 @@ import { Button } from '../../src/forms/Button'
 import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { miningApi } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
+import { localizeApiError } from '@borjie/error-catalog'
 import { useOnlineStatus } from '../../src/offline/useOnlineStatus'
 import { useAuth } from '../../src/auth/useAuth'
 import { enqueueWrite } from '../../src/sync/queue'
@@ -49,7 +50,7 @@ export default function Screen(): JSX.Element {
 }
 
 function ExcavatorCounter(): JSX.Element {
-  const { t } = useI18n()
+  const { t, lang } = useI18n()
   const copy = t.workerScreens.statusCopy
   const { user } = useAuth()
   const { online } = useOnlineStatus()
@@ -122,7 +123,7 @@ function ExcavatorCounter(): JSX.Element {
         </Pressable>
         {isOffline ? <PreviewBanner kind="offline" /> : null}
         {mutation.error && !isOffline && mutation.error.status !== 0 ? (
-          <Text style={styles.errorText}>{copy.errorPrefix}{mutation.error.message}</Text>
+          <Text style={styles.errorText}>{copy.errorPrefix}{localizeApiError(mutation.error.code, lang)}</Text>
         ) : null}
         {mutation.isSuccess ? (
           <Text style={styles.successText}>{copy.wm06ScoopOk}</Text>
@@ -137,7 +138,7 @@ function ExcavatorCounter(): JSX.Element {
         ) : null}
         {history.error && networkError ? <PreviewBanner kind="env-missing" /> : null}
         {history.error && !networkError ? (
-          <Text style={styles.errorText}>{copy.errorPrefix}{history.error.message}</Text>
+          <Text style={styles.errorText}>{copy.errorPrefix}{localizeApiError(history.error.code, lang)}</Text>
         ) : null}
         {!history.isLoading && !history.error && rows.length === 0 ? (
           <View>

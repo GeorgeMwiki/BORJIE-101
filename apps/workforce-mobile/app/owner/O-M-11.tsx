@@ -7,6 +7,8 @@ import { RoleGuard } from '../../src/components/RoleGuard'
 import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { miningApi } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
+import { localizeApiError } from '@borjie/error-catalog'
+import { useI18n } from '../../src/i18n/useI18n'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
@@ -84,6 +86,7 @@ export default function Screen(): JSX.Element {
 }
 
 function ScheduledApprovals(): JSX.Element {
+  const { lang } = useI18n()
   const queryClient = useQueryClient()
   const query = useQuery<ReadonlyArray<MaintenanceEvent>, ApiError>({
     queryKey: QUERY_KEY,
@@ -183,7 +186,7 @@ function ScheduledApprovals(): JSX.Element {
       {mutation.isError ? (
         <Text style={styles.toast} accessibilityRole="alert">
           {COPY.mutationErrorPrefix}
-          {mutation.error?.message ?? 'unknown'}
+          {localizeApiError(mutation.error?.code, lang)}
         </Text>
       ) : null}
       <Section title={COPY.summaryTitle}>

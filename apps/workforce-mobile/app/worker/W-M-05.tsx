@@ -8,6 +8,7 @@ import { Button } from '../../src/forms/Button'
 import { PreviewBanner } from '../../src/components/PreviewBanner'
 import { miningApi } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
+import { localizeApiError } from '@borjie/error-catalog'
 import { useOnlineStatus } from '../../src/offline/useOnlineStatus'
 import { useI18n } from '../../src/i18n/useI18n'
 import { formatDateTime } from '../../src/i18n/locale-format'
@@ -160,7 +161,7 @@ function PingsView(): JSX.Element {
           </View>
         ) : null}
         {mutation.error ? (
-          <Text style={styles.errorText}>{copy.errorPrefix}{mutation.error.message}</Text>
+          <Text style={styles.errorText}>{copy.errorPrefix}{localizeApiError(mutation.error.code, lang)}</Text>
         ) : null}
       </Section>
     </View>

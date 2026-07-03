@@ -154,14 +154,23 @@ const CROSS_FALLBACK =
 
 /**
  * Class 3 — raw error message into error state or a JSX render.
- *   (a) `set…Error…(… <ident>.message …)` — sets error UI copy from a raw
+ *   (a) `set…Error…(… <chain>.message …)` — sets error UI copy from a raw
  *       `.message`. Localize by code via `localizeApiError` instead.
- *   (b) a JSX `{<ident>.message}` render — EXCLUDING `{styles.message}` (a
- *       StyleSheet ref, not a data render) so a `style={styles.message}` prop
- *       is not a false hit.
+ *   (b) a JSX `{<chain>.message}` render — the chain may be MULTI-SEGMENT and
+ *       optionally-chained (`{mutation.error.message}`, `{err?.message}`,
+ *       `{cause?.message}`, `{x.error?.message ?? '…'}`), EXCLUDING a
+ *       `styles`-rooted ref (`{styles.message}` / `style={styles.message}` — a
+ *       StyleSheet ref). The braced form is anchored to a SINGLE-LINE render
+ *       whose sole content is a `.message` member-chain plus an OPTIONAL `??`
+ *       fallback, so a multi-line code block / object literal / function-call
+ *       argument that merely mentions `.message` is NOT a hit.
+ *
+ *       The PRIOR regex only matched single-segment `{ident.message}` and MISSED
+ *       the real leak shape `{mutation.error.message}` (two segments) — a
+ *       false-green this round closed. Re-introducing either shape is RED.
  */
 const RAW_ERROR_MESSAGE =
-  /set[A-Za-z]*[Ee]rror[A-Za-z]*\([^)]*\b[\w$]+\.message\b|\{\s*(?!styles\.)[\w$]+\.message\s*\}/g
+  /set[A-Za-z]*[Ee]rror[A-Za-z]*\([^)]*\b[\w$.?]+\??\.message\b|\{\s*(?!styles\b)[\w$]+(?:\??\.[\w$]+)*\??\.message\s*(?:\?\?\s*[^{}\n]*)?\}/g
 
 /**
  * Class 4 — a Swahili locale DEFAULT, in either quote style:
