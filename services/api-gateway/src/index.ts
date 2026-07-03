@@ -818,6 +818,7 @@ import { regulatoryFilingsRouter as opsRegulatoryFilingsRouter } from './routes/
 // geofencing service. See Docs/RESEARCH/GEO_SOTA_2026-05-29.md §5.
 import { regulatoryZonesRouter } from './routes/regulatory/zones.hono.js';
 import { createRemindersDispatchWorker } from './workers/reminders-dispatch.worker';
+import { createSettlementDrainWorker } from './workers/settlement-drain.worker';
 // Wave 3 (R2) — owner saved-search alert worker. The pure worker was built +
 // tested but never composed/started, so saved-search alerts never fired. The
 // wiring module builds the three real ports (DbLike / SearchExecutor /
@@ -4104,6 +4105,36 @@ const remindersDispatchWorker = serviceRegistry.db
     })
   : { start() {}, stop() {}, async tickOnce() { return { claimed: 0, sent: 0, failed: 0, retried: 0, deferred: 0, reRemindNudged: 0, escalated: 0 }; } };
 
+// Wave SETTLEMENT-DRAIN-WIRE (mining-bid-accept-no-payment-trigger closeout).
+// Consumes the `settlement.requested` outbox events an offtake-agreement sign
+// enqueues (services/api-gateway/src/services/offtake-settlement.ts) — the
+// missing money-leg consumer. Each event's contract terms are posted as a
+// balanced double-entry journal through the SAME LedgerService-backed
+// SettlementLedgerPort the RFB orchestrator uses (registered above by
+// `registerProductionLedgerPorts`). Runs on the dedicated service-role worker
+// pool (its cross-tenant pick binds the service-role GUC — no FORCE-RLS
+// darkness). Inert in test mode and when BORJIE_SETTLEMENT_DRAIN_DISABLED=true.
+const settlementDrainWorker = serviceRegistry.db
+  ? createSettlementDrainWorker({
+      db: notificationWorkerDb as unknown as {
+        execute(q: unknown): Promise<unknown>;
+      },
+      logger,
+      intervalMs:
+        Number(process.env.BORJIE_SETTLEMENT_DRAIN_INTERVAL_MS ?? 15_000) ||
+        15_000,
+      enabled:
+        process.env.NODE_ENV !== 'test' &&
+        process.env.BORJIE_SETTLEMENT_DRAIN_DISABLED !== 'true',
+    })
+  : {
+      start() {},
+      stop() {},
+      async tickOnce() {
+        return { claimed: 0, posted: 0, failed: 0 };
+      },
+    };
+
 // ── Wave-C C4 — proactive-intel regulation readers (owner-resolver + posture) ─
 // Both built from EXISTING services: the `users(tenant_id, is_owner)` SELECT the
 // mwikila-autonomous worker already uses, and the durable owner-style service over
@@ -5188,6 +5219,12 @@ if (require.main === module) {
   // table every 30s (configurable via BORJIE_REMINDERS_INTERVAL_MS).
   // Email default; SMS / Slack land when the operator wires the keys.
   withClusterLeader(remindersDispatchWorker, lockIdFor('reminders-dispatch')).start();
+  // Wave SETTLEMENT-DRAIN-WIRE — drain `settlement.requested` outbox events
+  // (offtake-agreement signs) into balanced LedgerService.post() journals.
+  // Leader-gated like the sibling resident workers; the per-row CAS claim
+  // (pending → processing) also makes multi-replica runs safe. Inert by
+  // default in test mode / when BORJIE_SETTLEMENT_DRAIN_DISABLED=true.
+  withClusterLeader(settlementDrainWorker, lockIdFor('settlement-drain')).start();
   // Wave 2 (W2b) — proactive-intel insight loop (cluster-leader gated so only one
   // instance ticks). Surfaces MD-authored proactive insights onto the cockpit bus.
   withClusterLeader(proactiveIntelWorker, lockIdFor('proactive-intel')).start();
