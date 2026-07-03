@@ -544,7 +544,30 @@ non-TZS bid renders its own currency. Distinct from the round-8 T21 fix (the fou
 owner-web money panels' hardcoded `en-US` BCP-47 literals — those were FIXED via
 `bcp47For(locale)`).
 
-End of register. **Open KI count: 0 user-reachable customer-facing; 1 incomplete feature (KI-017); 8 non-customer residuals (KI-018 admin-i18n nav-fixed, KI-019 audit-sweep tail-truncation, KI-020 scoop loanword, KI-021 marketing domain glossary, KI-022 sw.approved dead file, KI-023 orphaned legacy worker screens, KI-024 O-M-21 mock, KI-025 BidsInbox launch-currency latent).**
+### KI-026 — buyer-mobile WalletBar would render fabricated balances (orphaned, not wired) — **REGISTERED 2026-07-03 — LOW (no launch caller)**
+
+`apps/buyer-mobile/src/api/wallet.ts:29` drops the gateway's honest-empty flags
+when adapting the wallet snapshot, and `WalletBar.tsx:70,75` renders the secondary/
+primary balances as real money with a hardcoded TZS assumption. This WOULD show
+fabricated balances — but the component is currently ORPHANED (no launch screen
+renders WalletBar; verified no reachable caller), so no user hits it. **Fix
+BEFORE wiring:** thread the gateway `flags` onto `WalletSnapshot`/`fetchWallet`,
+render the real balance in `flags.balanceCurrency` (not hardcoded TZS), and
+hide/annotate any placeholder-flagged field. Latent until the component is mounted.
+
+### KI-027 — buyer-mobile has no whole-app zero-mix CI gate — **REGISTERED 2026-07-03 — LOW (defense-in-depth backstop gap)**
+
+`apps/workforce-mobile` carries `src/__tests__/whole-app-zero-mix.gate.test.ts`
+(the 5 shrink-only detector classes incl. HARDCODED-SW-JSX-ATTR) that caught the
+round-6/7 regressions. `apps/buyer-mobile` has NO equivalent — only targeted
+i18n/formatter tests — so a NEW inline `lang==='sw'?'literal':'literal'` bilingual
+ternary or a bare-string Swahili JSX attr in buyer-mobile would ship undetected
+(the round-8 HomeChat.tsx pre-existing ternaries are an example). **Fix:** port the
+workforce-mobile gate into `apps/buyer-mobile/src/__tests__/`, calibrating the
+shrink-only allowlist to buyer-mobile's current inline-ternary usage so the count
+can only go DOWN. Defense-in-depth; no user-visible defect today.
+
+End of register. **Open KI count: 0 user-reachable customer-facing; 1 incomplete feature (KI-017); 10 non-customer residuals (KI-018 admin-i18n nav-fixed, KI-019 audit-sweep tail-truncation, KI-020 scoop loanword, KI-021 marketing domain glossary, KI-022 sw.approved dead file, KI-023 orphaned legacy worker screens, KI-024 O-M-21 mock, KI-025 BidsInbox launch-currency, KI-026 buyer WalletBar orphaned, KI-027 buyer-mobile zero-mix gate gap).**
 
 ---
 
