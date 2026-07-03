@@ -334,7 +334,12 @@
     "terms": "Kwa kuingia unakubali masharti ya matumizi",
     "otp_sent": "OTP imetumwa",
     "otp_failed": "Imeshindwa kutuma OTP",
-    "verify_failed": "Uthibitisho umeshindikana"
+    "verify_failed": "Uthibitisho umeshindikana",
+    "otp_invalid": "Msimbo huo si sahihi. Uangalie na ujaribu tena.",
+    "rate_limited": "Umejaribu mara nyingi. Tafadhali subiri kidogo kisha ujaribu tena.",
+    "otp_expired": "Msimbo huo umeisha muda. Omba mpya.",
+    "send_failed": "Tumeshindwa kutuma msimbo. Tafadhali jaribu tena.",
+    "network": "Hakuna muunganisho. Angalia mtandao wako kisha ujaribu tena."
   },
   "common": {
     "loading": "Inapakia...",

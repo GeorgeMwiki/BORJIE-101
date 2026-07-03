@@ -7,6 +7,11 @@ import { apiBaseUrl } from '@/lib/api';
 import { getCsrfHeaders } from '@/lib/csrf';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { getMessages, type Locale } from '@/lib/i18n';
+import {
+  isSignUpErrorCode,
+  messageForCode,
+  type SignUpErrorCode,
+} from './owner-signup-errors';
 
 interface OwnerSignUpFormProps {
   readonly locale: Locale;
@@ -108,13 +113,15 @@ export function OwnerSignUpForm({ locale }: OwnerSignUpFormProps) {
         window.location.assign(targetUrl());
         return;
       }
-      // Map gateway errors onto inline field hints.
-      const errCode =
-        json && 'error' in json ? json.error : 'unknown';
-      const errMsg =
-        (json && 'message' in json ? json.message : null) ??
-        (json && 'issues' in json ? json.issues?.[0]?.message : null) ??
-        t.errors.signUpFailed;
+      // Map the gateway error CODE onto a LOCALIZED message + inline field
+      // hint. The raw gateway `json.message` / `json.issues[].message` are
+      // English provider strings — rendering them under an `sw` locale is
+      // zero-mix, so they are NEVER shown as user copy (they may be logged
+      // out-of-band). An unknown code falls back to the localized generic.
+      const errCode: SignUpErrorCode =
+        json && 'error' in json && isSignUpErrorCode(json.error)
+          ? json.error
+          : 'unknown';
       const issuePath = json && 'issues' in json ? json.issues?.[0]?.path : null;
       const field: Field =
         errCode === 'email_already_registered'
@@ -124,12 +131,14 @@ export function OwnerSignUpForm({ locale }: OwnerSignUpFormProps) {
             : issuePath === 'ownerEmail' || issuePath === 'ownerPassword' || issuePath === 'orgName'
               ? (issuePath as Field)
               : 'form';
-      setPhase({ kind: 'error', field, message: errMsg });
-    } catch (err) {
+      setPhase({ kind: 'error', field, message: messageForCode(errCode, t.errors) });
+    } catch {
+      // Never surface `err.message` (a raw fetch/provider string) as user
+      // copy — fall back to the localized generic error.
       setPhase({
         kind: 'error',
         field: 'form',
-        message: err instanceof Error ? err.message : t.errors.signUpFailed,
+        message: t.errors.signUpFailed,
       });
     }
   }

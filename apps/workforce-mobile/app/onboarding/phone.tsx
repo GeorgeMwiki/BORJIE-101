@@ -43,8 +43,10 @@ export default function PhoneStep(): JSX.Element {
     setPhoneError(null)
     try {
       const result = await sendOtp(toE164(current.phone))
-      if (result.error) {
-        setPhoneError(result.error)
+      if (result.code) {
+        // Map the stable CODE to localized copy — never render a raw
+        // provider string (that would be EN under an `sw` locale).
+        setPhoneError(copy.otpErrors[result.code])
         return
       }
       setOtpSent(true)
@@ -62,8 +64,8 @@ export default function PhoneStep(): JSX.Element {
     setOtpError(null)
     try {
       const result = await verifyOtp(toE164(current.phone), current.otpCode)
-      if (result.error) {
-        setOtpError(result.error)
+      if (result.code) {
+        setOtpError(copy.otpErrors[result.code])
         return
       }
       update({ otpVerified: true })

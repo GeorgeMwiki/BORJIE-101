@@ -334,7 +334,12 @@
     "terms": "By signing in you agree to the terms of service",
     "otp_sent": "OTP sent",
     "otp_failed": "Could not send OTP",
-    "verify_failed": "Verification failed"
+    "verify_failed": "Verification failed",
+    "otp_invalid": "That code is not correct. Check it and try again.",
+    "rate_limited": "Too many attempts. Please wait a moment and try again.",
+    "otp_expired": "That code has expired. Request a new one.",
+    "send_failed": "We couldn't send the code. Please try again.",
+    "network": "No connection. Check your network and try again."
   },
   "common": {
     "loading": "Loading...",

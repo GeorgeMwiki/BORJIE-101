@@ -48,8 +48,10 @@ export default function AuthLogin() {
     try {
       const e164 = normaliseE164(values.phone)
       const result = await sendBuyerOtp(e164)
-      if (result.error) {
-        toast.show(result.error ?? t('auth.otp_failed'), 'error')
+      if (result.code) {
+        // Map the stable CODE to localized copy — never render the raw
+        // provider string (EN under an `sw` locale = zero-mix).
+        toast.show(t(`auth.${result.code}`), 'error')
         return
       }
       setPhone(e164)
@@ -64,8 +66,8 @@ export default function AuthLogin() {
     setVerifying(true)
     try {
       const result = await verifyBuyerOtp(phone, values.code)
-      if (result.error) {
-        toast.show(result.error ?? t('auth.verify_failed'), 'error')
+      if (result.code) {
+        toast.show(t(`auth.${result.code}`), 'error')
         return
       }
       router.replace('/marketplace')

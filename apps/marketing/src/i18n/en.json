@@ -1491,6 +1491,11 @@
       "ownerFullNameRequired": "Enter your full name",
       "emailRequired": "Enter a valid email address",
       "passwordTooShort": "Password must be at least 8 characters",
+      "emailAlreadyRegistered": "An account with this email already exists. Try signing in instead.",
+      "phoneAlreadyRegistered": "An account already exists for this organization. Try signing in instead.",
+      "countryNotAvailable": "Sign-up is not yet available in the selected country.",
+      "authProviderUnavailable": "We couldn't reach the sign-up service. Please try again shortly.",
+      "invalidBody": "Please check the highlighted fields and try again.",
       "signUpFailed": "Sign up failed. Try again or contact support."
     },
     "haveAccount": "Already have an account?",

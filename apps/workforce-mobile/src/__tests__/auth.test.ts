@@ -36,6 +36,11 @@ import {
 } from '../auth/supabaseClient'
 import { parseSupabaseToken } from '../auth/jwtClaims'
 import { AuthContext, buildStubUser } from '../auth/useAuth'
+import {
+  classifyOtpError,
+  classifyOtpMessage,
+  isOtpErrorCode
+} from '../auth/otp-error'
 
 describe('supabaseClient', () => {
   beforeEach(() => {
@@ -136,6 +141,47 @@ describe('jwtClaims.parseSupabaseToken', () => {
   })
 })
 
+describe('otp-error classifier', () => {
+  it('maps rate-limit provider phrasings to rate_limited', () => {
+    expect(classifyOtpMessage('Email rate limit exceeded')).toBe('rate_limited')
+    expect(classifyOtpMessage('Too many requests')).toBe('rate_limited')
+    expect(classifyOtpMessage('HTTP 429')).toBe('rate_limited')
+  })
+
+  it('maps expired phrasings to otp_expired', () => {
+    expect(classifyOtpMessage('Token has expired')).toBe('otp_expired')
+  })
+
+  it('maps invalid/otp phrasings to otp_invalid', () => {
+    expect(classifyOtpMessage('Invalid OTP')).toBe('otp_invalid')
+    expect(classifyOtpMessage('Token is incorrect')).toBe('otp_invalid')
+  })
+
+  it('maps transport phrasings to network', () => {
+    expect(classifyOtpMessage('Network request failed')).toBe('network')
+    expect(classifyOtpMessage('fetch failed')).toBe('network')
+  })
+
+  it('falls back to send_failed for unknown shapes', () => {
+    expect(classifyOtpMessage('some opaque provider text')).toBe('send_failed')
+    expect(classifyOtpMessage('')).toBe('send_failed')
+  })
+
+  it('classifyOtpError handles Error, string, and unknown inputs', () => {
+    expect(classifyOtpError(new Error('rate limit'))).toBe('rate_limited')
+    expect(classifyOtpError('token has expired')).toBe('otp_expired')
+    expect(classifyOtpError(null)).toBe('send_failed')
+    expect(classifyOtpError({ weird: true })).toBe('send_failed')
+  })
+
+  it('isOtpErrorCode narrows only to known codes', () => {
+    expect(isOtpErrorCode('otp_invalid')).toBe(true)
+    expect(isOtpErrorCode('network')).toBe(true)
+    expect(isOtpErrorCode('nope')).toBe(false)
+    expect(isOtpErrorCode(42)).toBe(false)
+  })
+})
+
 describe('useAuth context shape', () => {
   it('exports the extended context contract', () => {
     // AuthContext default value exposes the documented surface area.
@@ -152,12 +198,14 @@ describe('useAuth context shape', () => {
     expect(typeof value.verifyOtp).toBe('function')
   })
 
-  it('default sendOtp returns an error when AuthProvider is not mounted', async () => {
+  it('default sendOtp returns a stable code when AuthProvider is not mounted', async () => {
     const ctx = AuthContext as unknown as {
-      _currentValue: { sendOtp: (p: string) => Promise<{ error?: string }> }
+      _currentValue: { sendOtp: (p: string) => Promise<{ code?: string }> }
     }
     const res = await ctx._currentValue.sendOtp('+255712345678')
-    expect(res.error).toMatch(/not initialised/)
+    // Never a raw provider string — a stable, provider-agnostic CODE the
+    // screen maps to localized copy.
+    expect(res.code).toBe('send_failed')
   })
 
   it('buildStubUser is still exported but flagged @deprecated', () => {

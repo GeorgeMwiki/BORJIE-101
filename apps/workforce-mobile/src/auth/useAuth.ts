@@ -1,9 +1,15 @@
 import { createContext, useContext } from 'react'
 import type { AuthState, User } from './types'
 import type { Role } from '../roles/types'
+import type { OtpErrorCode } from './otp-error'
 
 export interface OtpResult {
-  readonly error?: string
+  /**
+   * A stable, provider-agnostic error CODE on failure (never the raw
+   * provider string). The phone screen maps this code to localized copy
+   * so no English backend string is rendered under an `sw` locale.
+   */
+  readonly code?: OtpErrorCode
 }
 
 export interface AuthContextValue extends AuthState {
@@ -12,8 +18,9 @@ export interface AuthContextValue extends AuthState {
   /** Sign out — clears the Supabase session and local state. */
   signOut: () => void
   /**
-   * Request a Supabase phone OTP. Returns `{ error }` on failure so the
-   * caller (phone screen) can render an inline error without throwing.
+   * Request a Supabase phone OTP. Returns `{ code }` on failure so the
+   * caller (phone screen) can render a localized inline error without
+   * throwing.
    */
   sendOtp: (phoneE164: string) => Promise<OtpResult>
   /** Verify the 6-digit OTP. On success the AuthProvider session updates. */
@@ -25,8 +32,8 @@ const DEFAULT_STATE: AuthContextValue = {
   ready: false,
   setRole: () => undefined,
   signOut: () => undefined,
-  sendOtp: async () => ({ error: 'auth not initialised' }),
-  verifyOtp: async () => ({ error: 'auth not initialised' })
+  sendOtp: async () => ({ code: 'send_failed' }),
+  verifyOtp: async () => ({ code: 'send_failed' })
 }
 
 export const AuthContext = createContext<AuthContextValue>(DEFAULT_STATE)

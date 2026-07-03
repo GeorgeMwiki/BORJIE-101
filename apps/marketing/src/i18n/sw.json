@@ -1491,6 +1491,11 @@
       "ownerFullNameRequired": "Weka jina lako kamili",
       "emailRequired": "Weka anwani halali ya barua pepe",
       "passwordTooShort": "Nenosiri lazima liwe na herufi 8 au zaidi",
+      "emailAlreadyRegistered": "Akaunti yenye barua pepe hii tayari ipo. Jaribu kuingia badala yake.",
+      "phoneAlreadyRegistered": "Akaunti ya shirika hili tayari ipo. Jaribu kuingia badala yake.",
+      "countryNotAvailable": "Usajili haupatikani bado katika nchi uliyochagua.",
+      "authProviderUnavailable": "Tumeshindwa kufikia huduma ya usajili. Tafadhali jaribu tena baada ya muda mfupi.",
+      "invalidBody": "Tafadhali angalia sehemu zilizoangaziwa na ujaribu tena.",
       "signUpFailed": "Usajili umeshindikana. Jaribu tena au wasiliana na msaada."
     },
     "haveAccount": "Una akaunti tayari?",

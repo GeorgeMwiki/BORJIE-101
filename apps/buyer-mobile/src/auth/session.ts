@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import { clearAuthToken, setAuthToken } from './token'
 import { getSupabaseClient } from './supabaseClient'
 import { parseSupabaseTokenForBuyer } from './buyerClaims'
+import { classifyOtpError, classifyOtpMessage, type OtpErrorCode } from './otp-error'
 import type { BuyerUser } from '@/types/auth'
 import { registerPushToken } from '@/lib/notifications/push-register'
 
@@ -197,7 +198,13 @@ export async function logout(): Promise<void> {
 }
 
 export interface OtpResult {
-  readonly error?: string
+  /**
+   * A stable, provider-agnostic error CODE on failure (never the raw
+   * provider string). The login screen maps this code to localized copy
+   * via `t('auth.<code>')` so no English backend string is rendered under
+   * an `sw` locale.
+   */
+  readonly code?: OtpErrorCode
 }
 
 function normaliseE164(phone: string): string {
@@ -210,10 +217,12 @@ export async function sendBuyerOtp(phoneE164: string): Promise<OtpResult> {
     const { error } = await supabase.auth.signInWithOtp({
       phone: normaliseE164(phoneE164)
     })
-    if (error) return { error: error.message }
+    // Classify the raw provider message into a stable CODE — never return
+    // `error.message` (an English string that renders as zero-mix under sw).
+    if (error) return { code: classifyOtpMessage(error.message) }
     return {}
   } catch (err) {
-    return { error: err instanceof Error ? err.message : 'send_otp_failed' }
+    return { code: classifyOtpError(err) }
   }
 }
 
@@ -228,10 +237,10 @@ export async function verifyBuyerOtp(
       token: code,
       type: 'sms'
     })
-    if (error) return { error: error.message }
+    if (error) return { code: classifyOtpMessage(error.message) }
     return {}
   } catch (err) {
-    return { error: err instanceof Error ? err.message : 'verify_otp_failed' }
+    return { code: classifyOtpError(err) }
   }
 }
 

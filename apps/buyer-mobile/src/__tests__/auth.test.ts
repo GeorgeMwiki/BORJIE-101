@@ -31,6 +31,11 @@ import {
   _resetSupabaseClientForTests
 } from '../auth/supabaseClient'
 import { parseSupabaseTokenForBuyer } from '../auth/buyerClaims'
+import {
+  classifyOtpError,
+  classifyOtpMessage,
+  isOtpErrorCode
+} from '../auth/otp-error'
 
 describe('supabaseClient (buyer)', () => {
   beforeEach(() => {
@@ -72,6 +77,47 @@ describe('supabaseClient (buyer)', () => {
     delete process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY
     _resetSupabaseClientForTests()
     expect(() => getSupabaseClient()).toThrow(/Supabase config missing/)
+  })
+})
+
+describe('otp-error classifier (buyer)', () => {
+  it('maps rate-limit provider phrasings to rate_limited', () => {
+    expect(classifyOtpMessage('Email rate limit exceeded')).toBe('rate_limited')
+    expect(classifyOtpMessage('Too many requests')).toBe('rate_limited')
+    expect(classifyOtpMessage('HTTP 429')).toBe('rate_limited')
+  })
+
+  it('maps expired phrasings to otp_expired', () => {
+    expect(classifyOtpMessage('Token has expired')).toBe('otp_expired')
+  })
+
+  it('maps invalid/otp phrasings to otp_invalid', () => {
+    expect(classifyOtpMessage('Invalid OTP')).toBe('otp_invalid')
+    expect(classifyOtpMessage('Token is incorrect')).toBe('otp_invalid')
+  })
+
+  it('maps transport phrasings to network', () => {
+    expect(classifyOtpMessage('Network request failed')).toBe('network')
+    expect(classifyOtpMessage('fetch failed')).toBe('network')
+  })
+
+  it('falls back to send_failed for unknown shapes', () => {
+    expect(classifyOtpMessage('some opaque provider text')).toBe('send_failed')
+    expect(classifyOtpMessage('')).toBe('send_failed')
+  })
+
+  it('classifyOtpError handles Error, string, and unknown inputs', () => {
+    expect(classifyOtpError(new Error('rate limit'))).toBe('rate_limited')
+    expect(classifyOtpError('token has expired')).toBe('otp_expired')
+    expect(classifyOtpError(null)).toBe('send_failed')
+    expect(classifyOtpError({ weird: true })).toBe('send_failed')
+  })
+
+  it('isOtpErrorCode narrows only to known codes', () => {
+    expect(isOtpErrorCode('otp_invalid')).toBe(true)
+    expect(isOtpErrorCode('network')).toBe(true)
+    expect(isOtpErrorCode('nope')).toBe(false)
+    expect(isOtpErrorCode(42)).toBe(false)
   })
 })
 

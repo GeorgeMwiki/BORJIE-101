@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import type { Session } from '@supabase/supabase-js'
 import { AuthContext, buildStubUser, type AuthContextValue, type OtpResult } from './useAuth'
+import { classifyOtpError, classifyOtpMessage } from './otp-error'
 import { getSupabaseClient } from './supabaseClient'
 import { parseSupabaseToken } from './jwtClaims'
 import { setAuthToken } from './session'
@@ -150,11 +151,14 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
         phone: normaliseE164(phoneE164)
       })
       if (error) {
-        return { error: error.message }
+        // Classify the raw provider message into a stable CODE — never
+        // return `error.message` (an English string that would render
+        // under an `sw` locale as language mixing).
+        return { code: classifyOtpMessage(error.message) }
       }
       return {}
     } catch (err) {
-      return { error: err instanceof Error ? err.message : 'send_otp_failed' }
+      return { code: classifyOtpError(err) }
     }
   }, [])
 
@@ -168,13 +172,11 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
           type: 'sms'
         })
         if (error) {
-          return { error: error.message }
+          return { code: classifyOtpMessage(error.message) }
         }
         return {}
       } catch (err) {
-        return {
-          error: err instanceof Error ? err.message : 'verify_otp_failed'
-        }
+        return { code: classifyOtpError(err) }
       }
     },
     []

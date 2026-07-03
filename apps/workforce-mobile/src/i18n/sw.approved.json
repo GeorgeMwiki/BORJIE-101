@@ -513,7 +513,14 @@
       "otpConfirm": "Thibitisha",
       "resend": "Tuma tena",
       "errorPhone": "Tafadhali andika namba sahihi ya +255 7XX",
-      "errorOtp": "Msimbo wa OTP si sahihi"
+      "errorOtp": "Msimbo wa OTP si sahihi",
+      "otpErrors": {
+        "otp_invalid": "Msimbo huo si sahihi. Uangalie na ujaribu tena.",
+        "rate_limited": "Umejaribu mara nyingi. Tafadhali subiri kidogo kisha ujaribu tena.",
+        "otp_expired": "Msimbo huo umeisha muda. Omba mpya.",
+        "send_failed": "Tumeshindwa kutuma msimbo. Tafadhali jaribu tena.",
+        "network": "Hakuna muunganisho. Angalia mtandao wako kisha ujaribu tena."
+      }
     },
     "identity": {
       "title": "Jina lako kamili",
