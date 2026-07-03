@@ -14,7 +14,8 @@ import { randomUUID } from 'node:crypto';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { sales, oreParcels } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
-import { authMiddleware } from '../../middleware/hono-auth';
+import { authMiddleware, requireRole } from '../../middleware/hono-auth';
+import { UserRole } from '../../types/user-role';
 import { databaseMiddleware } from '../../middleware/database';
 import { recordActivationEvent } from '../../services/activation-events/record-activation-event';
 import { postSaleProceeds } from '../../composition/ledger/post-sale-proceeds';
@@ -29,6 +30,25 @@ type DrizzleDb = any;
 const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', databaseMiddleware);
+
+/**
+ * Accounting / ownership write tier. Recording a sale posts the sale proceeds
+ * journal through `LedgerService.post()` (postSaleProceeds) and flips the parcel
+ * to `sold` — it moves real money and crystallizes revenue. It is therefore
+ * restricted to the SAME accounting/ownership tier the sibling money surfaces
+ * gate on (cooperatives/settlements.hono.ts SETTLEMENT_WRITE_ROLES,
+ * mining/bids.hono.ts SELLER_WRITE_ROLES, royalty.hono.ts ROYALTY_WRITE_ROLES).
+ * Without this, ANY authenticated tenant member (a field worker, a
+ * self-registered buyer mapped into the tenant) could record a sale and post
+ * proceeds to the ledger. The read (list) stays open to members; only the
+ * money-mutating create gates.
+ */
+const SALES_WRITE_ROLES = [
+  UserRole.OWNER,
+  UserRole.TENANT_ADMIN,
+  UserRole.ACCOUNTANT,
+  UserRole.SUPER_ADMIN,
+] as const;
 
 app.openapi(salesListRoute, async (c) => {
   const { tenantId } = c.get('auth');
@@ -49,7 +69,7 @@ app.openapi(salesListRoute, async (c) => {
 });
 
 app.openapi(
-  salesCreateRoute,
+  { ...salesCreateRoute, middleware: [requireRole(...SALES_WRITE_ROLES)] },
   withSecurityEvents(
     { action: 'mining.sale.create', resource: 'mining.sale', severity: 'info' },
     async (c) => {

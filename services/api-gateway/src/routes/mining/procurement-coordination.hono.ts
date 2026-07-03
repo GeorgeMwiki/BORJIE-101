@@ -36,7 +36,8 @@ import {
   createProcurementCoordination,
   computeAvailability,
 } from '@borjie/procurement-coordination';
-import { authMiddleware } from '../../middleware/hono-auth';
+import { authMiddleware, requireRole } from '../../middleware/hono-auth';
+import { UserRole } from '../../types/user-role';
 import { databaseMiddleware } from '../../middleware/database';
 import { createLogger } from '../../utils/logger';
 import { createDrizzleProcurementDataPort } from '../../composition/procurement/drizzle-data-port';
@@ -89,6 +90,26 @@ const CreateRequisitionBodySchema = z.object({
   budgetId: z.string().nullable().optional(),
   category: z.string().optional(),
 });
+
+/**
+ * Accounting / ownership write tier. Creating a requisition RESERVES budget by
+ * posting a balanced DR procurement_reserve / CR budget_available journal
+ * through the REAL ledger (`postBudgetEncumbrance` → `LedgerService.post()`), so
+ * it moves money against a budget. It is therefore restricted to the SAME
+ * accounting/ownership tier the sibling money surfaces gate on
+ * (cooperatives/settlements.hono.ts SETTLEMENT_WRITE_ROLES,
+ * mining/bids.hono.ts SELLER_WRITE_ROLES, royalty/sales WRITE_ROLES). Without
+ * this, ANY authenticated tenant member (a field worker, a self-registered
+ * buyer mapped into the tenant) could create a requisition and encumber budget
+ * on the ledger. Reads (vendors / budgets / analytics) stay open to members;
+ * only the ledger-encumbering requisition create gates.
+ */
+const PROCUREMENT_WRITE_ROLES = [
+  UserRole.OWNER,
+  UserRole.TENANT_ADMIN,
+  UserRole.ACCOUNTANT,
+  UserRole.SUPER_ADMIN,
+] as const;
 
 export const miningProcurementCoordinationRouter = new Hono();
 miningProcurementCoordinationRouter.use('*', authMiddleware);
@@ -277,7 +298,10 @@ miningProcurementCoordinationRouter.get('/analytics/maverick-spend', async (c) =
 // ---------------------------------------------------------------------------
 // POST /requisitions — create a requisition (reserves budget + approval chain).
 // ---------------------------------------------------------------------------
-miningProcurementCoordinationRouter.post('/requisitions', async (c) => {
+miningProcurementCoordinationRouter.post(
+  '/requisitions',
+  requireRole(...PROCUREMENT_WRITE_ROLES),
+  async (c) => {
   const auth = c.get('auth') as { tenantId?: string };
   const db = c.get('db');
   if (!db || !auth?.tenantId) return unavailable(c);

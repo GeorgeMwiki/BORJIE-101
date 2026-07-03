@@ -34,7 +34,8 @@ import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { listLedgerLines } from '@borjie/database';
-import { authMiddleware } from '../../middleware/hono-auth';
+import { authMiddleware, requireRole } from '../../middleware/hono-auth';
+import { UserRole } from '../../types/user-role';
 import { databaseMiddleware } from '../../middleware/database';
 import { logger } from '../../utils/logger';
 import { postRoyaltyPayment } from '../../services/royalty/royalty-ledger';
@@ -57,6 +58,26 @@ import {
 const FOUR_EYE_THRESHOLD_MAJOR = 5_000_000;
 
 const ROYALTY_PAYABLE_ACCOUNT_NAME = 'Royalty Payable';
+
+/**
+ * Accounting / ownership write tier. Signing a royalty return FILES + PAYS it —
+ * a real, balanced double-entry journal through `LedgerService.post()` — so it
+ * crystallizes a binding regulatory money obligation. It is therefore restricted
+ * to the SAME accounting/ownership tier the sibling money surfaces gate on
+ * (cooperatives/settlements.hono.ts SETTLEMENT_WRITE_ROLES,
+ * mining/bids.hono.ts SELLER_WRITE_ROLES). Without this, ANY authenticated
+ * tenant member (a field worker, a self-registered buyer mapped into the
+ * tenant) could file + pay a royalty and move money. The four-eye gate below
+ * only kicks in at/above the high-stakes threshold; this role gate closes the
+ * fail-open hole on EVERY sign, including below-threshold. Reads (list /
+ * statement) stay open to members; only the binding sign write gates.
+ */
+const ROYALTY_WRITE_ROLES = [
+  UserRole.OWNER,
+  UserRole.TENANT_ADMIN,
+  UserRole.ACCOUNTANT,
+  UserRole.SUPER_ADMIN,
+] as const;
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -244,7 +265,7 @@ app.get('/', async (c) => {
 // POST /:id/sign — FILE + PAY a royalty draft (money via LedgerService).
 // ---------------------------------------------------------------------------
 
-app.post('/:id/sign', async (c) => {
+app.post('/:id/sign', requireRole(...ROYALTY_WRITE_ROLES), async (c) => {
   const { tenantId, userId } = c.get('auth');
   const db = c.get('db');
   const id = c.req.param('id');
