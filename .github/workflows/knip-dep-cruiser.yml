@@ -100,6 +100,9 @@ jobs:
         with:
           name: knip-baseline
           path: .knip-baseline.json
+          # .knip-baseline.json is a dotfile; upload-artifact excludes hidden
+          # files by default, so without this the upload finds nothing.
+          include-hidden-files: true
           if-no-files-found: error
 
       # Advisory until the baseline is regenerated in CI's EXACT environment.
