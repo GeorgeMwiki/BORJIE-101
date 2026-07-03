@@ -26,13 +26,18 @@ export function ProductionVsTarget({ production, lang }: ProductionVsTargetProps
         <Text style={styles.empty}>{copy.noShiftsReported}</Text>
       ) : (
         sites.map((site) => {
-          const delta = site.target > 0 ? ((site.tonnes - site.target) / site.target) * 100 : 0
-          const status = classifyDelta(delta)
+          // No positive target → NO fabricated 0% delta / green / "Target: 0 t".
+          const hasTarget = site.target != null && site.target > 0
+          const delta = hasTarget
+            ? ((site.tonnes - (site.target as number)) / (site.target as number)) * 100
+            : null
+          const status = delta === null ? 'warn' : classifyDelta(delta)
+          const deltaText = delta === null ? '—' : formatDelta(delta)
           return (
             <View
               key={site.siteId}
               accessibilityRole="summary"
-              accessibilityLabel={`${site.siteName} · ${formatTonnes(site.tonnes)} · ${formatDelta(delta)}`}
+              accessibilityLabel={`${site.siteName} · ${formatTonnes(site.tonnes)} · ${deltaText}`}
               style={styles.row}
             >
               <View style={styles.rowMain}>
@@ -40,9 +45,11 @@ export function ProductionVsTarget({ production, lang }: ProductionVsTargetProps
                 <Text style={styles.tonnes}>{formatTonnes(site.tonnes)}</Text>
               </View>
               <View style={styles.rowMeta}>
-                <Text style={[styles.delta, deltaTone(status)]}>{formatDelta(delta)}</Text>
+                <Text style={[styles.delta, deltaTone(status)]}>{deltaText}</Text>
                 <Text style={styles.target}>
-                  {copy.target}: {formatTonnes(site.target)}
+                  {hasTarget
+                    ? `${copy.target}: ${formatTonnes(site.target as number)}`
+                    : copy.kpiNoTarget}
                 </Text>
               </View>
             </View>

@@ -62,9 +62,17 @@ function buildItems(
     {
       key: 'production',
       label: labels.production,
-      value: `${formatTonnes(brief.production.currentTonnes)} ${formatDelta(brief.production.deltaPct)}`,
+      // No target → show tonnes alone (no fabricated "+0%"); the status label
+      // carries the "no target" state.
+      value:
+        brief.production.deltaPct === null
+          ? formatTonnes(brief.production.currentTonnes)
+          : `${formatTonnes(brief.production.currentTonnes)} ${formatDelta(brief.production.deltaPct)}`,
       status: brief.production.status,
-      statusLabel: statusLabel(brief.production.status, lang)
+      statusLabel:
+        brief.production.targetTonnes === null
+          ? copy.kpiNoTarget
+          : statusLabel(brief.production.status, lang)
     },
     {
       key: 'cash',

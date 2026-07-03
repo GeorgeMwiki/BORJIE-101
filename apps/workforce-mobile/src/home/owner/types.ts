@@ -27,15 +27,17 @@ export interface DecisionItem {
 
 export interface ProductionPillar {
   readonly currentTonnes: number
-  readonly targetTonnes: number
-  readonly deltaPct: number
+  // `null` = no production target wired → render "no target set", never a
+  // fabricated 0 target / 0% delta / green "on target".
+  readonly targetTonnes: number | null
+  readonly deltaPct: number | null
   readonly status: PillarStatus
   readonly sparkline7d: ReadonlyArray<number>
   readonly perSite: ReadonlyArray<{
     readonly siteId: string
     readonly siteName: string
     readonly tonnes: number
-    readonly target: number
+    readonly target: number | null
   }>
 }
 

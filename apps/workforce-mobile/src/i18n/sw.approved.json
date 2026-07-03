@@ -872,7 +872,8 @@
     "cliffCleared": "Salama",
     "statusOnTarget": "Salama",
     "statusWatch": "Tahadhari",
-    "statusAtRisk": "Hatari"
+    "statusAtRisk": "Hatari",
+    "kpiNoTarget": "Lengo halijawekwa"
   },
   "narrative": {
     "generateTitle": "Tengeneza ripoti",

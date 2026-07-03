@@ -1428,7 +1428,8 @@
     "cliffCleared": "Cleared",
     "statusOnTarget": "On target",
     "statusWatch": "Watch",
-    "statusAtRisk": "At risk"
+    "statusAtRisk": "At risk",
+    "kpiNoTarget": "No target set"
   },
   "narrative": {
     "generateTitle": "Generate narrative",

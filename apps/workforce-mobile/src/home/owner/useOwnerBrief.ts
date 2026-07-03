@@ -124,13 +124,24 @@ function buildBriefFromParts(
     (sum, row) => sum + (Number.isFinite(row.tonnes) ? (row.tonnes ?? 0) : 0),
     0
   )
-  const productionTarget = (prod?.perSite ?? []).reduce(
-    (sum, row) => sum + (Number.isFinite(row.target) ? (row.target ?? 0) : 0),
-    0
+  // A real production target only exists when at least one site reports a
+  // positive target. With no target feed the sum is 0 → the old code produced a
+  // 0% delta + 'ok' (GREEN "on target") + "Target: 0 t" — a fabricated
+  // on-target KPI. Keep target/delta NULL when there is no target, so the render
+  // shows an honest "no target set" instead of a false green.
+  const hasProductionTarget = (prod?.perSite ?? []).some(
+    (row) => Number.isFinite(row.target) && (row.target ?? 0) > 0
   )
-  const productionDelta = productionTarget > 0
-    ? ((productionTonnes - productionTarget) / productionTarget) * 100
-    : 0
+  const productionTarget: number | null = hasProductionTarget
+    ? (prod?.perSite ?? []).reduce(
+        (sum, row) => sum + (Number.isFinite(row.target) ? (row.target ?? 0) : 0),
+        0
+      )
+    : null
+  const productionDelta: number | null =
+    productionTarget != null && productionTarget > 0
+      ? ((productionTonnes - productionTarget) / productionTarget) * 100
+      : null
   const ninetyDayNet = cash?.ninetyDayNetTzs ?? 0
   // REAL runway from the gateway — cash on hand ÷ net daily burn. `null` when
   // unknown (no treasury/cost feed) or when the estate is net cash-positive
@@ -165,13 +176,19 @@ function buildBriefFromParts(
       currentTonnes: productionTonnes,
       targetTonnes: productionTarget,
       deltaPct: productionDelta,
-      status: classifyDelta(productionDelta),
+      // No target → 'warn' (unconfirmed), never classifyDelta(0)='ok' (a false
+      // green "on target"). The render surfaces "no target set" alongside it.
+      status: productionDelta === null ? 'warn' : classifyDelta(productionDelta),
       sparkline7d: [],
       perSite: (prod?.perSite ?? []).map((row) => ({
         siteId: row.siteId ?? 'unknown',
         siteName: row.siteName ?? row.siteId ?? 'Site',
         tonnes: Number(row.tonnes ?? 0),
-        target: Number(row.target ?? 0)
+        // null when the site has no positive target — never a fabricated 0.
+        target:
+          Number.isFinite(row.target) && (row.target ?? 0) > 0
+            ? Number(row.target)
+            : null
       }))
     },
     cash: {
@@ -331,15 +348,16 @@ const OwnerBriefSchema = z.object({
   needsReview: z.array(DecisionItemSchema).readonly(),
   production: z.object({
     currentTonnes: z.number(),
-    targetTonnes: z.number(),
-    deltaPct: z.number(),
+    // Nullable: no target feed → null, never a fabricated 0 / 0% delta.
+    targetTonnes: z.number().nullable(),
+    deltaPct: z.number().nullable(),
     status: PillarStatusSchema,
     sparkline7d: z.array(z.number()).readonly(),
     perSite: z.array(z.object({
       siteId: z.string(),
       siteName: z.string(),
       tonnes: z.number(),
-      target: z.number()
+      target: z.number().nullable()
     })).readonly()
   }),
   cash: z.object({
