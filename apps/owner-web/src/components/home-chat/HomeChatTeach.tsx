@@ -43,7 +43,7 @@ import {
   AskEmptyState,
   type AskEmptyKind,
 } from '@/components/ask/AskEmptyState';
-import { DegradedBanner } from '@borjie/chat-ui';
+import { DegradedBanner, ChatShellDisclaimer } from '@borjie/chat-ui';
 import { PersonaGreeting } from './PersonaGreeting';
 import {
   UiBlockRenderer,
@@ -1323,6 +1323,12 @@ export function HomeChatTeach({
             onFollowUp={onSuggestion}
             disabled={composerDisabled || isStreaming}
           />
+
+          {/* CC-12 — the canonical AI-provenance disclaimer on the flagship
+              cockpit chat (mining-estate copy, single-locale), rendered from
+              the shared @borjie/chat-ui primitive so it stays identical to
+              every other chat surface. */}
+          <ChatShellDisclaimer language={languagePreference} />
 
           <AskComposer
             busy={isStreaming}
