@@ -83,9 +83,16 @@ function guardDailyBrief(raw: unknown): DailyBriefResponse {
       red: toNum(compliance.red),
     },
     marketplace: {
-      openOffers: toNum(marketplace.openOffers),
-      newInquiries7d: toNum(marketplace.newInquiries7d),
-      topBuyer: toStr(marketplace.topBuyer),
+      // Preserve the gateway's honest null (marketplace feed not wired) — toNum
+      // would collapse it to a fabricated "0 offers" and toStr to "" (empty top
+      // buyer) rendered as truth. The card + type are built for the em-dash on
+      // null; mirror the runwayDays/grammesTarget null-preservation.
+      openOffers: toNullNum(marketplace.openOffers),
+      newInquiries7d: toNullNum(marketplace.newInquiries7d),
+      topBuyer:
+        typeof marketplace.topBuyer === 'string' && marketplace.topBuyer.length > 0
+          ? marketplace.topBuyer
+          : null,
     },
     fxAndGold: {
       goldSpotUsdOz: toNum(fxAndGold.goldSpotUsdOz),

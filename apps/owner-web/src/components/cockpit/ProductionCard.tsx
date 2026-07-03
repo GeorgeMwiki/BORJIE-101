@@ -45,7 +45,7 @@ export function ProductionCard({
         {pickByLocale(locale, S.production.title)}
       </div>
       <div className="cockpit-card-value">
-        {pickByLocale(locale, S.production.grammes(grammesToday.toLocaleString(bcp47)))}
+        {pickByLocale(locale, S.production.tonnes(grammesToday.toLocaleString(bcp47)))}
       </div>
       <div className="mt-2 flex items-center gap-2">
         <StatusPill

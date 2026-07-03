@@ -58,20 +58,23 @@ export const cockpitClusterStrings = {
   // ── components/cockpit/ProductionCard.tsx ──────────────────────────
   production: {
     title: { en: 'Production vs target', sw: 'Uzalishaji dhidi ya lengo' },
-    grammes: (g: string): SwEn => ({ en: `${g} g`, sw: `g ${g}` }),
+    // The value is run-of-mine ORE TONNES (the gateway computes tonnes, not gold
+    // grammes / assay yield). Label it tonnes (t), never "g" — a ~10^6 unit
+    // mislabel that made ore tonnage read as gold grammes.
+    tonnes: (t: string): SwEn => ({ en: `${t} t`, sw: `t ${t}` }),
     ofDayTarget: (pct: number): SwEn => ({
       en: `${pct}% of day target`,
       sw: `${pct}% ya lengo la siku`,
     }),
     mtd: (mtd: string, target: string, pct: number): SwEn => ({
-      en: `MTD ${mtd} g of ${target} g (${pct}%)`,
-      sw: `Tangu mwanzo wa mwezi ${mtd} g kati ya ${target} g (${pct}%)`,
+      en: `MTD ${mtd} t of ${target} t (${pct}%)`,
+      sw: `Tangu mwanzo wa mwezi ${mtd} t kati ya ${target} t (${pct}%)`,
     }),
     // Honest label when NO production target is wired — never a fabricated "0%".
     noTarget: { en: 'Target not set', sw: 'Lengo halijawekwa' },
     mtdNoTarget: (mtd: string): SwEn => ({
-      en: `MTD ${mtd} g · target not set`,
-      sw: `Tangu mwanzo wa mwezi ${mtd} g · lengo halijawekwa`,
+      en: `MTD ${mtd} t · target not set`,
+      sw: `Tangu mwanzo wa mwezi ${mtd} t · lengo halijawekwa`,
     }),
   },
 
