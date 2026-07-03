@@ -99,6 +99,8 @@ export interface HomeChatLabels {
   readonly actionNeedsConfirmation: BilingualString
   readonly actionDeclined: BilingualString
   readonly actionError: BilingualString
+  readonly groundingUnverified: BilingualString
+  readonly groundingWithheld: BilingualString
 }
 
 export const HOME_CHAT_LABELS: HomeChatLabels = Object.freeze({
@@ -127,6 +129,14 @@ export const HOME_CHAT_LABELS: HomeChatLabels = Object.freeze({
   actionError: {
     sw: 'Hatukuweza kukamilisha. Jaribu tena.',
     en: 'Could not complete. Try again.'
+  },
+  groundingUnverified: {
+    sw: 'Jibu hili halina ushahidi. Thibitisha kabla ya kutegemea.',
+    en: 'This answer is unverified. Confirm before relying on it.'
+  },
+  groundingWithheld: {
+    sw: 'Borjie amezuia jibu lisilo na ushahidi wa kutosha.',
+    en: 'Borjie withheld an answer with insufficient evidence.'
   }
 })
 
@@ -135,4 +145,38 @@ export type LangChoice = 'sw' | 'en'
 export function pickLabel(key: keyof HomeChatLabels, lang: LangChoice): string {
   const entry = HOME_CHAT_LABELS[key]
   return entry[lang]
+}
+
+/**
+ * Shape of the evidence-chain grounding verdict the auditor frame carries.
+ * Kept structural (not importing brainTurn) so this copy module has no
+ * dependency on the SSE client.
+ */
+export interface GroundingVerdictLike {
+  readonly verdict: 'approve' | 'reject' | 'needs_human'
+  readonly evidenceWarning: 'no_evidence_cited' | 'evidence_invalid' | null
+  readonly groundingFault: boolean
+}
+
+/**
+ * groundingWarningLabel — map an auditor verdict to a single-language warning
+ * label, or null when the answer is grounded (nothing to surface). A
+ * reject / needs_human verdict means Borjie withheld an under-evidenced
+ * answer; any evidence warning or grounding fault means the streamed answer
+ * is unverified. Pure so tests assert the mapping directly.
+ */
+export function groundingWarningLabel(
+  grounding: GroundingVerdictLike | null | undefined,
+  lang: LangChoice
+): string | null {
+  if (!grounding) {
+    return null
+  }
+  if (grounding.verdict === 'reject' || grounding.verdict === 'needs_human') {
+    return pickLabel('groundingWithheld', lang)
+  }
+  if (grounding.evidenceWarning !== null || grounding.groundingFault) {
+    return pickLabel('groundingUnverified', lang)
+  }
+  return null
 }

@@ -53,11 +53,13 @@ import {
 } from '../chat/brainTurn'
 import {
   applyAck,
+  applyAuditor,
   applyMessageChunk,
   applyStreamError,
   applyToolCall,
   applyTurnAccepted,
   finaliseTurn,
+  groundingWarningKey,
   newTurnId,
   optimisticTurn,
   shouldAutoScroll,
@@ -231,6 +233,48 @@ describe('parseFrame — SSE envelope decoding (buyer)', () => {
     }
   })
 
+  it('decodes an auditor frame in camelCase (brain.hono.ts wire)', () => {
+    const parsed = parseFrame({
+      data: frame({
+        event: 'auditor',
+        verdict: 'reject',
+        evidenceCount: 0,
+        evidenceWarning: 'no_evidence_cited'
+      })
+    })
+    expect(parsed?.kind).toBe('auditor')
+    if (parsed && parsed.data.type === 'auditor') {
+      expect(parsed.data.signal.verdict).toBe('reject')
+      expect(parsed.data.signal.evidenceWarning).toBe('no_evidence_cited')
+    }
+  })
+
+  it('decodes an auditor frame in snake_case (mining/chat + web wire)', () => {
+    const parsed = parseFrame({
+      data: frame({
+        event: 'auditor',
+        verdict: 'approve',
+        evidence_count: 2,
+        evidence_warning: null,
+        grounding_fault: true
+      })
+    })
+    expect(parsed?.kind).toBe('auditor')
+    if (parsed && parsed.data.type === 'auditor') {
+      expect(parsed.data.signal.evidenceCount).toBe(2)
+      expect(parsed.data.signal.groundingFault).toBe(true)
+    }
+  })
+
+  it('degrades an unexpected auditor payload to approve / no-warning', () => {
+    const parsed = parseFrame({ data: frame({ event: 'auditor', foo: 'bar' }) })
+    expect(parsed?.kind).toBe('auditor')
+    if (parsed && parsed.data.type === 'auditor') {
+      expect(parsed.data.signal.verdict).toBe('approve')
+      expect(parsed.data.signal.groundingFault).toBe(false)
+    }
+  })
+
   it('returns null for empty data and unknown event names', () => {
     expect(parseFrame({ data: '' })).toBeNull()
     expect(parseFrame({ data: frame({ event: 'mystery' }) })).toBeNull()
@@ -307,6 +351,31 @@ describe('chatTurns — buyer reducer state machine', () => {
     expect(settled.tokensUsed).toBe(200)
   })
 
+  it('applyAuditor records the grounding verdict immutably and finaliseTurn carries it', () => {
+    const a = applyTurnAccepted(optimisticTurn('hi'), 'thr-1')
+    const b = applyAuditor(a, {
+      verdict: 'needs_human',
+      evidenceCount: 0,
+      evidenceWarning: 'evidence_invalid',
+      groundingFault: false
+    })
+    expect(b.grounding?.verdict).toBe('needs_human')
+    expect(a.grounding ?? null).toBeNull()
+    const settled = finaliseTurn(b, 'thr-1', 5)
+    expect(settled.grounding?.evidenceWarning).toBe('evidence_invalid')
+  })
+
+  it('applyAuditor is a no-op on a failed turn', () => {
+    const failed = applyStreamError(optimisticTurn('hi'), 'boom')
+    const after = applyAuditor(failed, {
+      verdict: 'reject',
+      evidenceCount: 0,
+      evidenceWarning: 'no_evidence_cited',
+      groundingFault: false
+    })
+    expect(after.grounding ?? null).toBeNull()
+  })
+
   it('newTurnId produces a deterministic prefix', () => {
     expect(newTurnId(1700000000000).startsWith('b_1700000000000_')).toBe(true)
   })
@@ -337,6 +406,50 @@ describe('smartReplyChips — static R7 §3.2 mapping for v1', () => {
 
   it('returns empty list for unknown tool name', () => {
     expect(smartReplyChips('marketplace.unknown', 'sw')).toEqual([])
+  })
+})
+
+describe('groundingWarningKey — evidence-chain warning surfacing', () => {
+  it('returns null with no verdict or a grounded approve', () => {
+    expect(groundingWarningKey(null)).toBeNull()
+    expect(
+      groundingWarningKey({
+        verdict: 'approve',
+        evidenceCount: 3,
+        evidenceWarning: null,
+        groundingFault: false
+      })
+    ).toBeNull()
+  })
+
+  it('maps reject / needs_human to the withheld key', () => {
+    expect(
+      groundingWarningKey({
+        verdict: 'reject',
+        evidenceCount: 0,
+        evidenceWarning: null,
+        groundingFault: false
+      })
+    ).toBe('chat.grounding_withheld')
+  })
+
+  it('maps an evidence warning or grounding fault to the unverified key', () => {
+    expect(
+      groundingWarningKey({
+        verdict: 'approve',
+        evidenceCount: 0,
+        evidenceWarning: 'no_evidence_cited',
+        groundingFault: false
+      })
+    ).toBe('chat.grounding_unverified')
+    expect(
+      groundingWarningKey({
+        verdict: 'approve',
+        evidenceCount: 1,
+        evidenceWarning: null,
+        groundingFault: true
+      })
+    ).toBe('chat.grounding_unverified')
   })
 })
 
@@ -403,6 +516,28 @@ describe('streamBrainTurn — happy path', () => {
       'done'
     ])
     expect(source.closed).toBe(true)
+  })
+
+  it('forwards an auditor grounding frame to the caller', async () => {
+    const seen: BrainStreamEvent[] = []
+    const promise = streamBrainTurn({
+      userText: 'Habari',
+      threadId: null,
+      onEvent: (event) => seen.push(event)
+    })
+    const source = await waitForInstance()
+    source.emitMessage(frame({ event: 'turn.accepted', threadId: 'thr-1' }))
+    source.emitMessage(frame({ event: 'message_chunk', delta: 'Karibu' }))
+    source.emitMessage(
+      frame({ event: 'auditor', verdict: 'reject', evidenceCount: 0, evidenceWarning: 'no_evidence_cited' })
+    )
+    source.emitMessage(frame({ event: 'done', threadId: 'thr-1', tokensUsed: 10 }))
+    await promise
+    const auditor = seen.find((e) => e.kind === 'auditor')
+    expect(auditor).toBeDefined()
+    if (auditor && auditor.data.type === 'auditor') {
+      expect(auditor.data.signal.verdict).toBe('reject')
+    }
   })
 
   it('hits the canonical brain.turn path with Authorization header', async () => {

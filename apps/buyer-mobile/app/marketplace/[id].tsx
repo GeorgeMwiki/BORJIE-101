@@ -118,29 +118,39 @@ export default function MarketplaceDetail() {
               tone={listing.seller.verified ? 'success' : 'warning'}
             />
           </View>
-          <Text style={styles.meta}>
-            PML {listing.seller.pmlNumber} · {listing.seller.rating.toFixed(1)} / 5
-          </Text>
+          {(listing.seller.pmlNumber.length > 0 || listing.seller.rating > 0) && (
+            <Text style={styles.meta}>
+              {listing.seller.pmlNumber.length > 0 ? `PML ${listing.seller.pmlNumber}` : null}
+              {listing.seller.pmlNumber.length > 0 && listing.seller.rating > 0 ? ' · ' : null}
+              {listing.seller.rating > 0 ? `${listing.seller.rating.toFixed(1)} / 5` : null}
+            </Text>
+          )}
         </Card>
 
-        <Card>
-          <Text style={styles.cardTitle}>{t('marketplace.assay')}</Text>
-          {listing.assayResults.map((result) => (
-            <KeyValueRow
-              key={result.element}
-              label={`${result.element} (${result.method})`}
-              value={result.grade}
-            />
-          ))}
-          <View style={{ marginTop: spacing.md }}>
-            <PdfViewer url={listing.assayPdfUrl} title={t('marketplace.assay_pdf')} />
-          </View>
-        </Card>
+        {(listing.assayResults.length > 0 || listing.assayPdfUrl.length > 0) && (
+          <Card>
+            <Text style={styles.cardTitle}>{t('marketplace.assay')}</Text>
+            {listing.assayResults.map((result) => (
+              <KeyValueRow
+                key={result.element}
+                label={`${result.element} (${result.method})`}
+                value={result.grade}
+              />
+            ))}
+            {listing.assayPdfUrl.length > 0 ? (
+              <View style={{ marginTop: spacing.md }}>
+                <PdfViewer url={listing.assayPdfUrl} title={t('marketplace.assay_pdf')} />
+              </View>
+            ) : null}
+          </Card>
+        )}
 
-        <Card>
-          <Text style={styles.cardTitle}>{t('marketplace.chain_of_custody')}</Text>
-          <Timeline items={timelineItems} />
-        </Card>
+        {timelineItems.length > 0 && (
+          <Card>
+            <Text style={styles.cardTitle}>{t('marketplace.chain_of_custody')}</Text>
+            <Timeline items={timelineItems} />
+          </Card>
+        )}
 
         <View style={styles.bottomCta}>
           {crossTenant ? (

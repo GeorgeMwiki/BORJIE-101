@@ -86,12 +86,14 @@ import { ThreeDotPulse } from './ThreeDotPulse'
 import { ToolCallRenderer } from './ToolCallRenderer'
 import {
   HOME_CHAT_OPENERS,
+  groundingWarningLabel,
   openerFor,
   pickLabel,
   type ChatSuggestion
 } from './homeChatCopy'
 import {
   R7_TIMINGS,
+  applyAuditor,
   applyMessageChunk,
   applyProposedAction,
   applyStreamError,
@@ -265,6 +267,9 @@ export function HomeChat(): JSX.Element {
           event.data.type === 'proposed_action'
         ) {
           return applyProposedAction(prev, event.data.action)
+        }
+        if (event.kind === 'auditor' && event.data.type === 'auditor') {
+          return applyAuditor(prev, event.data.signal)
         }
         return prev
       })
@@ -623,6 +628,7 @@ function SettledTurnView({ turn, onFulfill }: SettledTurnViewProps): JSX.Element
             {turn.citations.length > 0 ? (
               <CitationChips citations={turn.citations} />
             ) : null}
+            <GroundingWarning grounding={turn.grounding} lang={lang} />
           </View>
         </View>
       </BubbleEnter>
@@ -708,6 +714,7 @@ function LiveTurnView({
                   {pickStrings(lang).composer.busy}
                 </Text>
               ) : null}
+              <GroundingWarning grounding={turn.grounding} lang={lang} />
             </View>
           </View>
         </BubbleEnter>
@@ -768,6 +775,33 @@ function CitationChips({ citations }: CitationChipsProps): JSX.Element {
           </Text>
         </View>
       ))}
+    </View>
+  )
+}
+
+interface GroundingWarningProps {
+  readonly grounding: SettledTurn['grounding']
+  readonly lang: 'sw' | 'en'
+}
+
+/**
+ * GroundingWarning — evidence-chain warning line. Renders only when the
+ * auditor flagged the answer as ungrounded (reject / needs_human verdict, a
+ * non-null evidenceWarning, or a grounding fault). CLAUDE.md hard rule:
+ * every junior recommendation cites >=1 evidence_id — an ungrounded answer
+ * must never reach the worker silently.
+ */
+function GroundingWarning({
+  grounding,
+  lang
+}: GroundingWarningProps): JSX.Element | null {
+  const label = groundingWarningLabel(grounding, lang)
+  if (label === null) {
+    return null
+  }
+  return (
+    <View style={styles.groundingWarning} testID="home-chat-grounding-warning">
+      <Text style={styles.groundingWarningText}>{label}</Text>
     </View>
   )
 }
@@ -1067,6 +1101,8 @@ async function runStream(
         event.data.type === 'proposed_action'
       ) {
         working = applyProposedAction(working, event.data.action)
+      } else if (event.kind === 'auditor' && event.data.type === 'auditor') {
+        working = applyAuditor(working, event.data.signal)
       }
     }
   })
@@ -1241,6 +1277,21 @@ const styles = StyleSheet.create({
     color: colors.goldLight,
     fontSize: fontSize.caption,
     fontWeight: '600'
+  },
+  groundingWarning: {
+    marginTop: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 140, 90, 0.45)',
+    backgroundColor: 'rgba(255, 140, 90, 0.12)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm
+  },
+  groundingWarningText: {
+    color: colors.text,
+    fontSize: fontSize.caption,
+    fontWeight: '600',
+    lineHeight: 18
   },
   smartReplyRow: {
     flexDirection: 'row',

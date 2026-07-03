@@ -76,6 +76,7 @@
     "all_regions": "Mikoa yote",
     "status_reserved": "Imehifadhiwa",
     "status_open": "Wazi",
+    "status_closed": "Imefungwa",
     "seller_verified": "Amethibitishwa",
     "seller_unverified": "Hajathibitishwa",
     "assay": "Uchanganuzi",
@@ -305,7 +306,9 @@
     "loading": "Inapakia mazungumzo",
     "load_failed": "Imeshindwa kupakia mazungumzo",
     "assistant_thinking": "Bw. Mwikila anajibu",
-    "no_thread": "Zabuni hii bado haina mazungumzo. Mazungumzo yatafunguka pindi muuzaji atakapojibu ofa yako."
+    "no_thread": "Zabuni hii bado haina mazungumzo. Mazungumzo yatafunguka pindi muuzaji atakapojibu ofa yako.",
+    "grounding_unverified": "Jibu hili halina ushahidi. Thibitisha kabla ya kulitegemea.",
+    "grounding_withheld": "Bw. Mwikila amezuia jibu lisilo na ushahidi wa kutosha."
   },
   "entity": {
     "kind": {

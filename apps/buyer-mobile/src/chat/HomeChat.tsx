@@ -78,17 +78,20 @@ import { fetchRecentEntities } from './recentEntities'
 import {
   R7_TIMINGS,
   applyAck,
+  applyAuditor,
   applyMessageChunk,
   applyStreamError,
   applyToolCall,
   applyTurnAccepted,
   finaliseTurn,
+  groundingWarningKey,
   optimisticTurn,
   shouldAutoScroll,
   smartReplyChips,
   type LiveTurn,
   type SettledTurn
 } from './chatTurns'
+import type { BrainGroundingSignal } from './brainTurn'
 
 const SKELETON_ONSET_MS = R7_TIMINGS['SKELETON_ONSET_MS'] ?? 200
 const SLOW_INDICATOR_MS = R7_TIMINGS['SLOW_INDICATOR_MS'] ?? 3_000
@@ -193,6 +196,9 @@ export function HomeChat() {
         }
         if (event.kind === 'tool_call' && event.data.type === 'tool_call') {
           return applyToolCall(prev, event.data.toolCall)
+        }
+        if (event.kind === 'auditor' && event.data.type === 'auditor') {
+          return applyAuditor(prev, event.data.signal)
         }
         return prev
       })
@@ -462,6 +468,7 @@ function SettledTurnView({ turn, translate }: SettledTurnViewProps) {
             {turn.citations.length > 0 ? (
               <CitationChips citations={turn.citations} />
             ) : null}
+            <GroundingWarning grounding={turn.grounding} translate={translate} />
           </LitFinChatBubble>
         </BubbleEnter>
       ) : null}
@@ -534,6 +541,7 @@ function LiveTurnView({
                   : 'Borjie is busy, hold on…'}
               </Text>
             ) : null}
+            <GroundingWarning grounding={turn.grounding} translate={translate} />
           </LitFinChatBubble>
         </BubbleEnter>
       ) : null}
@@ -585,6 +593,31 @@ function CitationChips({ citations }: CitationChipsProps) {
   )
 }
 
+interface GroundingWarningProps {
+  readonly grounding: BrainGroundingSignal | null | undefined
+  readonly translate: (key: string) => string
+}
+
+/**
+ * GroundingWarning — evidence-chain warning line. Renders only when the
+ * auditor flagged the answer as ungrounded (reject / needs_human verdict, a
+ * non-null evidenceWarning, or a grounding fault). CLAUDE.md hard rule:
+ * every junior recommendation cites >=1 evidence_id — an ungrounded answer
+ * must never reach the buyer silently. Copy is single-language per active
+ * locale via `translate`; no hardcoded strings.
+ */
+function GroundingWarning({ grounding, translate }: GroundingWarningProps) {
+  const key = groundingWarningKey(grounding)
+  if (key === null) {
+    return null
+  }
+  return (
+    <View style={styles.groundingWarning} testID="buyer-chat-grounding-warning">
+      <Text style={styles.groundingWarningText}>{translate(key)}</Text>
+    </View>
+  )
+}
+
 async function runStream(
   optimistic: LiveTurn,
   threadId: string | null,
@@ -609,6 +642,8 @@ async function runStream(
         working = applyMessageChunk(working, event.data.delta)
       } else if (event.kind === 'tool_call' && event.data.type === 'tool_call') {
         working = applyToolCall(working, event.data.toolCall)
+      } else if (event.kind === 'auditor' && event.data.type === 'auditor') {
+        working = applyAuditor(working, event.data.signal)
       }
     }
   })
@@ -721,6 +756,21 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.gold,
     fontWeight: '700'
+  },
+  groundingWarning: {
+    marginTop: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 140, 90, 0.45)',
+    backgroundColor: 'rgba(255, 140, 90, 0.12)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs
+  },
+  groundingWarningText: {
+    ...typography.caption,
+    color: colors.cream,
+    fontWeight: '600',
+    lineHeight: 18
   },
   composer: {
     flexDirection: 'row',

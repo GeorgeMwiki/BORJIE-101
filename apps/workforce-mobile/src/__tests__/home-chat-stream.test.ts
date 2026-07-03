@@ -55,6 +55,7 @@ import {
   type BrainStreamEvent
 } from '../chat/brainTurn'
 import {
+  applyAuditor,
   applyMessageChunk,
   applyProposedAction,
   applyStreamError,
@@ -67,6 +68,7 @@ import {
   toPersistedSlice,
   type LiveTurn
 } from '../chat/chatTurns'
+import { groundingWarningLabel } from '../chat/homeChatCopy'
 import { ApiError } from '../api/errors'
 
 interface FakeEventSourceInit {
@@ -240,6 +242,49 @@ describe('parseNamedFrame — named SSE event decoding (production wire format)'
     const parsed = parseNamedFrame('message_chunk', { data: frame({ text: '', done: false }) })
     expect(parsed).toBeNull()
   })
+
+  it('decodes an auditor frame in camelCase (brain.hono.ts wire)', () => {
+    const parsed = parseNamedFrame('auditor', {
+      data: frame({
+        verdict: 'reject',
+        evidenceCount: 0,
+        evidenceWarning: 'no_evidence_cited'
+      })
+    })
+    expect(parsed?.kind).toBe('auditor')
+    if (parsed && parsed.data.type === 'auditor') {
+      expect(parsed.data.signal.verdict).toBe('reject')
+      expect(parsed.data.signal.evidenceWarning).toBe('no_evidence_cited')
+      expect(parsed.data.signal.evidenceCount).toBe(0)
+    }
+  })
+
+  it('decodes an auditor frame in snake_case (mining/chat + web wire)', () => {
+    const parsed = parseNamedFrame('auditor', {
+      data: frame({
+        verdict: 'approve',
+        evidence_count: 3,
+        evidence_warning: null,
+        grounding_fault: true
+      })
+    })
+    expect(parsed?.kind).toBe('auditor')
+    if (parsed && parsed.data.type === 'auditor') {
+      expect(parsed.data.signal.verdict).toBe('approve')
+      expect(parsed.data.signal.evidenceCount).toBe(3)
+      expect(parsed.data.signal.groundingFault).toBe(true)
+    }
+  })
+
+  it('degrades an unexpected auditor payload to approve / no-warning', () => {
+    const parsed = parseNamedFrame('auditor', { data: frame({ foo: 'bar' }) })
+    expect(parsed?.kind).toBe('auditor')
+    if (parsed && parsed.data.type === 'auditor') {
+      expect(parsed.data.signal.verdict).toBe('approve')
+      expect(parsed.data.signal.evidenceWarning).toBeNull()
+      expect(parsed.data.signal.groundingFault).toBe(false)
+    }
+  })
 })
 
 describe('parseFrame — legacy unnamed SSE envelope decoding (event type in data JSON)', () => {
@@ -354,6 +399,31 @@ describe('chatTurns — reducer state machine', () => {
     expect(ignored.kind).toBe('failed')
   })
 
+  it('applyAuditor records the grounding verdict immutably', () => {
+    const a = applyTurnAccepted(optimisticTurn('hi'), 'thr-1')
+    const b = applyAuditor(a, {
+      verdict: 'reject',
+      evidenceCount: 0,
+      evidenceWarning: 'no_evidence_cited',
+      groundingFault: false
+    })
+    expect(b.grounding?.verdict).toBe('reject')
+    expect(a.grounding ?? null).toBeNull()
+    const settled = finaliseTurn(b, 'thr-1', 10)
+    expect(settled.grounding?.verdict).toBe('reject')
+  })
+
+  it('applyAuditor is a no-op on a failed turn', () => {
+    const failed = applyStreamError(optimisticTurn('hi'), 'boom')
+    const after = applyAuditor(failed, {
+      verdict: 'reject',
+      evidenceCount: 0,
+      evidenceWarning: 'no_evidence_cited',
+      groundingFault: false
+    })
+    expect(after.grounding ?? null).toBeNull()
+  })
+
   it('finaliseTurn projects LiveTurn → SettledTurn with stable fields', () => {
     const live = applyMessageChunk(
       applyTurnAccepted(optimisticTurn('Habari'), 'thr-7'),
@@ -451,6 +521,30 @@ describe('streamBrainTurn — happy path', () => {
     source.emitNamed('done', frame({ threadId: 'thr-1', tokensUsed: 0 }))
     await promise
     expect(seen.some((e) => e.kind === 'proposed_action')).toBe(true)
+  })
+
+  it('forwards an auditor grounding frame to the caller (named-event path)', async () => {
+    const seen: BrainStreamEvent[] = []
+    const promise = streamBrainTurn({
+      userText: 'Habari',
+      threadId: null,
+      onEvent: (event) => seen.push(event)
+    })
+    const source = await waitForInstance()
+    source.emitNamed('turn.accepted', frame({ threadId: 'thr-1' }))
+    source.emitNamed('message_chunk', frame({ text: 'Karibu', done: false }))
+    source.emitNamed('auditor', frame({
+      verdict: 'reject',
+      evidenceCount: 0,
+      evidenceWarning: 'no_evidence_cited'
+    }))
+    source.emitNamed('done', frame({ threadId: 'thr-1', tokensUsed: 0 }))
+    await promise
+    const auditor = seen.find((e) => e.kind === 'auditor')
+    expect(auditor).toBeDefined()
+    if (auditor && auditor.data.type === 'auditor') {
+      expect(auditor.data.signal.verdict).toBe('reject')
+    }
   })
 
   it('hits the canonical brain.turn path with the Authorization header', async () => {
@@ -593,5 +687,51 @@ describe('LiveTurn invariants', () => {
     expect(t.kind).toBe('pending')
     expect(t.threadId).toBeNull()
     expect(t.errorMessage).toBeNull()
+  })
+})
+
+describe('groundingWarningLabel — evidence-chain warning surfacing', () => {
+  it('returns null when there is no grounding verdict', () => {
+    expect(groundingWarningLabel(null, 'en')).toBeNull()
+    expect(groundingWarningLabel(undefined, 'sw')).toBeNull()
+  })
+
+  it('returns null for a grounded approve verdict with no fault', () => {
+    expect(
+      groundingWarningLabel(
+        { verdict: 'approve', evidenceWarning: null, groundingFault: false },
+        'en'
+      )
+    ).toBeNull()
+  })
+
+  it('surfaces the withheld warning for a reject / needs_human verdict', () => {
+    expect(
+      groundingWarningLabel(
+        { verdict: 'reject', evidenceWarning: null, groundingFault: false },
+        'en'
+      )
+    ).toBe('Borjie withheld an answer with insufficient evidence.')
+    expect(
+      groundingWarningLabel(
+        { verdict: 'needs_human', evidenceWarning: null, groundingFault: false },
+        'sw'
+      )
+    ).toBe('Borjie amezuia jibu lisilo na ushahidi wa kutosha.')
+  })
+
+  it('surfaces the unverified warning on an evidence warning or grounding fault', () => {
+    expect(
+      groundingWarningLabel(
+        { verdict: 'approve', evidenceWarning: 'no_evidence_cited', groundingFault: false },
+        'en'
+      )
+    ).toBe('This answer is unverified. Confirm before relying on it.')
+    expect(
+      groundingWarningLabel(
+        { verdict: 'approve', evidenceWarning: null, groundingFault: true },
+        'sw'
+      )
+    ).toBe('Jibu hili halina ushahidi. Thibitisha kabla ya kutegemea.')
   })
 })

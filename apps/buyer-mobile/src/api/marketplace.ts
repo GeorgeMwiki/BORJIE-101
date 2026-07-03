@@ -1,5 +1,6 @@
 import { apiFetch } from './client'
 import { MINING_PREFIX } from './config'
+import { mapListing, type RawListingRow } from './listing-adapter'
 import type {
   Bid,
   BidStatus,
@@ -7,6 +8,8 @@ import type {
   MarketplaceSeller,
   Mineral
 } from '@/types/listing'
+
+export { mapListing } from './listing-adapter'
 
 export type SortKey = 'newest' | 'price_asc' | 'price_desc' | 'grade'
 
@@ -25,31 +28,26 @@ export interface ListingFilters {
   readonly sellerTenantId?: string
 }
 
-interface ListingsResponse {
-  readonly data: readonly Listing[]
-}
-
-interface ListingResponse {
-  readonly data: Listing
-}
-
 interface SellersResponse {
   readonly data: readonly MarketplaceSeller[]
 }
 
 export async function fetchListings(filters: ListingFilters = {}): Promise<readonly Listing[]> {
-  const response = await apiFetch<ListingsResponse>(`${MINING_PREFIX}/marketplace/listings`, {
-    query: {
-      mineral: filters.mineral,
-      region: filters.region,
-      minGrade: filters.minGradeNumeric,
-      maxGrade: filters.maxGradeNumeric,
-      sort: filters.sort,
-      search: filters.search,
-      sellerTenantId: filters.sellerTenantId
+  const response = await apiFetch<{ readonly data: readonly RawListingRow[] }>(
+    `${MINING_PREFIX}/marketplace/listings`,
+    {
+      query: {
+        mineral: filters.mineral,
+        region: filters.region,
+        minGrade: filters.minGradeNumeric,
+        maxGrade: filters.maxGradeNumeric,
+        sort: filters.sort,
+        search: filters.search,
+        sellerTenantId: filters.sellerTenantId
+      }
     }
-  })
-  return response.data
+  )
+  return response.data.map(mapListing)
 }
 
 /**
@@ -65,10 +63,10 @@ export async function fetchSellers(): Promise<readonly MarketplaceSeller[]> {
 }
 
 export async function fetchListing(id: string): Promise<Listing | undefined> {
-  const response = await apiFetch<ListingResponse>(
+  const response = await apiFetch<{ readonly data: RawListingRow | null }>(
     `${MINING_PREFIX}/marketplace/listings/${encodeURIComponent(id)}`
   )
-  return response.data
+  return response.data ? mapListing(response.data) : undefined
 }
 
 export type PaymentTerms = 'instant' | '30d' | '60d'

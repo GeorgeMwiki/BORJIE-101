@@ -76,6 +76,7 @@
     "all_regions": "All regions",
     "status_reserved": "Reserved",
     "status_open": "Open",
+    "status_closed": "Closed",
     "seller_verified": "Verified",
     "seller_unverified": "Unverified",
     "assay": "Assay",
@@ -305,7 +306,9 @@
     "loading": "Loading chat",
     "load_failed": "Could not load chat",
     "assistant_thinking": "Mr. Mwikila is replying",
-    "no_thread": "This bid has no message thread yet. A chat opens once the seller responds to your offer."
+    "no_thread": "This bid has no message thread yet. A chat opens once the seller responds to your offer.",
+    "grounding_unverified": "This answer is unverified. Confirm before relying on it.",
+    "grounding_withheld": "Mr. Mwikila withheld an answer with insufficient evidence."
   },
   "entity": {
     "kind": {

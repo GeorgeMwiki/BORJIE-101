@@ -17,6 +17,7 @@
  */
 
 import type { Citation, ProposedAction, ToolCallResult } from './types'
+import type { BrainGroundingSignal } from './brainTurn'
 
 /**
  * R7 timing values lifted verbatim from
@@ -59,6 +60,13 @@ export interface LiveTurn {
   readonly kind: LiveTurnKind
   readonly errorMessage: string | null
   readonly startedAtMs: number
+  /**
+   * Evidence-chain grounding verdict from the terminal `auditor` frame.
+   * Null until the verdict arrives (and on legacy wires that predate it) —
+   * consumers must handle null. Surfaced as a warning when the answer was
+   * ungrounded (`groundingFault` or a non-null `evidenceWarning`).
+   */
+  readonly grounding?: BrainGroundingSignal | null
 }
 
 export interface SettledTurn {
@@ -71,6 +79,9 @@ export interface SettledTurn {
   readonly threadId: string
   readonly tokensUsed: number
   readonly createdAtMs: number
+  /** Evidence-chain grounding verdict for this answer, when the gateway
+   *  surfaced one. Null on legacy wires that predate the `auditor` frame. */
+  readonly grounding?: BrainGroundingSignal | null
 }
 
 export function newTurnId(now: number = Date.now()): string {
@@ -142,6 +153,24 @@ export function applyStreamError(turn: LiveTurn, message: string): LiveTurn {
   }
 }
 
+/**
+ * applyAuditor — attach the terminal evidence-chain grounding verdict.
+ * A failed turn keeps its state; otherwise the verdict is recorded so the
+ * bubble can render a grounding warning when the answer was ungrounded.
+ */
+export function applyAuditor(
+  turn: LiveTurn,
+  grounding: BrainGroundingSignal
+): LiveTurn {
+  if (turn.kind === 'failed') {
+    return turn
+  }
+  return {
+    ...turn,
+    grounding
+  }
+}
+
 export function finaliseTurn(
   turn: LiveTurn,
   threadId: string,
@@ -157,7 +186,8 @@ export function finaliseTurn(
     citations: turn.citations,
     threadId,
     tokensUsed,
-    createdAtMs: now
+    createdAtMs: now,
+    grounding: turn.grounding ?? null
   }
 }
 

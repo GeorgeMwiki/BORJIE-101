@@ -128,6 +128,7 @@ export type BrainStreamEventKind =
   | 'message_chunk'
   | 'tool_call'
   | 'proposed_action'
+  | 'auditor'
   | 'done'
   | 'error'
 
@@ -136,11 +137,28 @@ export interface BrainStreamEvent {
   readonly data: BrainStreamData
 }
 
+/**
+ * The evidence-chain Auditor grounding verdict for a turn. Mirrors the
+ * owner-web `ChatGroundingSignal` contract (apps/owner-web/src/lib/types/
+ * chat.ts) and the chat-ui `BorjieGroundingSignal` — every junior
+ * recommendation must cite >=1 evidence_id (CLAUDE.md hard rule). The
+ * gateway surfaces the verdict as the terminal `auditor` SSE frame; the
+ * chat surface renders a grounding warning when the answer was ungrounded
+ * (`groundingFault` or a non-null `evidenceWarning`).
+ */
+export interface BrainGroundingSignal {
+  readonly verdict: 'approve' | 'reject' | 'needs_human'
+  readonly evidenceCount: number
+  readonly evidenceWarning: 'no_evidence_cited' | 'evidence_invalid' | null
+  readonly groundingFault: boolean
+}
+
 export type BrainStreamData =
   | { readonly type: 'accepted'; readonly threadId: string }
   | { readonly type: 'message_chunk'; readonly delta: string }
   | { readonly type: 'tool_call'; readonly toolCall: ToolCallResult }
   | { readonly type: 'proposed_action'; readonly action: ProposedAction }
+  | { readonly type: 'auditor'; readonly signal: BrainGroundingSignal }
   | { readonly type: 'done'; readonly threadId: string; readonly tokensUsed: number }
   | { readonly type: 'error'; readonly code: string; readonly message: string }
 
@@ -285,6 +303,17 @@ export async function streamBrainTurn(
       }
     })
 
+    // auditor — evidence-chain grounding verdict. brain.hono.ts emits
+    // {"verdict":"...","evidenceCount":N,"evidenceWarning":...}; the
+    // mining/chat route + web clients use snake_case. `parseTypedFrame`
+    // accepts both. Surfaced so an ungrounded answer never streams silently.
+    source.addEventListener('auditor', (event: RNEventMessage) => {
+      const parsed = parseNamedFrame('auditor', event)
+      if (parsed !== null) {
+        handleParsed(parsed)
+      }
+    })
+
     // done — gateway emits: {"threadId":"...","tokensUsed":N}
     source.addEventListener('done', (event: RNEventMessage) => {
       const parsed = parseNamedFrame('done', event)
@@ -350,6 +379,7 @@ type GatewayDataEventName =
   | 'message_chunk'
   | 'tool_call'
   | 'proposed_action'
+  | 'auditor'
   | 'done'
   | 'error'
 
@@ -563,6 +593,18 @@ function parseTypedFrame(
       data: { type: 'proposed_action', action: parsed.data }
     }
   }
+  if (eventType === 'auditor') {
+    // Evidence-chain grounding verdict. brain.hono.ts (the /api/v1/brain/turn
+    // route this client hits) emits camelCase {verdict, evidenceCount,
+    // evidenceWarning}; the mining/chat route + web clients use snake_case
+    // {verdict, evidence_count, evidence_warning, grounding_fault}.
+    // `parseGroundingSignal` accepts BOTH so the warning surfaces regardless
+    // of the gateway build — never silently dropped.
+    return {
+      kind: 'auditor',
+      data: { type: 'auditor', signal: parseGroundingSignal(record) }
+    }
+  }
   if (eventType === 'done') {
     const threadId = typeof record['threadId'] === 'string' ? record['threadId'] : ''
     const tokensUsed = typeof record['tokensUsed'] === 'number' ? record['tokensUsed'] : 0
@@ -575,6 +617,34 @@ function parseTypedFrame(
     return { kind: 'error', data: { type: 'error', code, message } }
   }
   return null
+}
+
+/**
+ * Project the gateway `auditor` frame onto a `BrainGroundingSignal`.
+ * Reads both wire casings (camelCase `evidenceCount`/`evidenceWarning` from
+ * brain.hono.ts and snake_case `evidence_count`/`evidence_warning`/
+ * `grounding_fault` from the mining/chat + web contract). Defensive: an
+ * unexpected payload degrades to an `approve` / no-warning signal rather than
+ * crashing the stream. Mirrors owner-web `remapLiveData('auditor', …)` and
+ * chat-ui `parseGroundingSignal`.
+ */
+export function parseGroundingSignal(
+  record: Record<string, unknown>
+): BrainGroundingSignal {
+  const verdict =
+    record['verdict'] === 'reject' || record['verdict'] === 'needs_human'
+      ? record['verdict']
+      : 'approve'
+  const warningRaw = record['evidenceWarning'] ?? record['evidence_warning']
+  const evidenceWarning: BrainGroundingSignal['evidenceWarning'] =
+    warningRaw === 'no_evidence_cited' || warningRaw === 'evidence_invalid'
+      ? warningRaw
+      : null
+  const countRaw = record['evidenceCount'] ?? record['evidence_count']
+  const evidenceCount = typeof countRaw === 'number' ? countRaw : 0
+  const groundingFault =
+    record['groundingFault'] === true || record['grounding_fault'] === true
+  return { verdict, evidenceCount, evidenceWarning, groundingFault }
 }
 
 interface LegacyFallback {

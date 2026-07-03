@@ -32,11 +32,7 @@ export function ListingCard({ listing, onPress, translate }: ListingCardProps) {
             {listing.originRegion} · {translate('marketplace.from_seller')} {sellerName}
           </Text>
         </View>
-        {listing.status === 'reserved' ? (
-          <Pill label={translate('marketplace.status_reserved')} tone="warning" />
-        ) : (
-          <Pill label={translate('marketplace.status_open')} tone="success" />
-        )}
+        <StatusPill status={listing.status} translate={translate} />
       </View>
 
       <View style={styles.statRow}>
@@ -52,6 +48,27 @@ export function ListingCard({ listing, onPress, translate }: ListingCardProps) {
       </View>
     </Card>
   )
+}
+
+// Reflects the REAL adapted listing status (mapped from the DB
+// `active|paused|expired|sold|removed` → `open|reserved|closed`), so a
+// closed/reserved parcel never masquerades as "Open". `neutral` tone keeps
+// a closed listing visually distinct from a live one.
+function StatusPill({
+  status,
+  translate
+}: {
+  readonly status: Listing['status']
+  readonly translate: (key: string) => string
+}) {
+  switch (status) {
+    case 'reserved':
+      return <Pill label={translate('marketplace.status_reserved')} tone="warning" />
+    case 'closed':
+      return <Pill label={translate('marketplace.status_closed')} tone="neutral" />
+    default:
+      return <Pill label={translate('marketplace.status_open')} tone="success" />
+  }
 }
 
 function Stat({ label, value }: { readonly label: string; readonly value: string }) {

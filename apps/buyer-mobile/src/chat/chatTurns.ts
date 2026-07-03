@@ -8,6 +8,7 @@
  */
 
 import type { ToolCall } from './types'
+import type { BrainGroundingSignal } from './brainTurn'
 
 export const R7_TIMINGS = Object.freeze({
   SKELETON_ONSET_MS: 200,
@@ -40,6 +41,13 @@ export interface LiveTurn {
   readonly errorMessage: string | null
   readonly startedAtMs: number
   /**
+   * Evidence-chain grounding verdict from the terminal `auditor` frame.
+   * Null until the verdict arrives (and on legacy wires that predate it) —
+   * consumers must handle null. Surfaced as a warning when the answer was
+   * ungrounded (`groundingFault` or a non-null `evidenceWarning`).
+   */
+  readonly grounding?: BrainGroundingSignal | null
+  /**
    * True while `text` holds the ack-fast placeholder, false once any
    * real model token has arrived. Used by `applyMessageChunk` to
    * overwrite the placeholder with the first real delta, avoiding the
@@ -57,6 +65,9 @@ export interface SettledTurn {
   readonly threadId: string
   readonly tokensUsed: number
   readonly createdAtMs: number
+  /** Evidence-chain grounding verdict for this answer, when the gateway
+   *  surfaced one. Null on legacy wires that predate the `auditor` frame. */
+  readonly grounding?: BrainGroundingSignal | null
 }
 
 export function newTurnId(now: number = Date.now()): string {
@@ -150,6 +161,24 @@ export function applyStreamError(turn: LiveTurn, message: string): LiveTurn {
   }
 }
 
+/**
+ * applyAuditor — attach the terminal evidence-chain grounding verdict.
+ * A failed turn keeps its state; otherwise the verdict is recorded so the
+ * bubble can render a grounding warning when the answer was ungrounded.
+ */
+export function applyAuditor(
+  turn: LiveTurn,
+  grounding: BrainGroundingSignal
+): LiveTurn {
+  if (turn.kind === 'failed') {
+    return turn
+  }
+  return {
+    ...turn,
+    grounding
+  }
+}
+
 export function finaliseTurn(
   turn: LiveTurn,
   threadId: string,
@@ -164,7 +193,8 @@ export function finaliseTurn(
     citations: turn.citations,
     threadId,
     tokensUsed,
-    createdAtMs: now
+    createdAtMs: now,
+    grounding: turn.grounding ?? null
   }
 }
 
@@ -210,4 +240,27 @@ export function shouldAutoScroll(
 ): boolean {
   const distanceFromBottom = contentHeight - (scrollY + viewportHeight)
   return distanceFromBottom <= threshold
+}
+
+/**
+ * groundingWarningKey — map an evidence-chain verdict to the i18n key of the
+ * warning to show, or null when the answer is grounded (nothing to surface).
+ * A reject / needs_human verdict means the answer was withheld for lacking
+ * evidence; any evidence warning or grounding fault means the streamed answer
+ * is unverified. Pure so tests assert the mapping without a renderer.
+ * The returned key resolves via `t('chat.<key>')`.
+ */
+export function groundingWarningKey(
+  grounding: BrainGroundingSignal | null | undefined
+): 'chat.grounding_withheld' | 'chat.grounding_unverified' | null {
+  if (!grounding) {
+    return null
+  }
+  if (grounding.verdict === 'reject' || grounding.verdict === 'needs_human') {
+    return 'chat.grounding_withheld'
+  }
+  if (grounding.evidenceWarning !== null || grounding.groundingFault) {
+    return 'chat.grounding_unverified'
+  }
+  return null
 }
