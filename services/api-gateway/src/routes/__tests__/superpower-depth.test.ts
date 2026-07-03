@@ -133,10 +133,10 @@ function makeDbStub(state: DbState) {
                 async returning() {
                   // For undo-journal routes: the select-then-update pattern
                   // needs selectRows to have the candidate to merge into.
-                  // For dispatcher updates (e.g. eventOutbox snooze): selectRows
-                  // is empty but the update itself should succeed — return a
-                  // synthetic row with the set-fields so the dispatcher can read
-                  // back `row.id`.
+                  // For dispatcher updates (e.g. reminders.snooze trigger_at
+                  // push): selectRows carries the seeded row and the update
+                  // itself succeeds — return a synthetic row with the set-
+                  // fields so the dispatcher can read back `row.id`.
                   const base = state.selectRows.length > 0
                     ? state.selectRows[0]
                     : { id: `stub-row-${++state.updateCalls}` };
@@ -198,7 +198,13 @@ describe('§1 bulk-action — per-item failure manifest', () => {
   it('returns failedIds[] with reason per failed row + processedIds[]', async () => {
     const state: DbState = {
       insertRows: [],
-      selectRows: [],
+      // reminders.snooze SELECTs the row (id/status/triggerAt) before it
+      // pushes trigger_at forward; seed a scheduled row so a legitimate
+      // snooze lands (the per-row failure here is the FORCED undo-journal
+      // insert failure on r2, not the dispatcher).
+      selectRows: [
+        { id: 'rem_stub', status: 'scheduled', triggerAt: new Date() },
+      ],
       updateRows: [],
       insertCalls: 0,
       updateCalls: 0,
@@ -239,7 +245,11 @@ describe('§1 bulk-action — per-item failure manifest', () => {
   it('returns processedIds === ids and failedIds === [] when every row lands', async () => {
     const state: DbState = {
       insertRows: [],
-      selectRows: [],
+      // Seed a scheduled reminder so the snooze dispatcher's status guard
+      // passes and the trigger_at push lands for every row.
+      selectRows: [
+        { id: 'rem_stub', status: 'scheduled', triggerAt: new Date() },
+      ],
       updateRows: [],
       insertCalls: 0,
       updateCalls: 0,

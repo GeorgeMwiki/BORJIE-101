@@ -38,7 +38,15 @@ function tableNameOf(obj: unknown): string {
   }
 }
 
-function makeShim(opts: { returnFor?: Record<string, string[]> } = {}) {
+function makeShim(
+  opts: {
+    returnFor?: Record<string, string[]>;
+    /** Rows the `.select()` path returns, keyed by table name. Used by the
+     *  reminders.snooze dispatcher, which SELECTs the row (to check its
+     *  snoozable status) before the UPDATE. Absent → empty (row not found). */
+    selectFor?: Record<string, Array<Record<string, unknown>>>;
+  } = {},
+) {
   const inserts: InsertCall[] = [];
   const updates: UpdateCall[] = [];
   const returns: Record<string, string[]> = {
@@ -46,9 +54,10 @@ function makeShim(opts: { returnFor?: Record<string, string[]> } = {}) {
     incidents: ['inc_1'],
     document_uploads: ['doc_1'],
     marketplace_bids: ['bid_1'],
-    event_outbox: ['out_1'],
+    reminders: ['rem_1'],
     ...(opts.returnFor ?? {}),
   };
+  const selectRows = opts.selectFor ?? {};
 
   const client = {
     insert(table: any) {
@@ -57,6 +66,22 @@ function makeShim(opts: { returnFor?: Record<string, string[]> } = {}) {
         values(v: Record<string, unknown>): any {
           inserts.push({ table: tableName, values: v });
           return { returning: () => Promise.resolve([{ id: v.id ?? `${tableName}_1` }]) };
+        },
+      };
+    },
+    select(_cols?: any) {
+      return {
+        from(table: any): any {
+          const tableName = tableNameOf(table);
+          const chain = {
+            where(_p: any) {
+              return chain;
+            },
+            limit(_n: number) {
+              return Promise.resolve(selectRows[tableName] ?? []);
+            },
+          };
+          return chain;
         },
       };
     },
@@ -92,26 +117,102 @@ const baseCtx = (overrides: Partial<DispatchContext> = {}): DispatchContext => (
 });
 
 describe('dispatchSnoozeReminder', () => {
-  it('updates event_outbox.nextRetryAt forward', async () => {
-    const shim = makeShim();
-    const before = Date.now();
+  // A scheduled reminder due in 5 min; snoozing must push trigger_at forward
+  // on the `reminders` table (the ONLY place owner reminders live — never
+  // event_outbox) so the reminders-dispatch worker re-picks it later.
+  const scheduledRow = (triggerAt: Date) => ({
+    reminders: [{ id: 'rem_1', status: 'scheduled', triggerAt }],
+  });
+
+  it('advances reminders.trigger_at by the requested HOURS (prompt contract)', async () => {
+    // The persona prompt emits payload:{hours:24}; the delta must honour it
+    // (the old code read only payload.minutes and silently defaulted to 60m).
+    const base = new Date();
+    const shim = makeShim({ selectFor: scheduledRow(base) });
     const out = await dispatchSnoozeReminder(
       baseCtx({ db: shim.client as never }),
-      'out_1',
+      'rem_1',
+      { hours: 24 },
+    );
+    expect(out.ok).toBe(true);
+    expect(out.artifactKind).toBe('reminder');
+    expect(shim.updates).toHaveLength(1);
+    expect(shim.updates[0]!.table).toBe('reminders');
+    const nextTrigger = shim.updates[0]!.set.triggerAt as Date;
+    // trigger_at pushed forward ~24h from now (row's trigger is ~now).
+    expect(nextTrigger.getTime()).toBeGreaterThanOrEqual(
+      base.getTime() + 24 * 60 * 60_000 - 1000,
+    );
+    expect(nextTrigger.getTime()).toBeLessThanOrEqual(
+      Date.now() + 24 * 60 * 60_000 + 1000,
+    );
+  });
+
+  it('honours explicit payload.minutes over hours', async () => {
+    const base = new Date();
+    const shim = makeShim({ selectFor: scheduledRow(base) });
+    const out = await dispatchSnoozeReminder(
+      baseCtx({ db: shim.client as never }),
+      'rem_1',
       { minutes: 45 },
     );
     expect(out.ok).toBe(true);
-    expect(shim.updates).toHaveLength(1);
-    expect(shim.updates[0]!.table).toBe('event_outbox');
-    const nextRetry = shim.updates[0]!.set.nextRetryAt as Date;
-    expect(nextRetry.getTime()).toBeGreaterThanOrEqual(before + 45 * 60_000 - 1000);
+    const nextTrigger = shim.updates[0]!.set.triggerAt as Date;
+    expect(nextTrigger.getTime()).toBeGreaterThanOrEqual(
+      base.getTime() + 45 * 60_000 - 1000,
+    );
+    expect(nextTrigger.getTime()).toBeLessThanOrEqual(
+      base.getTime() + 45 * 60_000 + 60 * 60_000,
+    );
   });
 
-  it('rejects negative minutes', async () => {
-    const shim = makeShim();
+  it('defaults to 60 minutes when neither minutes nor hours is given', async () => {
+    const base = new Date();
+    const shim = makeShim({ selectFor: scheduledRow(base) });
     const out = await dispatchSnoozeReminder(
       baseCtx({ db: shim.client as never }),
-      'out_1',
+      'rem_1',
+      {},
+    );
+    expect(out.ok).toBe(true);
+    const nextTrigger = shim.updates[0]!.set.triggerAt as Date;
+    expect(nextTrigger.getTime()).toBeGreaterThanOrEqual(
+      base.getTime() + 60 * 60_000 - 1000,
+    );
+  });
+
+  it('refuses an immutable (sent) reminder with an honest ok:false — no false success', async () => {
+    const shim = makeShim({
+      selectFor: { reminders: [{ id: 'rem_1', status: 'sent', triggerAt: new Date() }] },
+    });
+    const out = await dispatchSnoozeReminder(
+      baseCtx({ db: shim.client as never }),
+      'rem_1',
+      { hours: 24 },
+    );
+    expect(out.ok).toBe(false);
+    expect(out.reason).toMatch(/cannot snooze a sent reminder/);
+    // Critically: NO update was issued against the table.
+    expect(shim.updates).toHaveLength(0);
+  });
+
+  it('returns ok:false not-found for a missing reminder', async () => {
+    const shim = makeShim(); // selectFor absent → empty select
+    const out = await dispatchSnoozeReminder(
+      baseCtx({ db: shim.client as never }),
+      'rem_missing',
+      { hours: 24 },
+    );
+    expect(out.ok).toBe(false);
+    expect(out.reason).toMatch(/not found/);
+    expect(shim.updates).toHaveLength(0);
+  });
+
+  it('rejects negative minutes before touching the table', async () => {
+    const shim = makeShim({ selectFor: scheduledRow(new Date()) });
+    const out = await dispatchSnoozeReminder(
+      baseCtx({ db: shim.client as never }),
+      'rem_1',
       { minutes: -1 },
     );
     expect(out.ok).toBe(false);
