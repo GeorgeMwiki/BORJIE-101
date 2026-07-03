@@ -54,7 +54,12 @@ jobs:
       - name: Run knip + dependency-cruiser
         id: knip
         run: node scripts/knip.mjs
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        # Non-blocking on PRs (advisory) AND on the write_baseline dispatch — so
+        # the refresh step below still runs even though knip currently exceeds
+        # the stale baseline (that is the whole point of a re-baseline run).
+        continue-on-error: >-
+          ${{ github.event_name == 'pull_request'
+              || (github.event_name == 'workflow_dispatch' && inputs.write_baseline == 'true') }}
 
       - name: Upload report
         if: always()
