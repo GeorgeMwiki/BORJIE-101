@@ -1428,7 +1428,8 @@
       "submitFailed": "Sign-up failed. Please try again.",
       "emailAlreadyRegistered": "This email is already registered.",
       "phoneAlreadyRegistered": "This phone number is already registered.",
-      "providerUnavailable": "Authentication provider is temporarily unavailable."
+      "providerUnavailable": "Authentication provider is temporarily unavailable.",
+      "invalidDetails": "Some details are invalid. Check your entries and try again."
     },
     "alreadyHaveAccount": "Already have an account?",
     "signInLink": "Sign in"
@@ -1519,6 +1520,8 @@
     "errors": {
       "emailRequired": "Enter a valid email address",
       "passwordRequired": "Password is required",
+      "invalidCredentials": "Incorrect email or password.",
+      "tooManyAttempts": "Too many attempts. Wait a moment and try again.",
       "signInFailed": "Sign-in failed. Check your credentials."
     },
     "fromSignup": "Your account has been created. Sign in to start buying.",

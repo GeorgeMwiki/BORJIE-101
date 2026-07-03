@@ -117,11 +117,15 @@ export function BuyerSignupWizard({ locale }: BuyerSignupWizardProps) {
     if (payload.error === 'auth_provider_unavailable') {
       return errs.providerUnavailable;
     }
-    if (payload.error === 'invalid_body' && payload.issues && payload.issues.length > 0) {
-      const first = payload.issues[0];
-      if (first) return `${first.path}: ${first.message}`;
+    if (payload.error === 'invalid_body') {
+      // The gateway's raw `issues[].message` are English zod strings — under
+      // `sw` rendering them is language mixing (the active-locale canon
+      // forbids it). Map the whole class to localized copy, never the raw
+      // provider text.
+      return errs.invalidDetails;
     }
-    if (payload.message) return payload.message;
+    // Never pass `payload.message` (a raw backend string) through to user
+    // copy — fall back to the localized generic error.
     return errs.submitFailed;
   }
 
@@ -134,14 +138,13 @@ export function BuyerSignupWizard({ locale }: BuyerSignupWizardProps) {
       draft.kind === 'individual' ? compactIndividual(draft) : draft;
     const parsed = BuyerSignupSchema.safeParse(payload);
     if (!parsed.success) {
-      const first = parsed.error.issues[0];
+      // The client zod schema carries default English messages; rendering
+      // `issue.message` under `sw` is language mixing (the active-locale
+      // canon forbids it). Surface localized copy, never the raw zod text.
       setState((prev) => ({
         ...prev,
         submitting: false,
-        serverError:
-          first !== undefined
-            ? `${first.path.join('.')}: ${first.message}`
-            : t.errors.submitFailed,
+        serverError: t.errors.invalidDetails,
       }));
       return;
     }

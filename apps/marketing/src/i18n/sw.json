@@ -1428,7 +1428,8 @@
       "submitFailed": "Imeshindwa kujisajili. Jaribu tena.",
       "emailAlreadyRegistered": "Barua pepe hii tayari imesajiliwa.",
       "phoneAlreadyRegistered": "Simu hii tayari imesajiliwa.",
-      "providerUnavailable": "Huduma ya uthibitishaji haipatikani kwa sasa."
+      "providerUnavailable": "Huduma ya uthibitishaji haipatikani kwa sasa.",
+      "invalidDetails": "Baadhi ya taarifa si sahihi. Hakiki ulizoweka kisha ujaribu tena."
     },
     "alreadyHaveAccount": "Una akaunti tayari?",
     "signInLink": "Ingia"
@@ -1519,6 +1520,8 @@
     "errors": {
       "emailRequired": "Weka anwani halali ya barua pepe",
       "passwordRequired": "Nenosiri linahitajika",
+      "invalidCredentials": "Barua pepe au nenosiri si sahihi.",
+      "tooManyAttempts": "Majaribio mengi mno. Subiri kidogo kisha ujaribu tena.",
       "signInFailed": "Imeshindwa kuingia. Hakiki taarifa zako."
     },
     "fromSignup": "Akaunti yako imeundwa. Ingia ili kuanza kununua.",

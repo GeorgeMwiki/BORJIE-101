@@ -6,6 +6,10 @@ import { z } from 'zod';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { Field } from './Field';
+import {
+  classifySignInError,
+  messageForSignInCode,
+} from './buyer-signin-errors';
 import { getMessages, type Locale } from '@/lib/i18n';
 
 interface BuyerSignInFormProps {
@@ -85,17 +89,23 @@ export function BuyerSignInForm({
         password: parsed.data.password,
       });
       if (error) {
-        setPhase({ kind: 'error', message: error.message });
+        // Never surface the raw Supabase `error.message` (e.g. "Invalid
+        // login credentials") as user copy — under `sw` that is language
+        // mixing (the active-locale canon forbids it). Branch on the
+        // structured status/code only and resolve SINGLE-LOCALE copy.
+        const code = classifySignInError(error);
+        setPhase({ kind: 'error', message: messageForSignInCode(code, errs) });
         return;
       }
       // Cross-origin redirect — the cockpit on :3010 owns its own
       // Next router; assigning location is the only correct exit.
       window.location.assign(targetUrl());
-    } catch (err) {
-      setPhase({
-        kind: 'error',
-        message: err instanceof Error ? err.message : errs.signInFailed,
-      });
+    } catch {
+      // A thrown error here is a network / env-guard failure. Its raw
+      // `message` is English provider text — rendering it under `sw` is
+      // mixing, so fall back to the localized generic error, never the
+      // raw string. The detail is dropped (no client-side capture sink).
+      setPhase({ kind: 'error', message: errs.signInFailed });
     }
   }
 
