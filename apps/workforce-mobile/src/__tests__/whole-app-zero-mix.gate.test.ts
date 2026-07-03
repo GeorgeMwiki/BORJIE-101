@@ -177,6 +177,28 @@ const RAW_ERROR_MESSAGE =
 const SW_DEFAULT =
   /(?:\?\?|\|\|)\s*['"]sw['"](?!\s*[|])|(?<![=!<>|])=\s*['"]sw['"](?!\s*[|])|[A-Za-z]*[Ll]ang="sw"/g
 
+/**
+ * Class 5 — an UNCONDITIONAL hardcoded Swahili literal in a user-facing JSX
+ * ATTRIBUTE (`title="…"`, `label='…'`, `placeholder`, `accessibilityLabel`,
+ * `hint`, `heading`, `subtitle`, `cta`, `emptyLabel`, `caption`, `header`) as a
+ * BARE STRING (`prop="…"` / `prop='…'`, NOT `prop={…}`). A bare string attribute
+ * CANNOT be locale-gated — gating requires a `{ sw ? … : … }` expression with
+ * braces — so a Swahili stem inside one renders Swahili to every user regardless
+ * of locale. This is the exact shape the round-6 documents-family vein took
+ * (`<Section title="Hati hai">`, `label="Pakia hati mpya"`). A `{…}` expression
+ * attribute is NOT a hit (it can be a single-locale `t.*` lookup or a gated
+ * ternary). The stem list uses word boundaries on short/ambiguous stems so an
+ * English attribute value is not a false hit.
+ */
+const SW_STEM =
+  'inapakia|inatuma|imeshindwa|imeshindikana|hakuna|bado|\\bhati\\b|pakia|\\btuma\\b|uliza|leseni|migodi|shifti|mauzo|fedha|hatari|bonyeza|tafadhali|andika|karibu|asante|habari|haijulikani|haijapatikana|\\bzote\\b|subiri|imekwisha|mmiliki|meneja|mfanyakazi|maamuzi|ushahidi|\\bsaini\\b|ramani|arifa|fungua|nyuma|endelea|\\bfunga\\b|ghairi|thibitisha|hariri|\\bfuta\\b|ongeza|chagua|\\bsimu\\b|\\bkidole\\b|\\bbidhaa\\b|\\bppe\\b|rasmi'
+const HARDCODED_SW_JSX_ATTR = new RegExp(
+  '\\b(?:title|label|placeholder|accessibilityLabel|hint|heading|subtitle|cta|emptyLabel|caption|header)=(["\'])(?:(?!\\1).)*\\b(?:' +
+    SW_STEM +
+    ')\\b(?:(?!\\1).)*\\1',
+  'gi',
+)
+
 interface ClassDef {
   readonly id: string
   readonly re: RegExp
@@ -224,6 +246,26 @@ const CLASSES: ReadonlyArray<ClassDef> = [
     id: 'SW-DEFAULT',
     re: SW_DEFAULT,
     allow: new Set<string>(['src/profile/ThemeSettings.tsx']),
+  },
+  {
+    // Rounds 4-7 drained the reachable screens of bare-string Swahili JSX
+    // attributes (documents family, O-M-*/W-M-* screens). The ONLY remaining
+    // offenders are 6 ORPHANED legacy worker screens (W-M-01/03/10/13/15/18) —
+    // superseded by the named `onboarding/*` flow, referenced only in
+    // src/roles/access.ts with NO CTA/Link/router.push anywhere (unreachable via
+    // normal use; KI-023). They are allowlisted (shrink-only): fixing/deleting
+    // one removes it here, and a NEW bare-string Swahili attr in ANY other file
+    // turns the gate RED — the guard against the next hidden-file-family vein.
+    id: 'HARDCODED-SW-JSX-ATTR',
+    re: HARDCODED_SW_JSX_ATTR,
+    allow: new Set<string>([
+      'app/worker/W-M-01.tsx',
+      'app/worker/W-M-03.tsx',
+      'app/worker/W-M-10.tsx',
+      'app/worker/W-M-13.tsx',
+      'app/worker/W-M-15.tsx',
+      'app/worker/W-M-18.tsx',
+    ]),
   },
 ]
 

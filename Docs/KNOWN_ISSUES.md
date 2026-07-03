@@ -503,7 +503,35 @@ referenced NOWHERE in source (the app imports `sw.json` via `lib/i18n.ts`). It i
 a stale translation snapshot. Delete it, or re-sync + wire it into an approval
 workflow if it was meant to be a review gate. No runtime impact (unimported).
 
-End of register. **Open KI count: 0 user-reachable customer-facing; 1 incomplete feature (KI-017); 5 non-customer residuals (KI-018 admin-i18n nav-fixed, KI-019 audit-sweep tail-truncation, KI-020 scoop loanword, KI-021 marketing domain glossary, KI-022 sw.approved dead file).**
+### KI-023 — 6 orphaned legacy worker screens carry hardcoded Swahili (no user entry) — **REGISTERED 2026-07-03 — LOW (unreachable, dead-legacy)**
+
+`app/worker/W-M-01.tsx` (phone signin "Simu yako"), `W-M-03.tsx` + `W-M-13.tsx`
+(fingerprint confirm "Thibitisha kwa kidole"), `W-M-10.tsx` (select product "Chagua
+bidhaa"), `W-M-15.tsx` ("Hakuna PPE"), `W-M-18.tsx` ("Hati za rasmi") still hold
+bare-string Swahili JSX attributes. They are superseded by the named `onboarding/*`
+flow (welcome/phone/identity/biometric/…) and are referenced ONLY in
+`src/roles/access.ts` + registered as `Stack.Screen`s — with NO CTA / Link /
+router.push anywhere, so no user reaches them via normal use (deep-link only).
+
+They are the sole entries on the `HARDCODED-SW-JSX-ATTR` shrink-only allowlist in
+`src/__tests__/whole-app-zero-mix.gate.test.ts` (the round-7 detector) — a NEW
+bare-Swahili-attr in any other file turns the gate RED. **Resolution (owner):**
+DELETE these dead screens (+ their access.ts / _layout.tsx registrations) after
+confirming no deep-link depends on them, OR route them through i18n if they are
+to be revived. Not customer-reachable today.
+
+### KI-024 — O-M-21 sign-off screen is a hardcoded mock (no live UI entry) — **REGISTERED 2026-07-03 — LOW (unreachable mock)**
+
+`app/owner/O-M-21.tsx:76-80` renders a hardcoded PlaceholderList row ("Driver
+letter · LV-2231" / "Tani 7 · Geita → Mwanza") and `:42` signs against a hardcoded
+`documentId: 'LV-2231'` — a mock-where-real-promised + unconditional English
+literals. Verified round-7 as Tier-2: the route has NO live UI entry (no tab/CTA
+links to O-M-21). **Resolution:** when a real recent-sign-off source lands, replace
+the literal row with a useQuery against the gateway sign-off endpoint, drive
+documentId from the fetched row, and route the two literals through i18n. Until a
+user path exists, latent.
+
+End of register. **Open KI count: 0 user-reachable customer-facing; 1 incomplete feature (KI-017); 7 non-customer residuals (KI-018 admin-i18n nav-fixed, KI-019 audit-sweep tail-truncation, KI-020 scoop loanword, KI-021 marketing domain glossary, KI-022 sw.approved dead file, KI-023 orphaned legacy worker screens, KI-024 O-M-21 mock).**
 
 ---
 
