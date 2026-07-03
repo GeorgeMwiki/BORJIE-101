@@ -26,6 +26,7 @@ import {
   SelectItem,
 } from '@borjie/design-system';
 import { formatCurrency } from '@borjie/api-client';
+import { bcp47For } from '@/lib/format';
 import {
   useCostAnalyze,
   useCostRecommend,
@@ -85,7 +86,7 @@ export function CostEngineerPanel({ locale, siteId }: CostEngineerPanelProps) {
   const fmt = useMemo(
     () => (value: number) =>
       formatCurrency(value, analysis?.currency ?? currency, {
-        locale: locale === 'sw' ? 'sw-TZ' : 'en-US',
+        locale: bcp47For(locale),
       }),
     [analysis?.currency, currency, locale],
   );

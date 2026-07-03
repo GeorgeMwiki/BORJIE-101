@@ -19,6 +19,7 @@
 import { useMemo, useState } from 'react';
 import { Button } from '@borjie/design-system';
 import { formatCurrency } from '@borjie/api-client';
+import { bcp47For } from '@/lib/format';
 import {
   useTreasuryAnalyze,
   useTreasuryRecommend,
@@ -97,7 +98,7 @@ export function TreasuryAdvisorPanel({ locale }: TreasuryAdvisorPanelProps) {
   const fmt = useMemo(() => {
     const cur = analysis?.runway.baseCurrency ?? baseCurrency;
     return (value: number) =>
-      formatCurrency(value, cur, { locale: locale === 'sw' ? 'sw-TZ' : 'en-US' });
+      formatCurrency(value, cur, { locale: bcp47For(locale) });
   }, [analysis?.runway.baseCurrency, baseCurrency, locale]);
 
   function buildRequest(): TreasuryAnalyzeRequest {

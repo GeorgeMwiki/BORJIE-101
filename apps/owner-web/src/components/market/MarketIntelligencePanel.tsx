@@ -20,6 +20,7 @@
 import { useState } from 'react';
 import { Skeleton } from '@borjie/design-system';
 import { formatCurrency } from '@borjie/api-client';
+import { bcp47For } from '@/lib/format';
 import { marketIntelligencePanelStrings as T } from '@/i18n/strings/market-intelligence-panel';
 import { enumLabel } from '@/components/owner-os/panels/enum-label';
 import {
@@ -61,7 +62,7 @@ export function MarketIntelligencePanel({ locale }: MarketIntelligencePanelProps
   const forecast = useCommodityForecast(commodity);
   const disruptions = useDisruptionAlerts();
 
-  const numLocale = locale === 'sw' ? 'sw-TZ' : 'en-US';
+  const numLocale = bcp47For(locale);
   const priceFeedDown = isFeedUnavailable(price.error);
 
   return (

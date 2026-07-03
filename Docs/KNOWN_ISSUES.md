@@ -531,7 +531,20 @@ the literal row with a useQuery against the gateway sign-off endpoint, drive
 documentId from the fetched row, and route the two literals through i18n. Until a
 user path exists, latent.
 
-End of register. **Open KI count: 0 user-reachable customer-facing; 1 incomplete feature (KI-017); 7 non-customer residuals (KI-018 admin-i18n nav-fixed, KI-019 audit-sweep tail-truncation, KI-020 scoop loanword, KI-021 marketing domain glossary, KI-022 sw.approved dead file, KI-023 orphaned legacy worker screens, KI-024 O-M-21 mock).**
+### KI-025 — owner-web BidsInbox renders the incoming-bid price with hardcoded LAUNCH_CURRENCY — **REGISTERED 2026-07-03 — LOW (latent, correct at launch)**
+
+`apps/owner-web/src/components/marketplace/BidsInbox.tsx:149` renders
+`formatMoney(bid.bidPriceTzs, LAUNCH_CURRENCY, locale)` — a hardcoded display
+currency. Correct at launch (TZS is the only domestic currency; `bidPriceTzs` is
+TZS-denominated by column name), so NO user-visible defect today. Latent for
+KE/UG/NG expansion. **Fix (needs a data-model change):** thread a `currency` /
+`currencyCode` field onto the `IncomingBid` shape (from the listing/bid row) and
+pass it to `formatMoney` instead of `LAUNCH_CURRENCY`, with a test asserting a
+non-TZS bid renders its own currency. Distinct from the round-8 T21 fix (the four
+owner-web money panels' hardcoded `en-US` BCP-47 literals — those were FIXED via
+`bcp47For(locale)`).
+
+End of register. **Open KI count: 0 user-reachable customer-facing; 1 incomplete feature (KI-017); 8 non-customer residuals (KI-018 admin-i18n nav-fixed, KI-019 audit-sweep tail-truncation, KI-020 scoop loanword, KI-021 marketing domain glossary, KI-022 sw.approved dead file, KI-023 orphaned legacy worker screens, KI-024 O-M-21 mock, KI-025 BidsInbox launch-currency latent).**
 
 ---
 

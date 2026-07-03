@@ -14,6 +14,7 @@
 
 import { useMemo, useState, type ReactElement } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { bcp47For } from '@/lib/format';
 
 interface ColumnDef {
   readonly key?: string;
@@ -81,7 +82,7 @@ function renderCell(
     if (Number.isFinite(num)) {
       return (
         <span className="font-mono tabular-nums">
-          {num.toLocaleString(locale === 'sw' ? 'sw-TZ' : 'en-US')}
+          {num.toLocaleString(bcp47For(locale))}
         </span>
       );
     }
