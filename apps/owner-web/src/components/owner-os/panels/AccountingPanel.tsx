@@ -11,6 +11,8 @@ import { PanelHero } from './PanelHero';
 import { PanelDataTable, type PanelColumn } from './PanelDataTable';
 import { AskMwikilaCta } from './AskMwikilaCta';
 import type { OwnerOSPanelProps } from './types';
+import { getCurrencyDecimals } from '@borjie/api-client';
+import { formatMoney } from '@/lib/format';
 import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 import { ownerOsPanelsStrings as P } from '@/i18n/strings/owner-os-panels';
 import { ownerOsBffStrings as B } from '@/i18n/strings/owner-os-bff';
@@ -60,6 +62,7 @@ export const ACCOUNTING_PANEL_DESCRIPTOR = ACCOUNTING_DESCRIPTOR;
 
 function accountingColumns(
   isSw: boolean,
+  locale: 'sw' | 'en',
 ): ReadonlyArray<PanelColumn<AccountingLedgerRow>> {
   return [
     {
@@ -68,15 +71,22 @@ function accountingColumns(
       render: (r) => r.postedAt,
     },
     {
-      key: 'account',
+      key: 'accountId',
       header: isSw ? B.accounting.colAccount.sw : B.accounting.colAccount.en,
-      render: (r) => r.account,
+      render: (r) => r.accountId,
     },
     {
-      key: 'amount',
+      key: 'amountMinorUnits',
       header: isSw ? B.accounting.colAmount.sw : B.accounting.colAmount.en,
       alignRight: true,
-      render: (r) => r.amount ?? '—',
+      // BIGINT minor units → major via the ISO decimal count, then formatMoney
+      // with the per-line currency (multi-currency canon; never hardcode a code).
+      render: (r) =>
+        formatMoney(
+          r.amountMinorUnits / 10 ** getCurrencyDecimals(r.currency),
+          r.currency,
+          locale,
+        ),
     },
   ];
 }
@@ -106,7 +116,7 @@ export function AccountingPanel({
         isLoading={isLoading}
         isError={isError}
         rows={rows}
-        columns={accountingColumns(isSw)}
+        columns={accountingColumns(isSw, locale)}
         rowKey={(r) => r.id}
         emptyTitle={isSw ? B.accounting.emptyTitle.sw : B.accounting.emptyTitle.en}
         emptyBody={isSw ? B.accounting.emptyBody.sw : B.accounting.emptyBody.en}

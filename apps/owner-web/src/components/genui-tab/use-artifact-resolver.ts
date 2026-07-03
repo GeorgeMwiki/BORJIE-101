@@ -30,6 +30,7 @@ import { z } from 'zod';
 import { safeParsePortalTab, type PortalTab } from '@borjie/portal-genui';
 
 import { apiRequest, ApiError, localizeError } from '@/lib/api-client';
+import { localizeApiError } from '@borjie/error-catalog';
 import { useLocale } from '@/lib/locale';
 
 /** The artifact modalities a projected descriptor can carry. */
@@ -116,7 +117,9 @@ export function useArtifactResolver(
         if (!parsed.success || !artifactKind) {
           setState({
             status: 'error',
-            message: 'Artifact descriptor was malformed.',
+            // Localize by code — a raw English body under a localized prefix is
+            // MIXING under sw. Unknown code → localized generic fallback.
+            message: localizeApiError('ARTIFACT_MALFORMED', locale),
           });
           return;
         }
@@ -139,7 +142,7 @@ export function useArtifactResolver(
         if (err instanceof ApiError && err.status === 404) {
           setState({
             status: 'error',
-            message: 'This artifact is no longer available.',
+            message: localizeApiError('NOT_FOUND', locale),
           });
           return;
         }

@@ -7,6 +7,7 @@ import { ALLOWED_MIMES, validateUpload, type UploadResult } from './types';
 import type { Locale } from '@/lib/locale-shared';
 import { DEFAULT_LOCALE } from '@/lib/locale-shared';
 import { localizeError } from '@/lib/api-client';
+import { localizeApiError } from '@borjie/error-catalog';
 import { tailStrings as S } from '@/i18n/strings/tail';
 
 export interface DocumentUploadButtonProps {
@@ -56,7 +57,9 @@ export function DocumentUploadButton({
         fileSize: file.size,
       });
       if (!validation.ok) {
-        onError?.(validation.message);
+        // Localize by the stable CODE — never the raw English `validation.message`
+        // (which renders English to a sw owner: a zero-mix leak).
+        onError?.(localizeApiError(validation.code, locale));
         return;
       }
       const result = await registerUpload({
