@@ -85,7 +85,17 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && inputs.write_baseline == 'true'
         run: |
           node scripts/knip.mjs --write-baseline
-          echo "::notice::Baseline refreshed — commit .knip-baseline.json in a follow-up PR."
+          echo "::notice::Baseline refreshed — download the knip-baseline artifact and commit .knip-baseline.json."
+
+      # Make the CI-env-generated baseline retrievable so it can be committed
+      # (a locally-generated baseline can't match CI's --ignore-scripts env).
+      - name: Upload regenerated baseline (dispatch only)
+        if: github.event_name == 'workflow_dispatch' && inputs.write_baseline == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: knip-baseline
+          path: .knip-baseline.json
+          if-no-files-found: error
 
       # Advisory until the baseline is regenerated in CI's EXACT environment.
       # CI runs knip after `pnpm install --ignore-scripts` (no prepare-generated
