@@ -30,7 +30,8 @@ import {
   offtakeAgreements,
 } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
-import { authMiddleware } from '../../middleware/hono-auth';
+import { authMiddleware, requireRole } from '../../middleware/hono-auth';
+import { UserRole } from '../../types/user-role';
 import { databaseMiddleware } from '../../middleware/database';
 import { publishCockpitEvent } from '../../services/cockpit-events';
 import { enqueueBidOutcomeNotification } from '../../services/buyer-notifications';
@@ -45,6 +46,22 @@ import {
 const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', databaseMiddleware);
+
+// Seller-side bid lifecycle (accept / reject / offtake-sign) crystallizes a
+// binding commercial contract and enqueues `settlement.requested` (the money
+// leg). It is therefore restricted to the seller-org's authorized principals —
+// the SAME accounting/ownership tier the sibling cooperative-settlement money
+// route gates on (see routes/cooperatives/settlements.hono.ts
+// SETTLEMENT_WRITE_ROLES). Without this, ANY authenticated tenant member (incl.
+// a low-privilege field worker or a self-registered buyer mapped into the
+// tenant) could accept a bid, sign the offtake, and drive settlement. Reads
+// (list / incoming / get) stay open to members; only the binding writes gate.
+const SELLER_WRITE_ROLES = [
+  UserRole.OWNER,
+  UserRole.TENANT_ADMIN,
+  UserRole.ACCOUNTANT,
+  UserRole.SUPER_ADMIN,
+] as const;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type DrizzleDb = any;
@@ -363,7 +380,7 @@ async function resolveBuyerUserId(
 }
 
 app.openapi(
-  bidsAcceptRoute,
+  { ...bidsAcceptRoute, middleware: [requireRole(...SELLER_WRITE_ROLES)] },
   withSecurityEvents(
     { action: 'mining.bid.accept', resource: 'mining.bid', severity: 'info' },
     async (c) => {
@@ -504,7 +521,7 @@ app.openapi(
 );
 
 app.openapi(
-  bidsRejectRoute,
+  { ...bidsRejectRoute, middleware: [requireRole(...SELLER_WRITE_ROLES)] },
   withSecurityEvents(
     { action: 'mining.bid.reject', resource: 'mining.bid', severity: 'info' },
     async (c) => {
@@ -799,7 +816,7 @@ app.get('/offtake-agreements/mine', async (c: any) => {
 // never collides with the buyer-side `GET /:id`.
 // ---------------------------------------------------------------------------
 
-app.post('/offtake-agreements/:id/sign', async (c: any) => {
+app.post('/offtake-agreements/:id/sign', requireRole(...SELLER_WRITE_ROLES), async (c: any) => {
   const auth = c.get('auth') as { tenantId?: string; userId?: string } | undefined;
   if (!auth?.tenantId || !auth?.userId) {
     return c.json(
