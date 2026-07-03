@@ -92,9 +92,33 @@ const DecisionsSlotSchema = z.object({
 });
 
 const CashRunwaySlotSchema = z.object({
+  // Sales INFLOW signal over the trailing 90 days — retained as a
+  // secondary "90-day net · N sales sampled" display. This is NOT a runway
+  // input (a 90-day inflow total divided by its own 90-day daily average is
+  // always 90 — the degenerate constant this slot used to ship as "runway").
   ninetyDayNetTzs: z.number(),
   dailyAvgTzs: z.number(),
   sampleCount: z.number().int().nonnegative(),
+  // REAL runway inputs — mirror the risk-scanner cash-flow resolver
+  // (services/api-gateway/src/services/risk-scanner/scanner.ts:resolveCashFlow).
+  //   cash on hand = Σ latest `cash_balances.balance_tzs` per account
+  //   net daily burn = Σ actual `costs.amount_tzs` over 30d / 30
+  //   runway (days) = floor(cash_on_hand / net_daily_burn)
+  // Each is nullable so an ABSENT treasury/cost feed surfaces as an honest
+  // unknown (`null`) rather than a fabricated number. `runwayDays === null`
+  // means either (a) inputs missing → unknown, or (b) burn ≤ 0 → the estate
+  // is net cash-positive / not burning (no finite runway); `burnStatus`
+  // distinguishes the two so the FE renders the correct honest copy.
+  //
+  // `.default(...)` on each new field lets a snapshot PERSISTED BEFORE the
+  // real-runway fields shipped still parse (readTodaysSnapshot) — it simply
+  // reads back as an honest `unknown` runway until the next compose/cron
+  // re-authors it. Without the defaults every legacy cached row would fail
+  // schema validation and force an on-demand recompose on first read.
+  cashOnHandTzs: z.number().nullable().default(null),
+  netDailyBurnTzs: z.number().nullable().default(null),
+  runwayDays: z.number().int().nonnegative().nullable().default(null),
+  burnStatus: z.enum(['burning', 'no_burn', 'unknown']).default('unknown'),
 });
 
 const ProductionSlotSchema = z.object({
@@ -294,12 +318,60 @@ export async function getCockpitDecisions(
   }
 }
 
+/**
+ * Pure cash-runway computation — a REAL days-of-cash projection, not the
+ * degenerate `ninetyDayNet / (ninetyDayNet / 90) === 90` constant this slot
+ * used to ship.
+ *
+ * Runway = cash_on_hand ÷ net_daily_burn (days the estate can operate at the
+ * current burn before cash is exhausted). Honesty rules (D21 grounded-numbers):
+ *   - inputs missing (no treasury balance and/or no cost feed) → `unknown`,
+ *     `runwayDays: null`. Never a fabricated number.
+ *   - burn ≤ 0 (the estate is net cash-positive / not spending) → `no_burn`,
+ *     `runwayDays: null`. There is effectively no finite runway — represented
+ *     as "no burn", NOT as 90 and NOT as ∞.
+ *   - otherwise → `burning`, `runwayDays: floor(cash_on_hand / net_daily_burn)`.
+ *
+ * Mirrors services/api-gateway/src/services/risk-scanner/scanner.ts
+ * (resolveCashFlow): floor(cashOnHand / dailyBurn) when dailyBurn > 0.
+ */
+export function computeCashRunway(inputs: {
+  readonly cashOnHandTzs: number | null;
+  readonly netDailyBurnTzs: number | null;
+}): {
+  readonly runwayDays: number | null;
+  readonly burnStatus: 'burning' | 'no_burn' | 'unknown';
+} {
+  const { cashOnHandTzs, netDailyBurnTzs } = inputs;
+  // No treasury balance OR no cost feed → we cannot ground a runway. Honest
+  // unknown, never a constant.
+  if (
+    cashOnHandTzs === null ||
+    netDailyBurnTzs === null ||
+    !Number.isFinite(cashOnHandTzs) ||
+    !Number.isFinite(netDailyBurnTzs)
+  ) {
+    return { runwayDays: null, burnStatus: 'unknown' };
+  }
+  // Burn ≤ 0 → the estate is not burning cash. No finite runway; surface as
+  // "no burn" so the FE renders "—" / "no burn", never a fabricated 90 or ∞.
+  if (netDailyBurnTzs <= 0) {
+    return { runwayDays: null, burnStatus: 'no_burn' };
+  }
+  return {
+    runwayDays: Math.max(0, Math.floor(cashOnHandTzs / netDailyBurnTzs)),
+    burnStatus: 'burning',
+  };
+}
+
 export async function getCockpitCashRunway(
   db: any,
   tenantId: string,
 ): Promise<z.infer<typeof CashRunwaySlotSchema>> {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 90);
+  // Secondary INFLOW signal — trailing-90-day net sales. Retained for the
+  // "90-day net · N sales sampled" line; it is NOT a runway input.
   const recentSales = ((await db
     .select()
     .from(sales)
@@ -312,11 +384,107 @@ export async function getCockpitCashRunway(
     0,
   );
   const dailyAvgTzs = ninetyDayNetTzs / 90;
+
+  // REAL runway inputs — cash on hand + net daily burn from the treasury +
+  // cost ledgers. Same DISTINCT-ON-latest-per-account + 30-day-actual-cost
+  // idiom the risk-scanner uses (scanner.ts:resolveCashFlow). A read failure
+  // or empty feed yields `null` (honest unknown), never a fabricated figure.
+  const { cashOnHandTzs, netDailyBurnTzs } = await readRunwayInputs(
+    db,
+    tenantId,
+  );
+  const { runwayDays, burnStatus } = computeCashRunway({
+    cashOnHandTzs,
+    netDailyBurnTzs,
+  });
+
   return {
     ninetyDayNetTzs,
     dailyAvgTzs,
     sampleCount: recentSales.length,
+    cashOnHandTzs,
+    netDailyBurnTzs,
+    runwayDays,
+    burnStatus,
   };
+}
+
+/**
+ * Read the two REAL runway inputs, each independently degradable to `null`:
+ *   - cash on hand: Σ of the LATEST `cash_balances.balance_tzs` per account
+ *     (DISTINCT ON (account_id) ... ORDER BY recorded_at DESC). A tenant with
+ *     no treasury rows → `null` (no signal), never 0.
+ *   - net daily burn: Σ actual `costs.amount_tzs` over the last 30 days / 30.
+ *     A tenant with no cost rows → `null`, never 0 (a real "no burn" is only
+ *     asserted when a cost feed exists but sums to ≤ 0 — the SQL returns 0 in
+ *     that case, which `computeCashRunway` maps to `no_burn`).
+ *
+ * The two reads are independent (Promise.allSettled) so one failing feed does
+ * not poison the other. Both fall back to `null` on any read error.
+ */
+async function readRunwayInputs(
+  db: any,
+  tenantId: string,
+): Promise<{
+  readonly cashOnHandTzs: number | null;
+  readonly netDailyBurnTzs: number | null;
+}> {
+  const [cashResult, burnResult] = await Promise.allSettled([
+    db.execute(sql`
+      SELECT COALESCE(SUM(latest.balance_tzs), 0)::numeric AS cash_total,
+             COUNT(*)::int AS account_count
+        FROM (
+          SELECT DISTINCT ON (account_id) balance_tzs
+            FROM cash_balances
+           WHERE tenant_id = ${tenantId}
+           ORDER BY account_id, recorded_at DESC
+        ) AS latest
+    `),
+    db.execute(sql`
+      SELECT (COALESCE(SUM(amount_tzs), 0) / 30.0)::numeric AS daily_burn,
+             COUNT(*)::int AS cost_rows
+        FROM costs
+       WHERE tenant_id = ${tenantId}
+         AND state = 'actual'
+         AND ts > NOW() - INTERVAL '30 days'
+    `),
+  ]);
+
+  let cashOnHandTzs: number | null = null;
+  if (cashResult.status === 'fulfilled') {
+    const row = rowsOf(cashResult.value)[0] as
+      | { cash_total?: unknown; account_count?: unknown }
+      | undefined;
+    // Only a REAL treasury feed grounds cash-on-hand: zero accounts → unknown.
+    if (Number(row?.account_count ?? 0) > 0) {
+      const parsed = Number(row?.cash_total ?? 0);
+      cashOnHandTzs = Number.isFinite(parsed) ? parsed : null;
+    }
+  } else {
+    moduleLogger.warn('cash-on-hand read failed — runway input unknown', {
+      tenantId,
+      reason: messageOf(cashResult.reason),
+    });
+  }
+
+  let netDailyBurnTzs: number | null = null;
+  if (burnResult.status === 'fulfilled') {
+    const row = rowsOf(burnResult.value)[0] as
+      | { daily_burn?: unknown; cost_rows?: unknown }
+      | undefined;
+    // Only a REAL cost feed grounds burn: zero cost rows → unknown (not 0).
+    if (Number(row?.cost_rows ?? 0) > 0) {
+      const parsed = Number(row?.daily_burn ?? 0);
+      netDailyBurnTzs = Number.isFinite(parsed) ? parsed : null;
+    }
+  } else {
+    moduleLogger.warn('daily-burn read failed — runway input unknown', {
+      tenantId,
+      reason: messageOf(burnResult.reason),
+    });
+  }
+
+  return { cashOnHandTzs, netDailyBurnTzs };
 }
 
 export async function getCockpitProductionVsTarget(
@@ -516,6 +684,11 @@ export async function composeOwnerBrief(
     ninetyDayNetTzs: 0,
     dailyAvgTzs: 0,
     sampleCount: 0,
+    // Degraded slot → honest unknown runway, never a fabricated number.
+    cashOnHandTzs: null,
+    netDailyBurnTzs: null,
+    runwayDays: null,
+    burnStatus: 'unknown',
   } as z.infer<typeof CashRunwaySlotSchema>);
   const productionVsTarget = slotOr(3, 'productionVsTarget', {
     window: '30d',
@@ -596,6 +769,10 @@ async function composeAdvisorSlice(slots: {
     pendingDecisions: slots.decisions.pendingCount,
     cashNet90dTzs: slots.cashRunway.ninetyDayNetTzs,
     cashDailyAvgTzs: slots.cashRunway.dailyAvgTzs,
+    cashOnHandTzs: slots.cashRunway.cashOnHandTzs,
+    netDailyBurnTzs: slots.cashRunway.netDailyBurnTzs,
+    cashRunwayDays: slots.cashRunway.runwayDays,
+    cashBurnStatus: slots.cashRunway.burnStatus,
     productionPerSite: slots.productionVsTarget.perSite,
     cliffRemediation: slots.cliffStatus.remediationComplete,
     licencesAtRisk: slots.licenceHealth.atRiskCount,

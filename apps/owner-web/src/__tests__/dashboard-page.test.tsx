@@ -90,6 +90,11 @@ function buildEnvelope(): OwnerBriefEnvelope {
         ninetyDayNetTzs: 1_800_000_000,
         dailyAvgTzs: 20_000_000,
         sampleCount: 42,
+        // REAL runway inputs: 600M cash / 4M/day burn → 150 days.
+        cashOnHandTzs: 600_000_000,
+        netDailyBurnTzs: 4_000_000,
+        runwayDays: 150,
+        burnStatus: 'burning' as const,
       },
       productionVsTarget: {
         window: '30d',

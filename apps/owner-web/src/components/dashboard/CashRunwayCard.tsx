@@ -1,7 +1,7 @@
 'use client';
 
 import { Card } from '@borjie/design-system';
-import { formatMoney, LAUNCH_CURRENCY } from '@/lib/format';
+import { formatMoney, formatLargeMoney, LAUNCH_CURRENCY } from '@/lib/format';
 import { useLocale } from '@/lib/locale';
 import type { Locale } from '@/lib/locale';
 import { financeTablesStrings as S } from '@/i18n/strings/finance-tables';
@@ -26,10 +26,13 @@ interface CashRunwayCardProps {
 /**
  * Cash & USD-cliff card — sits beside the production table.
  *
- * Combines the 90-day net inflow (used as a runway proxy) with the
- * post-27-Mar USD cliff tracker so the owner sees both numbers
- * together. Every string renders in the ACTIVE locale (no EN/SW mixing);
- * money flows through `formatMoney` with the launch currency as data.
+ * Shows the REAL cash runway (cash on hand ÷ net daily burn, computed by the
+ * gateway from the treasury + cost ledgers) alongside the 90-day sales-inflow
+ * signal and the post-27-Mar USD cliff tracker. The runway is honest: `null`
+ * `runwayDays` renders "runway unknown" (inputs missing) or "no burn" (estate
+ * net cash-positive) per `burnStatus` — NEVER the old degenerate constant 90.
+ * Every string renders in the ACTIVE locale (no EN/SW mixing); money flows
+ * through `formatMoney` with the launch currency as data.
  */
 export function CashRunwayCard({
   cashRunway,
@@ -37,22 +40,26 @@ export function CashRunwayCard({
   initialLocale,
 }: CashRunwayCardProps): JSX.Element {
   const locale = useLocale(initialLocale);
-  const dailyAvg = cashRunway.dailyAvgTzs;
-  const projectedDays =
-    dailyAvg > 0
-      ? Math.round(Math.max(cashRunway.ninetyDayNetTzs, 0) / dailyAvg)
-      : null;
+  // REAL runway from the gateway — cash on hand ÷ net daily burn. `null` means
+  // unknown (no treasury/cost feed) or no-burn (net cash-positive), told apart
+  // by `burnStatus`. We do NOT re-derive a day count on the client.
+  const runwayDays = cashRunway.runwayDays;
+  const burnStatus = cashRunway.burnStatus;
   const cliff = new Date(cliffStatus.cliffDateIso);
   const cliffDays = Number.isNaN(cliff.getTime())
     ? null
     : Math.round((cliff.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
 
   const runwayPill =
-    projectedDays === null
-      ? 'pill-amber'
-      : projectedDays >= 90
+    runwayDays === null
+      ? // Net-positive (no burn) is a healthy signal → green; a genuinely
+        // unknown runway (missing feed) is neutral → amber.
+        burnStatus === 'no_burn'
         ? 'pill-green'
-        : projectedDays >= 45
+        : 'pill-amber'
+      : runwayDays >= 90
+        ? 'pill-green'
+        : runwayDays >= 45
           ? 'pill-amber'
           : 'pill-red';
   const cliffPill = cliffStatus.remediationComplete
@@ -86,10 +93,26 @@ export function CashRunwayCard({
 
       <div className="flex flex-wrap gap-1.5">
         <span className={`pill ${runwayPill}`}>
-          {projectedDays === null
-            ? S.cashRunway.runwayUnknown[locale]
-            : S.cashRunway.daysRunway(projectedDays)[locale]}
+          {runwayDays !== null
+            ? S.cashRunway.daysRunway(runwayDays)[locale]
+            : burnStatus === 'no_burn'
+              ? S.cashRunway.noBurn[locale]
+              : S.cashRunway.runwayUnknown[locale]}
         </span>
+        {cashRunway.netDailyBurnTzs !== null &&
+        cashRunway.netDailyBurnTzs > 0 ? (
+          <span className="pill border-border text-neutral-400">
+            {
+              S.cashRunway.burnPerDay(
+                formatLargeMoney(
+                  cashRunway.netDailyBurnTzs,
+                  LAUNCH_CURRENCY,
+                  locale,
+                ),
+              )[locale]
+            }
+          </span>
+        ) : null}
       </div>
 
       <hr className="border-border/40" />

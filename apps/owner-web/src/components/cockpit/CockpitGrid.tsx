@@ -86,6 +86,7 @@ export function CockpitGrid({ initialLocale }: CockpitGridProps = {}) {
         <CashRunwayCard
           cashTzsMillions={data.cashTzsMillions}
           runwayDays={data.runwayDays}
+          runwayBurnStatus={data.runwayBurnStatus}
           burnPerDayTzsMillions={data.burnPerDayTzsMillions}
         />
         <LicenceHealthCard

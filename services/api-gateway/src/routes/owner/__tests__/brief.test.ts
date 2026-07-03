@@ -35,6 +35,7 @@ process.env.BORJIE_SKIP_DOTENV = 'true';
 import {
   createOwnerBriefRouter,
   composeOwnerBrief,
+  computeCashRunway,
   OwnerBriefSchema,
 } from '../brief.hono.js';
 import { generateToken } from '../../../middleware/auth.js';
@@ -186,6 +187,44 @@ function makeStubDb(
   };
 
   return { db, executeCalls };
+}
+
+/**
+ * Wrap a stub `execute` so the two cash-runway SQL reads (cash_balances /
+ * costs) resolve to distinct row sets keyed by a SQL substring. Any other
+ * query falls through to the original stub `execute`.
+ */
+function routeRunwayExecute(
+  original: (q: unknown) => Promise<{ rows: ReadonlyArray<Record<string, unknown>> }>,
+  rows: {
+    readonly cash: ReadonlyArray<Record<string, unknown>>;
+    readonly burn: ReadonlyArray<Record<string, unknown>>;
+  },
+): (q: unknown) => Promise<{ rows: ReadonlyArray<Record<string, unknown>> }> {
+  function extract(query: unknown): string {
+    if (!query || typeof query !== 'object') return '';
+    const q = query as { queryChunks?: unknown };
+    if (!Array.isArray(q.queryChunks)) return '';
+    let out = '';
+    for (const chunk of q.queryChunks) {
+      if (typeof chunk === 'string') out += chunk;
+      else if (chunk && typeof chunk === 'object') {
+        const c = chunk as { value?: unknown };
+        if (typeof c.value === 'string') out += c.value;
+        else if (Array.isArray(c.value))
+          out += c.value.filter((v) => typeof v === 'string').join('');
+        else if (Array.isArray((chunk as { queryChunks?: unknown }).queryChunks))
+          out += extract(chunk);
+      }
+    }
+    return out;
+  }
+  return async (q: unknown) => {
+    const text = extract(q);
+    if (text.includes('cash_balances')) return { rows: rows.cash };
+    if (text.includes('costs')) return { rows: rows.burn };
+    return original(q);
+  };
 }
 
 function bearer(): string {
@@ -398,6 +437,54 @@ describe('composeOwnerBrief() — service-layer composition', () => {
     expect(brief.cliffStatus.remediationComplete).toBe(true);
   });
 
+  it('computes a REAL runway from the cash + cost feeds (not the constant 90)', async () => {
+    // Route the two runway SQL reads to distinct row sets by SQL substring.
+    // cash 900M, burn 10M/day → runway = floor(900M / 10M) = 90, but a REAL
+    // 90 derived from INDEPENDENT cash + burn, not the degenerate ratio.
+    const { db } = makeStubDb({ tableRows: { sales: [] } });
+    db.execute = routeRunwayExecute(db.execute, {
+      cash: [{ cash_total: '900000000', account_count: 3 }],
+      burn: [{ daily_burn: '10000000', cost_rows: 12 }],
+    });
+    const brief = await composeOwnerBrief(db, 't1');
+    expect(brief.cashRunway.cashOnHandTzs).toBe(900_000_000);
+    expect(brief.cashRunway.netDailyBurnTzs).toBe(10_000_000);
+    expect(brief.cashRunway.burnStatus).toBe('burning');
+    expect(brief.cashRunway.runwayDays).toBe(90);
+  });
+
+  it('returns honest UNKNOWN runway when the treasury + cost feeds are empty', async () => {
+    // No cash_balances rows (account_count 0) and no cost rows (cost_rows 0):
+    // both inputs are unknown → runwayDays null, burnStatus 'unknown'. NEVER a
+    // fabricated 90/0.
+    const { db } = makeStubDb({ tableRows: { sales: [] } });
+    db.execute = routeRunwayExecute(db.execute, {
+      cash: [{ cash_total: '0', account_count: 0 }],
+      burn: [{ daily_burn: '0', cost_rows: 0 }],
+    });
+    const brief = await composeOwnerBrief(db, 't1');
+    expect(brief.cashRunway.cashOnHandTzs).toBeNull();
+    expect(brief.cashRunway.netDailyBurnTzs).toBeNull();
+    expect(brief.cashRunway.runwayDays).toBeNull();
+    expect(brief.cashRunway.burnStatus).toBe('unknown');
+  });
+
+  it('returns the NO-BURN sentinel when the estate is net cash-positive', async () => {
+    // A real treasury balance + a real cost feed that nets to ≤ 0 burn (e.g.
+    // refunds/credits outweigh spend) → no finite runway: runwayDays null,
+    // burnStatus 'no_burn'. NOT 90, NOT ∞.
+    const { db } = makeStubDb({ tableRows: { sales: [] } });
+    db.execute = routeRunwayExecute(db.execute, {
+      cash: [{ cash_total: '500000000', account_count: 2 }],
+      burn: [{ daily_burn: '-2000000', cost_rows: 5 }],
+    });
+    const brief = await composeOwnerBrief(db, 't1');
+    expect(brief.cashRunway.cashOnHandTzs).toBe(500_000_000);
+    expect(brief.cashRunway.netDailyBurnTzs).toBe(-2_000_000);
+    expect(brief.cashRunway.runwayDays).toBeNull();
+    expect(brief.cashRunway.burnStatus).toBe('no_burn');
+  });
+
   it('returns empty decisions slot when the SQL helper raises', async () => {
     // Construct a DB whose execute() throws when grievances/decisions
     // queries hit — confirms the slot wraps its error path.
@@ -429,5 +516,53 @@ describe('composeOwnerBrief() — service-layer composition', () => {
     const brief = await composeOwnerBrief(db, 't1');
     expect(brief.decisions.pendingCount).toBe(0);
     expect(brief.decisions.items).toEqual([]);
+  });
+});
+
+describe('computeCashRunway() — the REAL runway (guards the old degenerate 90)', () => {
+  it('a BURNING estate yields cash / burn — not the constant 90', () => {
+    // 500M cash, 5M/day burn → 100 days. The degenerate formula would have
+    // returned 90 regardless of the actual numbers.
+    const r = computeCashRunway({
+      cashOnHandTzs: 500_000_000,
+      netDailyBurnTzs: 5_000_000,
+    });
+    expect(r.burnStatus).toBe('burning');
+    expect(r.runwayDays).toBe(100);
+  });
+
+  it('floors the day count (never rounds a partial day up)', () => {
+    // 100 / 9 = 11.11… → floor → 11 (you cannot bank the 12th day).
+    const r = computeCashRunway({ cashOnHandTzs: 100, netDailyBurnTzs: 9 });
+    expect(r.runwayDays).toBe(11);
+  });
+
+  it('a NET-POSITIVE estate (burn ≤ 0) yields the no-burn sentinel, not 90/∞', () => {
+    for (const netDailyBurnTzs of [0, -1, -5_000_000]) {
+      const r = computeCashRunway({ cashOnHandTzs: 500_000_000, netDailyBurnTzs });
+      expect(r.burnStatus).toBe('no_burn');
+      expect(r.runwayDays).toBeNull();
+    }
+  });
+
+  it('missing inputs (null / non-finite) yield an honest unknown, never a number', () => {
+    const cases = [
+      { cashOnHandTzs: null, netDailyBurnTzs: 5_000_000 },
+      { cashOnHandTzs: 500_000_000, netDailyBurnTzs: null },
+      { cashOnHandTzs: null, netDailyBurnTzs: null },
+      { cashOnHandTzs: Number.NaN, netDailyBurnTzs: 5_000_000 },
+      { cashOnHandTzs: 500_000_000, netDailyBurnTzs: Number.POSITIVE_INFINITY },
+    ];
+    for (const c of cases) {
+      const r = computeCashRunway(c);
+      expect(r.burnStatus).toBe('unknown');
+      expect(r.runwayDays).toBeNull();
+    }
+  });
+
+  it('never returns a negative runway (cash ≤ 0 with real burn floors at 0)', () => {
+    const r = computeCashRunway({ cashOnHandTzs: 0, netDailyBurnTzs: 5_000_000 });
+    expect(r.burnStatus).toBe('burning');
+    expect(r.runwayDays).toBe(0);
   });
 });

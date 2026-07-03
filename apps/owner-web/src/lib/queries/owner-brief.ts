@@ -36,9 +36,24 @@ export interface DecisionsSlot {
 }
 
 export interface CashRunwaySlot {
+  /** Secondary sales-INFLOW signal (90-day net) — NOT a runway input. */
   readonly ninetyDayNetTzs: number;
   readonly dailyAvgTzs: number;
   readonly sampleCount: number;
+  /**
+   * REAL runway inputs — cash on hand ÷ net daily burn (mirrors the gateway
+   * `CashRunwaySlotSchema`). Each is `null` when its feed is absent so the
+   * card renders an honest unknown, never a fabricated number.
+   */
+  readonly cashOnHandTzs: number | null;
+  readonly netDailyBurnTzs: number | null;
+  /**
+   * Days of cash at the current burn. `null` when unknown (inputs missing) OR
+   * when the estate is net cash-positive (no finite runway). `burnStatus`
+   * distinguishes the two.
+   */
+  readonly runwayDays: number | null;
+  readonly burnStatus: 'burning' | 'no_burn' | 'unknown';
 }
 
 export interface ProductionSiteRow {

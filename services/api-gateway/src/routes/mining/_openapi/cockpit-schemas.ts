@@ -19,9 +19,17 @@ export const DailyBriefDataSchema = z
 
 export const CashRunwayDataSchema = z
   .object({
+    // Secondary sales-INFLOW signal (retained for the "90-day net" display) —
+    // NOT a runway input.
     ninetyDayNetTzs: z.number(),
     dailyAvgTzs: z.number(),
     sampleCount: z.number().int().nonnegative(),
+    // REAL runway: cash on hand ÷ net daily burn. Each nullable so an absent
+    // treasury/cost feed surfaces as honest unknown, never a fabricated figure.
+    cashOnHandTzs: z.number().nullable(),
+    netDailyBurnTzs: z.number().nullable(),
+    runwayDays: z.number().int().nonnegative().nullable(),
+    burnStatus: z.enum(['burning', 'no_burn', 'unknown']),
     note: z.string(),
   })
   .openapi('CockpitCashRunway');

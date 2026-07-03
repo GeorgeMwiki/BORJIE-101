@@ -837,6 +837,8 @@
   "ownerDashboard": {
     "cashRunway": "Pesa na muda uliobaki",
     "days": "siku",
+    "noBurn": "hakuna matumizi — chanya",
+    "runwayUnknown": "muda haujulikani",
     "usdExposure": "USD-cliff",
     "complianceSafety": "Usalama na leseni",
     "openHighIncidents": "Matukio wazi (HIGH): {{count}}",

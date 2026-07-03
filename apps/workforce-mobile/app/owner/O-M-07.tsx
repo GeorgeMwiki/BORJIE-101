@@ -20,9 +20,17 @@ const SCREEN_ID = 'O-M-07'
 interface CashRunwayResponse {
   readonly success: true
   readonly data: {
+    // Secondary sales-INFLOW signal (90-day net) — NOT a runway input.
     readonly ninetyDayNetTzs: number
     readonly dailyAvgTzs: number
     readonly sampleCount: number
+    // REAL runway: cash on hand ÷ net daily burn (from the treasury + cost
+    // ledgers). Each nullable — an absent feed surfaces as honest unknown,
+    // never a fabricated day count.
+    readonly cashOnHandTzs: number | null
+    readonly netDailyBurnTzs: number | null
+    readonly runwayDays: number | null
+    readonly burnStatus: 'burning' | 'no_burn' | 'unknown'
     readonly note: string
   }
 }
@@ -97,28 +105,40 @@ function CashRunwayView(): JSX.Element {
   }, [billingQuery.data])
 
   const scenarios = useMemo<ReadonlyArray<Scenario>>(() => {
-    const dailyAvg = cashQuery.data?.dailyAvgTzs ?? 0
-    if (dailyAvg <= 0) return []
-    const ninetyDayNet = cashQuery.data?.ninetyDayNetTzs ?? 0
-    const baseDays = Math.max(0, Math.floor(ninetyDayNet / dailyAvg))
+    // Build what-if scenarios off the REAL cash on hand + net daily burn, not
+    // the old degenerate `ninetyDayNet / dailyAvg` (== 90). Each scenario is
+    // days = floor(cash_on_hand / (burn × factor)). Requires a real treasury
+    // balance AND a positive burn; otherwise there is no finite runway to
+    // model (unknown or net-positive) → no scenarios (honest empty state).
+    const cashOnHand = cashQuery.data?.cashOnHandTzs
+    const burn = cashQuery.data?.netDailyBurnTzs
+    if (
+      typeof cashOnHand !== 'number' ||
+      typeof burn !== 'number' ||
+      burn <= 0
+    ) {
+      return []
+    }
+    const daysAt = (factor: number): number =>
+      Math.max(0, Math.floor(cashOnHand / (burn * factor)))
     return [
       {
         key: 'base',
         label: COPY.scenarioBase,
-        daysRemaining: baseDays,
-        burnRateTzs: dailyAvg
+        daysRemaining: daysAt(1),
+        burnRateTzs: Math.round(burn)
       },
       {
         key: 'fuelCut',
         label: COPY.scenarioFuelCut,
-        daysRemaining: dailyAvg === 0 ? 0 : Math.floor(ninetyDayNet / (dailyAvg * 0.8)),
-        burnRateTzs: Math.round(dailyAvg * 0.8)
+        daysRemaining: daysAt(0.8),
+        burnRateTzs: Math.round(burn * 0.8)
       },
       {
         key: 'expansion',
         label: COPY.scenarioExpansion,
-        daysRemaining: dailyAvg === 0 ? 0 : Math.floor(ninetyDayNet / (dailyAvg * 1.4)),
-        burnRateTzs: Math.round(dailyAvg * 1.4)
+        daysRemaining: daysAt(1.4),
+        burnRateTzs: Math.round(burn * 1.4)
       }
     ]
   }, [cashQuery.data, COPY])
@@ -141,55 +161,93 @@ function CashRunwayView(): JSX.Element {
     return <PreviewBanner kind={isOfflineError(cashQuery.error) ? 'offline' : 'env-missing'} />
   }
 
-  if (!cashQuery.data || cashQuery.data.sampleCount === 0 || !activeScenario) {
+  // Honest no-data only when there is NO cash signal at all: no runway inputs
+  // (unknown) AND no sales samples. A present treasury balance or a no-burn
+  // estate still renders — it is a real (non-empty) financial position.
+  const cash = cashQuery.data
+  const hasRunwaySignal =
+    !!cash && (cash.burnStatus !== 'unknown' || cash.cashOnHandTzs !== null)
+  if (!cash || (!hasRunwaySignal && cash.sampleCount === 0)) {
     return <PreviewBanner kind="no-data" />
   }
 
-  const runwayCaption =
-    activeScenario.daysRemaining < 30
-      ? COPY.riskHigh
-      : activeScenario.daysRemaining < 45
-        ? COPY.riskMid
-        : COPY.riskLow
+  const burnStatus = cash.burnStatus
+  // Runway hero — a real day count only when the estate is burning; otherwise
+  // an honest "No burn" (net cash-positive) or "Runway unknown" (missing feed)
+  // — NEVER the old degenerate constant 90.
+  const runwayHero =
+    activeScenario !== null
+      ? {
+          value: String(activeScenario.daysRemaining),
+          label: COPY.daysLabel,
+          caption: `${COPY.burnPrefix}${formatAmount(activeScenario.burnRateTzs, currencyCode, lang)}${COPY.perDaySuffix}`,
+          hint:
+            activeScenario.daysRemaining < 30
+              ? COPY.riskHigh
+              : activeScenario.daysRemaining < 45
+                ? COPY.riskMid
+                : COPY.riskLow
+        }
+      : burnStatus === 'no_burn'
+        ? {
+            value: COPY.noBurn,
+            label: COPY.daysLabel,
+            caption:
+              cash.cashOnHandTzs !== null
+                ? `${COPY.cashOnHandLabel}: ${formatAmount(cash.cashOnHandTzs, currencyCode, lang)}`
+                : '',
+            hint: COPY.noBurnHint
+          }
+        : {
+            value: COPY.runwayUnknown,
+            label: COPY.daysLabel,
+            caption:
+              cash.cashOnHandTzs !== null
+                ? `${COPY.cashOnHandLabel}: ${formatAmount(cash.cashOnHandTzs, currencyCode, lang)}`
+                : '',
+            hint: COPY.runwayUnknownHint
+          }
 
   const billing = billingQuery.data?.data
 
   return (
     <View>
-      <Section title={COPY.runwayTitle} hint={runwayCaption}>
+      <Section title={COPY.runwayTitle} hint={runwayHero.hint}>
         <BigNumber
-          value={String(activeScenario.daysRemaining)}
-          label={COPY.daysLabel}
-          caption={`${COPY.burnPrefix}${formatAmount(activeScenario.burnRateTzs, currencyCode, lang)}${COPY.perDaySuffix}`}
+          value={runwayHero.value}
+          label={runwayHero.label}
+          caption={runwayHero.caption}
         />
       </Section>
-      <Section title={COPY.scenarioTitle} hint={COPY.scenarioHint}>
-        <View style={styles.scenarios}>
-          {scenarios.map((scenario) => {
-            const isActive = scenarioKey === scenario.key
-            return (
-              <Pressable
-                key={scenario.key}
-                accessibilityRole="button"
-                accessibilityLabel={scenario.label}
-                onPress={() => setScenarioKey(scenario.key)}
-                style={({ pressed }) => [
-                  styles.scenarioCard,
-                  isActive && styles.scenarioActive,
-                  pressed && styles.scenarioPressed
-                ]}
-              >
-                <Text style={[styles.scenarioLabel, isActive && styles.scenarioLabelActive]}>
-                  {scenario.label}
-                </Text>
-                <Text style={[styles.scenarioDays, isActive && styles.scenarioDaysActive]}>
-                  {scenario.daysRemaining} {COPY.daysUnit}
-                </Text>
-              </Pressable>
-            )
-          })}
-        </View>
-      </Section>
+      {scenarios.length > 0 ? (
+        <Section title={COPY.scenarioTitle} hint={COPY.scenarioHint}>
+          <View style={styles.scenarios}>
+            {scenarios.map((scenario) => {
+              const isActive = scenarioKey === scenario.key
+              return (
+                <Pressable
+                  key={scenario.key}
+                  accessibilityRole="button"
+                  accessibilityLabel={scenario.label}
+                  onPress={() => setScenarioKey(scenario.key)}
+                  style={({ pressed }) => [
+                    styles.scenarioCard,
+                    isActive && styles.scenarioActive,
+                    pressed && styles.scenarioPressed
+                  ]}
+                >
+                  <Text style={[styles.scenarioLabel, isActive && styles.scenarioLabelActive]}>
+                    {scenario.label}
+                  </Text>
+                  <Text style={[styles.scenarioDays, isActive && styles.scenarioDaysActive]}>
+                    {scenario.daysRemaining} {COPY.daysUnit}
+                  </Text>
+                </Pressable>
+              )
+            })}
+          </View>
+        </Section>
+      ) : null}
       <Section
         title={COPY.inflowTitle}
         hint={`${cashQuery.data.sampleCount} ${COPY.salesUnit}`}

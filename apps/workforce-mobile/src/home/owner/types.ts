@@ -44,7 +44,13 @@ export interface CashPillar {
   readonly deltaPct: number
   readonly status: PillarStatus
   readonly sparkline7d: ReadonlyArray<number>
-  readonly daysRemaining: number
+  /**
+   * REAL runway (cash on hand ÷ net daily burn). `null` when unknown (no
+   * treasury/cost feed) or when the estate is net cash-positive (no burn);
+   * `burnStatus` disambiguates. Never the degenerate constant 90.
+   */
+  readonly daysRemaining: number | null
+  readonly burnStatus: 'burning' | 'no_burn' | 'unknown'
   readonly usdCliffActive: boolean
   readonly usdExposureTzs: number
 }

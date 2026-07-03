@@ -795,7 +795,12 @@
       "scenarioExpansion": "Panua wafanyakazi",
       "subscriptionTitle": "Mpango wa malipo",
       "daysUnit": "siku",
-      "salesUnit": "mauzo"
+      "salesUnit": "mauzo",
+      "runwayUnknown": "Muda haujulikani",
+      "runwayUnknownHint": "Rekodi salio la hazina na gharama ili kukadiria muda.",
+      "noBurn": "Hakuna matumizi — chanya",
+      "noBurnHint": "Mgodi hautumii fedha zaidi ya mapato kwa siku 30 zilizopita.",
+      "cashOnHandLabel": "Fedha zilizopo"
     },
     "om14": {
       "loading": "Inapakia bidhaa za ghala…",
@@ -1388,6 +1393,8 @@
   "ownerDashboard": {
     "cashRunway": "Pesa na muda uliobaki",
     "days": "siku",
+    "noBurn": "hakuna matumizi — chanya",
+    "runwayUnknown": "muda haujulikani",
     "usdExposure": "USD-cliff",
     "complianceSafety": "Usalama na leseni",
     "openHighIncidents": "Matukio wazi (HIGH): {{count}}",

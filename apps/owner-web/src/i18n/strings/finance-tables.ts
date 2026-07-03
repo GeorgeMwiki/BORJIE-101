@@ -108,9 +108,16 @@ export const financeTablesStrings = {
       sw: `Halisi ya siku 90 · sampuli za mauzo ${samples}`,
     }),
     runwayUnknown: { en: 'runway unknown', sw: 'muda haujulikani' },
+    // Estate is net cash-positive over the window — not burning cash, so there
+    // is no finite runway. Rendered instead of a fabricated day count.
+    noBurn: { en: 'no burn — net positive', sw: 'hakuna matumizi — chanya' },
     daysRunway: (days: number) => ({
       en: `${days} days runway`,
       sw: `siku ${days} za muda`,
+    }),
+    burnPerDay: (value: string) => ({
+      en: `burn ~ ${value} / day`,
+      sw: `matumizi ~ ${value} / siku`,
     }),
     postureLabel: { en: 'Post-cliff posture', sw: 'Hali baada ya kikomo' },
     remediationComplete: {

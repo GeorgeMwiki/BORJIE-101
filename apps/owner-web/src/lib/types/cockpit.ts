@@ -14,7 +14,13 @@ export interface BriefItem {
 export interface CockpitData {
   readonly dailyBrief: ReadonlyArray<BriefItem>;
   readonly cashTzsMillions: number;
-  readonly runwayDays: number;
+  /**
+   * REAL runway (cash on hand ÷ net daily burn). `null` when unknown (no
+   * treasury/cost feed) or when the estate is net cash-positive (no burn);
+   * `runwayBurnStatus` disambiguates. Never the degenerate constant 90.
+   */
+  readonly runwayDays: number | null;
+  readonly runwayBurnStatus: 'burning' | 'no_burn' | 'unknown';
   readonly burnPerDayTzsMillions: number;
   readonly licences: {
     readonly active: number;

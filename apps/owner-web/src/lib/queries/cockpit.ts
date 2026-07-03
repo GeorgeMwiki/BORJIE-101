@@ -27,6 +27,12 @@ function guardDailyBrief(raw: unknown): DailyBriefResponse {
   const r = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
   const toNum = (v: unknown): number =>
     typeof v === 'number' && isFinite(v) ? v : 0;
+  // Nullable numeric — preserves an honest `null` (unknown / no-burn runway)
+  // rather than collapsing it to 0, which would read as a real "0 days".
+  const toNullNum = (v: unknown): number | null =>
+    typeof v === 'number' && isFinite(v) ? v : null;
+  const toBurnStatus = (v: unknown): 'burning' | 'no_burn' | 'unknown' =>
+    v === 'burning' || v === 'no_burn' ? v : 'unknown';
   const toStr = (v: unknown): string =>
     typeof v === 'string' ? v : '';
   const toArr = <T>(v: unknown): ReadonlyArray<T> =>
@@ -51,7 +57,9 @@ function guardDailyBrief(raw: unknown): DailyBriefResponse {
   return {
     dailyBrief: toArr(r.dailyBrief),
     cashTzsMillions: toNum(r.cashTzsMillions),
-    runwayDays: toNum(r.runwayDays),
+    // Preserve honest `null` (unknown / no-burn) — never coerced to 0 days.
+    runwayDays: toNullNum(r.runwayDays),
+    runwayBurnStatus: toBurnStatus(r.runwayBurnStatus),
     burnPerDayTzsMillions: toNum(r.burnPerDayTzsMillions),
     licences: {
       active: toNum(licences.active),

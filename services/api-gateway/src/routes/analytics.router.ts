@@ -5,7 +5,9 @@
  * Returns a single object with the KPIs the owner-portal mining
  * dashboard surfaces above the fold:
  *   - production30dTonnes      total ROM over last 30 days
- *   - cashRunwayDays           net TZS over last 90 days, divided by daily avg
+ *   - cashRunwayDays           cash on hand (latest treasury balances) /
+ *                              net daily burn (30d actual costs); null when
+ *                              inputs are missing or the estate is not burning
  *   - openIncidentsHighCount   open incidents at severity high|critical
  *   - licencesAtRiskCount      licences flagged at-risk
  *   - sales30dCount            sales in last 30 days
@@ -23,6 +25,7 @@ import { sales, shiftReports } from '@borjie/database';
 import { authMiddleware } from '../middleware/hono-auth';
 import { databaseMiddleware } from '../middleware/database';
 import { logger } from '../utils/logger';
+import { computeCashRunway } from './owner/brief.hono.js';
 import type { ServiceRegistry } from '../composition/service-registry';
 
 const analyticsRouter = new Hono();
@@ -122,6 +125,8 @@ analyticsRouter.get('/summary', async (c: any) => {
       shifts30dRows,
       incidentsHighRows,
       licencesAtRiskRows,
+      cashOnHandRows,
+      dailyBurnRows,
     ] = await Promise.all([
       db.execute(sql`
         SELECT COALESCE(SUM(rom_tonnes), 0)::numeric AS tonnes
@@ -170,6 +175,29 @@ analyticsRouter.get('/summary', async (c: any) => {
         WHERE tenant_id = ${auth.tenantId}
           AND COALESCE(dormancy_score, 0) >= 0.5
       `),
+      // REAL cash on hand — Σ latest `cash_balances.balance_tzs` per account.
+      // Mirrors risk-scanner (scanner.ts:resolveCashFlow). `account_count = 0`
+      // ⇒ no treasury feed ⇒ honest unknown (null), never a fabricated 0.
+      db.execute(sql`
+        SELECT COALESCE(SUM(latest.balance_tzs), 0)::numeric AS cash_total,
+               COUNT(*)::int AS account_count
+          FROM (
+            SELECT DISTINCT ON (account_id) balance_tzs
+              FROM cash_balances
+             WHERE tenant_id = ${auth.tenantId}
+             ORDER BY account_id, recorded_at DESC
+          ) AS latest
+      `),
+      // REAL net daily burn — Σ actual `costs.amount_tzs` over 30d / 30.
+      // `cost_rows = 0` ⇒ no cost feed ⇒ honest unknown (null).
+      db.execute(sql`
+        SELECT (COALESCE(SUM(amount_tzs), 0) / 30.0)::numeric AS daily_burn,
+               COUNT(*)::int AS cost_rows
+          FROM costs
+         WHERE tenant_id = ${auth.tenantId}
+           AND state = 'actual'
+           AND ts > NOW() - INTERVAL '30 days'
+      `),
     ]);
 
     const productionTonnes = Number(production30dRows.rows?.[0]?.tonnes ?? 0);
@@ -177,10 +205,20 @@ analyticsRouter.get('/summary', async (c: any) => {
     const salesNetTzs = Number(sales30dRows.rows?.[0]?.net_tzs ?? 0);
     const cashNetTzs90d = Number(cashRunwayRows.rows?.[0]?.net_tzs_90d ?? 0);
     const cashSampleCount = Number(cashRunwayRows.rows?.[0]?.sample_count ?? 0);
-    const dailyAvgTzs = cashNetTzs90d / 90;
-    const cashRunwayDays = dailyAvgTzs > 0
-      ? Math.round(cashNetTzs90d / dailyAvgTzs)
-      : 0;
+    // REAL runway = cash on hand ÷ net daily burn. Only a present treasury /
+    // cost feed grounds each input (account_count / cost_rows > 0); otherwise
+    // the input is `null` and the runway is an honest `null` (unknown), NOT the
+    // old degenerate `cashNet90d / (cashNet90d / 90)` == 90 constant.
+    const cashAccountCount = Number(cashOnHandRows.rows?.[0]?.account_count ?? 0);
+    const cashOnHandTzs =
+      cashAccountCount > 0
+        ? Number(cashOnHandRows.rows?.[0]?.cash_total ?? 0)
+        : null;
+    const costRows = Number(dailyBurnRows.rows?.[0]?.cost_rows ?? 0);
+    const netDailyBurnTzs =
+      costRows > 0 ? Number(dailyBurnRows.rows?.[0]?.daily_burn ?? 0) : null;
+    const { runwayDays: cashRunwayDays, burnStatus: cashBurnStatus } =
+      computeCashRunway({ cashOnHandTzs, netDailyBurnTzs });
     const shiftsToday = Number(shiftsTodayRows.rows?.[0]?.shifts ?? 0);
     const shifts30d = Number(shifts30dRows.rows?.[0]?.shifts ?? 0);
     const openIncidentsHighCount = Number(incidentsHighRows.rows?.[0]?.incidents_count ?? 0);
@@ -204,7 +242,12 @@ analyticsRouter.get('/summary', async (c: any) => {
       success: true,
       data: {
         production30dTonnes: productionTonnes,
+        // REAL runway (cash on hand ÷ net daily burn); `null` when unknown or
+        // not-burning. `cashBurnStatus` disambiguates for the renderer.
         cashRunwayDays,
+        cashBurnStatus,
+        cashOnHandTzs,
+        netDailyBurnTzs,
         cash90dNetTzs: cashNetTzs90d,
         cashSampleCount,
         sales30dCount: salesCount,

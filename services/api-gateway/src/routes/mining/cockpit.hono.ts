@@ -181,6 +181,11 @@ app.get('/daily-brief', async (c) => {
     ninetyDayNetTzs: 0,
     dailyAvgTzs: 0,
     sampleCount: 0,
+    // Honest unknown runway on slot failure — never a fabricated number.
+    cashOnHandTzs: null,
+    netDailyBurnTzs: null,
+    runwayDays: null,
+    burnStatus: 'unknown' as const,
   });
 
   const production = slotOr(productionResult, 'productionVsTarget', {
@@ -213,14 +218,22 @@ app.get('/daily-brief', async (c) => {
 
   // ── Derive DailyBriefResponse shape fields ──────────────────────────────
 
-  // cash metrics — ninetyDayNetTzs is the inflow signal; convert to millions
-  const cashTzsMillions = cash.ninetyDayNetTzs / 1_000_000;
-  const burnPerDayTzsMillions = cash.dailyAvgTzs / 1_000_000;
-  // runwayDays: cash / burn. Guard against divide-by-zero.
-  const runwayDays =
-    cash.dailyAvgTzs > 0
-      ? Math.round(cash.ninetyDayNetTzs / cash.dailyAvgTzs)
-      : 0;
+  // cash metrics. `cashTzsMillions` = REAL cash on hand (Σ latest
+  // `cash_balances` per account) when the treasury feed is wired, else falls
+  // back to the 90-day sales-inflow signal so the card still shows a figure.
+  // `burnPerDayTzsMillions` = REAL net daily burn (30-day actual `costs`/30)
+  // when the cost feed is wired, else the inflow daily-average proxy.
+  const cashTzsMillions =
+    (cash.cashOnHandTzs ?? cash.ninetyDayNetTzs) / 1_000_000;
+  const burnPerDayTzsMillions =
+    (cash.netDailyBurnTzs ?? cash.dailyAvgTzs) / 1_000_000;
+  // runwayDays: the REAL cash_on_hand ÷ net_daily_burn projection computed by
+  // the slot (getCockpitCashRunway → computeCashRunway). NULL when inputs are
+  // missing (unknown) OR the estate is net cash-positive (no burn) — the FE
+  // renders an honest "—" in both cases. NEVER the old degenerate constant
+  // (`ninetyDayNet / (ninetyDayNet / 90)` == 90).
+  const runwayDays = cash.runwayDays;
+  const runwayBurnStatus = cash.burnStatus;
 
   // Today-scoped production — use the dedicated today query result.
   // Returns 0 on slot failure (safe zero-placeholder, never fabricated).
@@ -316,7 +329,10 @@ app.get('/daily-brief', async (c) => {
       data: {
         dailyBrief: dailyBriefItems,
         cashTzsMillions,
+        // `runwayDays` is null when unknown or no-burn; `runwayBurnStatus`
+        // lets the card render the correct honest copy ("—" vs "no burn").
         runwayDays,
+        runwayBurnStatus,
         burnPerDayTzsMillions,
         licences: {
           active: licenceSlot.totalCount,
@@ -367,26 +383,30 @@ app.get('/daily-brief', async (c) => {
 app.openapi(cockpitCashRunwayRoute, async (c) => {
   const { tenantId } = c.get('auth');
   const db = c.get('db');
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - 90);
-  const recentSales = await db
-    .select()
-    .from(sales)
-    .where(and(eq(sales.tenantId, tenantId), gte(sales.ts, cutoff)))
-    .orderBy(desc(sales.ts));
-  const ninetyDayNetTzs = recentSales.reduce(
-    (sum, s) => sum + Number(s.netTzs ?? 0),
-    0,
-  );
-  const dailyAvgTzs = ninetyDayNetTzs / 90;
+  // Single source of truth — `getCockpitCashRunway` reads the REAL treasury
+  // (`cash_balances`) + cost (`costs`) ledgers and computes runway =
+  // cash_on_hand ÷ net_daily_burn (honest `null` when inputs are missing or
+  // the estate is net cash-positive). The previous inline version shipped the
+  // degenerate `ninetyDayNet / (ninetyDayNet / 90)` == 90 constant.
+  const slot = await getCockpitCashRunway(db, tenantId);
+  const note =
+    slot.burnStatus === 'burning'
+      ? 'Runway = cash on hand (latest treasury balances) / net daily burn (30d actual costs).'
+      : slot.burnStatus === 'no_burn'
+        ? 'Estate is net cash-positive over the trailing window — no finite runway (not burning).'
+        : 'Runway unknown — treasury balance and/or cost feed not yet recorded for this tenant.';
   return c.json(
     {
       success: true as const,
       data: {
-        ninetyDayNetTzs,
-        dailyAvgTzs,
-        sampleCount: recentSales.length,
-        note: 'Runway computation defers to ledger service for outflows; this surfaces inflow signal only.',
+        ninetyDayNetTzs: slot.ninetyDayNetTzs,
+        dailyAvgTzs: slot.dailyAvgTzs,
+        sampleCount: slot.sampleCount,
+        cashOnHandTzs: slot.cashOnHandTzs,
+        netDailyBurnTzs: slot.netDailyBurnTzs,
+        runwayDays: slot.runwayDays,
+        burnStatus: slot.burnStatus,
+        note,
       },
     },
     200,

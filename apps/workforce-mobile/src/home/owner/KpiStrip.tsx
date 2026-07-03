@@ -69,7 +69,14 @@ function buildItems(
     {
       key: 'cash',
       label: labels.cash,
-      value: `${brief.cash.daysRemaining} ${copy.days}`,
+      // Honest runway: real day count when burning, else no-burn / unknown —
+      // never a fabricated "0 days" or the degenerate constant 90.
+      value:
+        brief.cash.daysRemaining !== null
+          ? `${brief.cash.daysRemaining} ${copy.days}`
+          : brief.cash.burnStatus === 'no_burn'
+            ? copy.noBurn
+            : copy.runwayUnknown,
       status: brief.cash.status,
       statusLabel: formatCurrency(brief.cash.currentTzs, currencyCode)
     },

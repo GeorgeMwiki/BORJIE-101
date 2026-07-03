@@ -795,7 +795,12 @@
       "scenarioExpansion": "Expand workforce",
       "subscriptionTitle": "Payment plan",
       "daysUnit": "days",
-      "salesUnit": "sales"
+      "salesUnit": "sales",
+      "runwayUnknown": "Runway unknown",
+      "runwayUnknownHint": "Record a treasury balance and costs to project runway.",
+      "noBurn": "No burn — net positive",
+      "noBurnHint": "The estate is not spending down cash over the last 30 days.",
+      "cashOnHandLabel": "Cash on hand"
     },
     "om14": {
       "loading": "Loading warehouse items…",
@@ -1388,6 +1393,8 @@
   "ownerDashboard": {
     "cashRunway": "Cash runway",
     "days": "days",
+    "noBurn": "no burn — net positive",
+    "runwayUnknown": "runway unknown",
     "usdExposure": "USD exposure",
     "complianceSafety": "Compliance & safety",
     "openHighIncidents": "Open HIGH incidents: {{count}}",

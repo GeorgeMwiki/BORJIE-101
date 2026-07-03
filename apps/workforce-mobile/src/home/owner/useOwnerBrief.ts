@@ -133,7 +133,12 @@ function buildBriefFromParts(
     : 0
   const ninetyDayNet = cash?.ninetyDayNetTzs ?? 0
   const dailyAvg = cash?.dailyAvgTzs ?? 0
-  const daysRemaining = dailyAvg > 0 ? Math.floor(ninetyDayNet / dailyAvg) : 0
+  // REAL runway from the gateway — cash on hand ÷ net daily burn. `null` when
+  // unknown (no treasury/cost feed) or when the estate is net cash-positive
+  // (no burn). We do NOT re-derive `ninetyDayNet / dailyAvg` here — that was
+  // the degenerate constant 90 the old client shipped.
+  const runwayDays = typeof cash?.runwayDays === 'number' ? cash.runwayDays : null
+  const burnStatus = cash?.burnStatus ?? 'unknown'
   const cliffActive = cliff?.remediationComplete === false
   const usdExposureTzs = (cliff?.usdDenominated ?? 0) * dailyAvg
   const openHigh = (incidents ?? []).length
@@ -148,8 +153,8 @@ function buildBriefFromParts(
   return {
     briefId: `composed-${generatedAtIso}`,
     generatedAtIso,
-    swText: buildSummarySw(daily, productionTonnes, openHigh, daysRemaining),
-    enText: buildSummaryEn(daily, productionTonnes, openHigh, daysRemaining),
+    swText: buildSummarySw(daily, productionTonnes, openHigh, runwayDays),
+    enText: buildSummaryEn(daily, productionTonnes, openHigh, runwayDays),
     evidenceIds: [],
     needsReview: composeDecisions(incidents, licences),
     production: {
@@ -170,7 +175,8 @@ function buildBriefFromParts(
       deltaPct: 0,
       status: cliffActive ? 'danger' : classifyDelta(0),
       sparkline7d: [],
-      daysRemaining,
+      daysRemaining: runwayDays,
+      burnStatus,
       usdCliffActive: cliffActive,
       usdExposureTzs
     },
@@ -218,24 +224,30 @@ function buildSummarySw(
   daily: DailyBriefData | null,
   tonnes: number,
   openHigh: number,
-  daysRemaining: number
+  runwayDays: number | null
 ): string {
   if (!daily) {
     return 'Brief haijapatikana bado. Hakikisha mtandao na jaribu tena.'
   }
-  return `Leo: shifti ${daily.shiftsToday ?? 0}, tani ${tonnes.toFixed(0)}, matukio ${openHigh}, siku za pesa ${daysRemaining}.`
+  // Honest runway phrase — a number when burning, else "muda haujulikani"
+  // (no fabricated "0 siku za pesa"). Single-language (zero-mix canon).
+  const cashPhrase =
+    runwayDays !== null ? `siku za pesa ${runwayDays}` : 'muda wa pesa haujulikani'
+  return `Leo: shifti ${daily.shiftsToday ?? 0}, tani ${tonnes.toFixed(0)}, matukio ${openHigh}, ${cashPhrase}.`
 }
 
 function buildSummaryEn(
   daily: DailyBriefData | null,
   tonnes: number,
   openHigh: number,
-  daysRemaining: number
+  runwayDays: number | null
 ): string {
   if (!daily) {
     return 'Brief not available yet. Check connectivity and try again.'
   }
-  return `Today: ${daily.shiftsToday ?? 0} shifts, ${tonnes.toFixed(0)}t produced, ${openHigh} high-severity incidents, ${daysRemaining} cash days.`
+  const cashPhrase =
+    runwayDays !== null ? `${runwayDays} cash days` : 'cash runway unknown'
+  return `Today: ${daily.shiftsToday ?? 0} shifts, ${tonnes.toFixed(0)}t produced, ${openHigh} high-severity incidents, ${cashPhrase}.`
 }
 
 interface DailyBriefData {
@@ -260,6 +272,14 @@ interface CashData {
   readonly ninetyDayNetTzs?: number
   readonly dailyAvgTzs?: number
   readonly sampleCount?: number
+  // REAL runway from the gateway (cash on hand ÷ net daily burn). Nullable
+  // runwayDays = unknown (missing feed) or no-burn (net cash-positive), told
+  // apart by burnStatus. The old client re-derived a degenerate constant 90
+  // from ninetyDayNetTzs / dailyAvgTzs.
+  readonly cashOnHandTzs?: number | null
+  readonly netDailyBurnTzs?: number | null
+  readonly runwayDays?: number | null
+  readonly burnStatus?: 'burning' | 'no_burn' | 'unknown'
 }
 
 interface CliffData {
@@ -319,7 +339,9 @@ const OwnerBriefSchema = z.object({
     deltaPct: z.number(),
     status: PillarStatusSchema,
     sparkline7d: z.array(z.number()).readonly(),
-    daysRemaining: z.number(),
+    // Nullable: unknown / no-burn runway → null, never a fabricated number.
+    daysRemaining: z.number().nullable(),
+    burnStatus: z.enum(['burning', 'no_burn', 'unknown']),
     usdCliffActive: z.boolean(),
     usdExposureTzs: z.number()
   }),

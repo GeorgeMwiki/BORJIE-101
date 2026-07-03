@@ -62,7 +62,14 @@ function CashRunwaySlot({ brief, lang }: SlotProps): JSX.Element {
   const copy = pickStrings(lang).ownerDashboard
   const tone = brief.cash.usdCliffActive ? colors.danger : colors.success
   const heading = copy.cashRunway
-  const days = `${brief.cash.daysRemaining} ${copy.days}`
+  // Honest runway: a real day count when burning, else "no burn" (net
+  // cash-positive) or "runway unknown" (no feed) — never a fabricated 0/90.
+  const days =
+    brief.cash.daysRemaining !== null
+      ? `${brief.cash.daysRemaining} ${copy.days}`
+      : brief.cash.burnStatus === 'no_burn'
+        ? copy.noBurn
+        : copy.runwayUnknown
   const exposureLabel = copy.usdExposure
   return (
     <View testID="owner-dashboard-cash" style={[styles.slot, { borderLeftColor: tone }]}>
