@@ -260,9 +260,9 @@ export const tailStrings = {
     },
   },
 
-  // ── documents/DocumentUploadButton.tsx (renders sw-led today) ────
+  // ── documents/DocumentUploadButton.tsx (locale-selected via [locale]) ────
   documentUploadButton: {
-    defaultLabel: { sw: 'Pakia hati · Upload document', en: 'Upload document' },
+    defaultLabel: { sw: 'Pakia hati', en: 'Upload document' },
   },
 
   // ── documents/types.ts ───────────────────────────────────────────

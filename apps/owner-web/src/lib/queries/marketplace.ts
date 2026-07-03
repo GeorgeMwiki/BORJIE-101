@@ -26,10 +26,16 @@ export const marketplaceKeys = {
  * code (`LAUNCH_CURRENCY`) — the code is DATA threaded to `formatMoney`, never
  * a hardcoded `'USD'`/`'TZS'` display literal. A future per-row currency
  * column threads through this same field with zero render change.
+ *
+ * `price` is NULLABLE by schema: `price_tzs` has no NOT NULL, so a solicit-bids
+ * / price-on-request listing legitimately carries no price. An ABSENT price
+ * stays `null` (rendered as "price on request"), NEVER collapsed to a
+ * fabricated `0` that `formatMoney` would paint as a factual "TZS 0" — the
+ * owner-side twin of the buyer priceHint fix (apps/buyer-mobile listing-adapter).
  */
 export interface OutboundListing {
   readonly listing: string;
-  readonly price: number;
+  readonly price: number | null;
   readonly currencyCode: string;
   readonly status: string;
 }
@@ -82,11 +88,19 @@ interface RawListing {
   readonly status?: string;
 }
 
-/** Parse a numeric wire value (string | number | null) to a finite number. */
-function toFinitePrice(value: string | number | null | undefined): number {
-  if (value == null) return 0;
+/**
+ * Parse a NULLABLE price wire value. An ABSENT price (null/undefined) stays
+ * `null` — a solicit-bids / price-on-request listing carries no `price_tzs`
+ * and must render "price on request", NEVER a fabricated `0` that `formatMoney`
+ * would paint as a factual "TZS 0". A present-but-unparseable value also
+ * degrades to `null` rather than a fabricated `0`.
+ */
+function toNullablePrice(
+  value: string | number | null | undefined,
+): number | null {
+  if (value == null) return null;
   const n = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(n) ? n : 0;
+  return Number.isFinite(n) ? n : null;
 }
 
 interface RawRfbRow {
@@ -123,7 +137,7 @@ function adaptListings(raw: unknown): MarketplaceResult {
         : LAUNCH_CURRENCY;
     outbound.push({
       listing: item.title ?? (typeof attrs.mineral === 'string' ? attrs.mineral : item.id ?? '—'),
-      price: toFinitePrice(item.priceTzs),
+      price: toNullablePrice(item.priceTzs),
       currencyCode,
       status: item.status ?? 'open',
     });

@@ -394,7 +394,7 @@ export const routesBStrings = {
       en: 'Generate share links to your data',
     },
     scopeAdminRead: {
-      sw: 'Soma data ya msimamizi wa ndani (Borjie team only)',
+      sw: 'Soma data ya msimamizi wa ndani (timu ya Borjie pekee)',
       en: 'Read internal admin data (Borjie team only)',
     },
     commProblem: {

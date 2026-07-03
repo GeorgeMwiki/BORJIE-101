@@ -72,11 +72,17 @@ export function MarketplaceBoard({
     const open = data.outbound.filter((o) => o.status === 'open').length;
     const matched = data.outbound.filter((o) => o.status === 'matched').length;
     const counters = data.outbound.filter((o) => o.status === 'counter').length;
+    // Average only over listings that carry a REAL price — a price-on-request
+    // listing (price === null) is EXCLUDED, never counted as a fabricated 0
+    // that would drag the average down. With no priced listing the average is
+    // undefined, so pass NaN → formatMoney renders an honest em-dash.
+    const priced = data.outbound.filter(
+      (o): o is typeof o & { price: number } => o.price != null,
+    );
     const avgPrice =
-      data.outbound.length > 0
-        ? data.outbound.reduce((acc, o) => acc + o.price, 0) /
-          data.outbound.length
-        : 0;
+      priced.length > 0
+        ? priced.reduce((acc, o) => acc + o.price, 0) / priced.length
+        : Number.NaN;
     // The currency code is DATA carried on the listing row (TZS-denominated by
     // schema today); read it from the first listing and fall back to the
     // launch-primary code — never a hardcoded display currency in the JSX.
@@ -173,7 +179,13 @@ export function MarketplaceBoard({
                       {o.listing}
                     </div>
                     <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="font-mono">{formatMoney(o.price, o.currencyCode, locale)}</span>
+                      <span className="font-mono">
+                        {o.price != null
+                          ? formatMoney(o.price, o.currencyCode, locale)
+                          : isSw
+                            ? S.mktPriceOnRequest.sw
+                            : S.mktPriceOnRequest.en}
+                      </span>
                       <span className="rounded-full border border-border bg-background px-1.5 text-tiny">
                         LBMA
                       </span>

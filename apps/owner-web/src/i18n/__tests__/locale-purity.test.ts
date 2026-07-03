@@ -16,12 +16,16 @@ import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { findSwahiliLeaks } from '../locale-purity';
+import {
+  findEnglishInSwahiliLeaks,
+  findSwahiliLeaks,
+} from '../locale-purity';
 import { SWAHILI_LEAK_ALLOWLIST } from '../locale-purity-allowlist';
 
 // Vitest runs with cwd = the owner-web package root, so the source tree
 // is always ./src. Avoids import.meta (disallowed under the CJS tsc).
 const SRC_ROOT = resolve(process.cwd(), 'src');
+const I18N_ROOT = resolve(SRC_ROOT, 'i18n');
 
 describe('locale purity — owner-web hardcoded Swahili guard', () => {
   const leaks = findSwahiliLeaks(SRC_ROOT);
@@ -48,5 +52,26 @@ describe('locale purity — owner-web hardcoded Swahili guard', () => {
   it('has a baseline that only shrinks (documents current debt)', () => {
     // Tripwire on the count so a reviewer sees the ledger size move.
     expect(SWAHILI_LEAK_ALLOWLIST.length).toBeLessThanOrEqual(105);
+  });
+});
+
+// The TWIN gate: `findSwahiliLeaks` drives Swahili out of components into the
+// exempt `i18n/` tree; this closes the false-green it opens — an untranslated
+// English word sitting inside a `sw:` string (`sw: 'Counter zinasubiri'`,
+// `sw: 'Pakia hati · Upload document'`) is pure EN/SW mixing by the language
+// canon, and was invisible to every gate until this scanner. Zero-tolerance:
+// no allowlist — a real loanword trips it only until added to the curated
+// proper-noun set (a deliberate, reviewed act), which is the correct friction.
+describe('locale purity — owner-web English-in-Swahili guard', () => {
+  it('has ZERO untranslated English inside any sw: string literal', () => {
+    const leaks = findEnglishInSwahiliLeaks(I18N_ROOT);
+    expect(
+      leaks,
+      `English-in-Swahili mixing detected in i18n/strings — translate the sw ` +
+        `value (or add a genuine loanword to ENGLISH_PROPER_NOUNS):\n` +
+        leaks
+          .map((l) => `  ${l.file}:${l.line}  [${l.marker}]  '${l.value}'`)
+          .join('\n'),
+    ).toEqual([]);
   });
 });

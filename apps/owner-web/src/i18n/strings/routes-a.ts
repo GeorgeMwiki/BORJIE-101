@@ -307,7 +307,7 @@ export const routesAStrings = {
       en: 'Run a new period',
     },
     runNewPeriodBody: {
-      sw: 'Chagua tarehe za mwanzo na mwisho. Mwikila atatumia clock-in events na shift reports kuhesabu kila mfanyakazi.',
+      sw: 'Chagua tarehe za mwanzo na mwisho. Mwikila atatumia matukio ya clock-in na ripoti za zamu kuhesabu kila mfanyakazi.',
       en: 'Pick a start + end date. Mwikila uses clock-in events and shift reports to compute every worker. Money posts via LedgerService.post() — double-entry guaranteed.',
     },
     openMwikilaCta: { sw: 'Anza na Mwikila', en: 'Open Mwikila' },
