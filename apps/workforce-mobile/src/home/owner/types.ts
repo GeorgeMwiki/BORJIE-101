@@ -52,7 +52,9 @@ export interface CashPillar {
   readonly daysRemaining: number | null
   readonly burnStatus: 'burning' | 'no_burn' | 'unknown'
   readonly usdCliffActive: boolean
-  readonly usdExposureTzs: number
+  // `null` = the USD exposure VALUE is unknown (the endpoint serves only a
+  // count/state, no real gross sum) → render "—". NEVER a fabricated figure.
+  readonly usdExposureTzs: number | null
 }
 
 export interface SafetyPillar {

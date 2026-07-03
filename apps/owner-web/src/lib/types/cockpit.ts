@@ -29,9 +29,10 @@ export interface CockpitData {
   };
   readonly production: {
     readonly grammesToday: number;
-    readonly grammesTargetToday: number;
+    // `null` = no production target wired (honest em-dash), never a fabricated 0.
+    readonly grammesTargetToday: number | null;
     readonly grammesMtd: number;
-    readonly grammesTargetMtd: number;
+    readonly grammesTargetMtd: number | null;
   };
   readonly openRisks: ReadonlyArray<{
     readonly title: string;

@@ -346,9 +346,13 @@ app.get('/daily-brief', async (c) => {
           // grammesMtd: 30-day rolling ROM tonnes (no × 1000 proxy).
           // grammesToday: raw today tonnes (no synthetic conversion).
           grammesToday: tonnesToday,
-          grammesTargetToday: 0,
+          // No per-site production TARGET source is wired yet. Emitting `0`
+          // renders as "0% of target" (always RED/behind) — a fabricated
+          // degenerate KPI. Emit `null` (honest "not wired" em-dash), exactly
+          // like the marketplace slot below, until a real target feed lands.
+          grammesTargetToday: null,
           grammesMtd: tonnes30d,
-          grammesTargetMtd: 0,
+          grammesTargetMtd: null,
         },
         openRisks,
         pendingDecisions,

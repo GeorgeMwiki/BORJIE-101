@@ -68,9 +68,11 @@ function guardDailyBrief(raw: unknown): DailyBriefResponse {
     },
     production: {
       grammesToday: toNum(production.grammesToday),
-      grammesTargetToday: toNum(production.grammesTargetToday),
+      // Preserve an honest null target (no target feed) — toNum would collapse
+      // it to 0, re-fabricating the "0% of target" degenerate KPI.
+      grammesTargetToday: toNullNum(production.grammesTargetToday),
       grammesMtd: toNum(production.grammesMtd),
-      grammesTargetMtd: toNum(production.grammesTargetMtd),
+      grammesTargetMtd: toNullNum(production.grammesTargetMtd),
     },
     openRisks: toArr(r.openRisks),
     pendingDecisions: toArr(r.pendingDecisions),

@@ -76,7 +76,11 @@ function CashRunwaySlot({ brief, lang }: SlotProps): JSX.Element {
       <Text style={styles.slotTitle}>{heading}</Text>
       <Text style={styles.slotValue}>{days}</Text>
       <Text style={styles.slotMeta}>
-        {`${exposureLabel}: ${formatCurrency(brief.cash.usdExposureTzs)}`}
+        {`${exposureLabel}: ${
+          brief.cash.usdExposureTzs == null
+            ? '—'
+            : formatCurrency(brief.cash.usdExposureTzs)
+        }`}
       </Text>
     </View>
   )

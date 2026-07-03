@@ -9,13 +9,15 @@ import { cockpitClusterStrings as S } from '@/i18n/strings/cockpit-cluster';
 
 interface ProductionCardProps {
   readonly grammesToday: number;
-  readonly grammesTargetToday: number;
+  readonly grammesTargetToday: number | null;
   readonly grammesMtd: number;
-  readonly grammesTargetMtd: number;
+  readonly grammesTargetMtd: number | null;
 }
 
-function pct(value: number, target: number): number {
-  if (target <= 0) return 0;
+// `null` target → `null` pct (no target wired): render "target not set", never a
+// fabricated 0% (which reads as RED / behind on a real production surface).
+function pct(value: number, target: number | null): number | null {
+  if (target == null || target <= 0) return null;
   return Math.round((value / target) * 100);
 }
 
@@ -29,8 +31,14 @@ export function ProductionCard({
   const bcp47 = bcp47For(locale);
   const dayPct = pct(grammesToday, grammesTargetToday);
   const mtdPct = pct(grammesMtd, grammesTargetMtd);
-  const dayTone: 'green' | 'amber' | 'red' =
-    dayPct >= 100 ? 'green' : dayPct >= 85 ? 'amber' : 'red';
+  const dayTone: 'green' | 'amber' | 'red' | 'neutral' =
+    dayPct === null
+      ? 'neutral'
+      : dayPct >= 100
+        ? 'green'
+        : dayPct >= 85
+          ? 'amber'
+          : 'red';
   return (
     <Card hoverable className="p-5">
       <div className="cockpit-card-title">
@@ -42,17 +50,24 @@ export function ProductionCard({
       <div className="mt-2 flex items-center gap-2">
         <StatusPill
           tone={dayTone}
-          label={pickByLocale(locale, S.production.ofDayTarget(dayPct))}
+          label={pickByLocale(
+            locale,
+            dayPct === null
+              ? S.production.noTarget
+              : S.production.ofDayTarget(dayPct),
+          )}
         />
       </div>
       <div className="cockpit-card-meta">
         {pickByLocale(
           locale,
-          S.production.mtd(
-            grammesMtd.toLocaleString(bcp47),
-            grammesTargetMtd.toLocaleString(bcp47),
-            mtdPct,
-          ),
+          mtdPct === null || grammesTargetMtd === null
+            ? S.production.mtdNoTarget(grammesMtd.toLocaleString(bcp47))
+            : S.production.mtd(
+                grammesMtd.toLocaleString(bcp47),
+                grammesTargetMtd.toLocaleString(bcp47),
+                mtdPct,
+              ),
         )}
       </div>
     </Card>

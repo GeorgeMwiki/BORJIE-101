@@ -99,7 +99,12 @@ function buildItems(
       label: labels.fx,
       value: brief.cash.usdCliffActive ? copy.cliffActive : copy.cliffCleared,
       status: brief.cash.usdCliffActive ? 'danger' : 'ok',
-      statusLabel: formatCurrency(brief.cash.usdExposureTzs, currencyCode)
+      // Honest "—" when the USD exposure value is unknown (no real gross sum);
+      // the cliff state above is the real signal.
+      statusLabel:
+        brief.cash.usdExposureTzs == null
+          ? '—'
+          : formatCurrency(brief.cash.usdExposureTzs, currencyCode)
     }
   ]
 }

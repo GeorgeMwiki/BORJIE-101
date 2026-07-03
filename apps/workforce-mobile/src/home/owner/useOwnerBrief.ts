@@ -132,7 +132,6 @@ function buildBriefFromParts(
     ? ((productionTonnes - productionTarget) / productionTarget) * 100
     : 0
   const ninetyDayNet = cash?.ninetyDayNetTzs ?? 0
-  const dailyAvg = cash?.dailyAvgTzs ?? 0
   // REAL runway from the gateway — cash on hand ÷ net daily burn. `null` when
   // unknown (no treasury/cost feed) or when the estate is net cash-positive
   // (no burn). We do NOT re-derive `ninetyDayNet / dailyAvg` here — that was
@@ -140,7 +139,12 @@ function buildBriefFromParts(
   const runwayDays = typeof cash?.runwayDays === 'number' ? cash.runwayDays : null
   const burnStatus = cash?.burnStatus ?? 'unknown'
   const cliffActive = cliff?.remediationComplete === false
-  const usdExposureTzs = (cliff?.usdDenominated ?? 0) * dailyAvg
+  // No fabricated USD exposure: `cliff.usdDenominated` is a COUNT of
+  // USD-denominated sales, NOT a value — multiplying it by the daily cash
+  // average (the old code) is dimensional nonsense. Until the cliff endpoint
+  // serves a real USD gross sum, the exposure VALUE is honestly unknown (null →
+  // "—"); the cliff STATE (usdCliffActive) is still surfaced separately.
+  const usdExposureTzs: number | null = null
   const openHigh = (incidents ?? []).length
   const safetyLicenceStatus: PillarStatus = (licences ?? []).some(
     (l) => (l.daysToExpiry ?? 999) <= 30
@@ -171,7 +175,11 @@ function buildBriefFromParts(
       }))
     },
     cash: {
-      currentTzs: ninetyDayNet,
+      // Current cash = REAL cash on hand (treasury balance), falling back to the
+      // 90-day net only as a proxy when the treasury feed is absent — same
+      // precedence the gateway uses. The old code rendered the 90-day NET
+      // cash-FLOW as "current cash", a wrong-field fabrication.
+      currentTzs: cash?.cashOnHandTzs ?? ninetyDayNet,
       deltaPct: 0,
       status: cliffActive ? 'danger' : classifyDelta(0),
       sparkline7d: [],
@@ -343,7 +351,7 @@ const OwnerBriefSchema = z.object({
     daysRemaining: z.number().nullable(),
     burnStatus: z.enum(['burning', 'no_burn', 'unknown']),
     usdCliffActive: z.boolean(),
-    usdExposureTzs: z.number()
+    usdExposureTzs: z.number().nullable()
   }),
   safety: z.object({
     openHighCount: z.number(),

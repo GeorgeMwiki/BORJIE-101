@@ -67,6 +67,12 @@ export const cockpitClusterStrings = {
       en: `MTD ${mtd} g of ${target} g (${pct}%)`,
       sw: `Tangu mwanzo wa mwezi ${mtd} g kati ya ${target} g (${pct}%)`,
     }),
+    // Honest label when NO production target is wired — never a fabricated "0%".
+    noTarget: { en: 'Target not set', sw: 'Lengo halijawekwa' },
+    mtdNoTarget: (mtd: string): SwEn => ({
+      en: `MTD ${mtd} g · target not set`,
+      sw: `Tangu mwanzo wa mwezi ${mtd} g · lengo halijawekwa`,
+    }),
   },
 
   // ── components/cockpit/OpenRisksCard.tsx ───────────────────────────

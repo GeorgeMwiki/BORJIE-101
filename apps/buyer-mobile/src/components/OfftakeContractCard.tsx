@@ -114,7 +114,9 @@ export function OfftakeContractCard({
       <View style={styles.body}>
         <KeyValueRow
           label={t('bids.offtake.agreed_price')}
-          value={`${formatTzs(contract.agreedPriceTzs)} / ${t('common.kg')}`}
+          // agreedPriceTzs is the TOTAL negotiated contract value (the settlement
+          // gross), not a per-kg unit price — never suffix "/ kg".
+          value={formatTzs(contract.agreedPriceTzs)}
         />
         <KeyValueRow
           label={t('bids.offtake.quantity')}
