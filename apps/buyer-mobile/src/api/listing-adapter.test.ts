@@ -73,6 +73,16 @@ describe('mapListing', () => {
     expect(listing.priceTzsPerKg).toBe(120_000_000)
   })
 
+  it('keeps an ABSENT price as null (never a fabricated 0) for a solicit-bids listing', () => {
+    // marketplace priceTzs is nullable — a legitimate no-price listing.
+    const nullPrice = mapListing(rawRow({ priceTzs: null }))
+    expect(nullPrice.priceHintTzs).toBeNull()
+    expect(nullPrice.priceTzsPerKg).toBeNull()
+    // undefined + empty-string encodings degrade the same way (Number('')===0).
+    expect(mapListing(rawRow({ priceTzs: undefined })).priceHintTzs).toBeNull()
+    expect(mapListing(rawRow({ priceTzs: '' })).priceHintTzs).toBeNull()
+  })
+
   it('maps DB status → FE enum (active→open, sold→closed, paused→reserved)', () => {
     expect(mapListing(rawRow({ status: 'active' })).status).toBe('open')
     expect(mapListing(rawRow({ status: 'sold' })).status).toBe('closed')

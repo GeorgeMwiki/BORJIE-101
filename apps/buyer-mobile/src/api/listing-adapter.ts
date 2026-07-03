@@ -94,9 +94,16 @@ function mapStatus(raw: unknown): Listing['status'] {
   }
 }
 
-function toNumber(value: unknown): number {
+/**
+ * Parse a money field that MAY be absent. Returns `null` for null/undefined/
+ * empty/non-finite — never a 0 sentinel (which would render as a fabricated
+ * "TZS 0"). `Number(null)` is 0 and `Number('')` is 0, so those must be caught
+ * BEFORE the finite check.
+ */
+function toNullableNumber(value: unknown): number | null {
+  if (value == null || value === '') return null
   const n = typeof value === 'number' ? value : Number(value)
-  return Number.isFinite(n) ? n : 0
+  return Number.isFinite(n) ? n : null
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -189,9 +196,16 @@ export function mapListing(raw: RawListingRow): Listing {
     typeof raw.sellerTenantId === 'string' ? raw.sellerTenantId : ''
   const sellerName = typeof raw.sellerName === 'string' ? raw.sellerName : ''
   const quantityKg = attrPositiveNumber(attrs, 'quantityKg', 'quantity_kg')
-  const priceHintTzs = toNumber(raw.priceTzs)
+  // An absent/non-finite price stays NULL (not a fabricated 0) — the marketplace
+  // priceTzs is nullable (solicit-bids listing), and the render layer shows the
+  // honest "price on request" placeholder for null.
+  const priceHintTzs = toNullableNumber(raw.priceTzs)
   const priceTzsPerKg =
-    quantityKg > 0 ? priceHintTzs / quantityKg : priceHintTzs
+    priceHintTzs == null
+      ? null
+      : quantityKg > 0
+        ? priceHintTzs / quantityKg
+        : priceHintTzs
   const originSite = attrStr(attrs, 'originSite') || attrStr(attrs, 'origin')
   const originRegion = attrStr(attrs, 'region') || attrStr(attrs, 'originRegion')
 

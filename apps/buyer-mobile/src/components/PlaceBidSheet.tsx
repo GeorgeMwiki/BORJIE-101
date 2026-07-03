@@ -34,7 +34,8 @@ export function PlaceBidSheet({ visible, onClose, listing }: PlaceBidSheetProps)
   const { control, handleSubmit, reset, formState } = useForm<PlaceBidFormInput>({
     resolver: zodResolver(placeBidSchema),
     defaultValues: {
-      bidPrice: String(listing.priceTzsPerKg),
+      // No price hint → leave the bid empty; never pre-fill a fabricated "0".
+      bidPrice: listing.priceTzsPerKg == null ? '' : String(listing.priceTzsPerKg),
       paymentTerms: 'instant',
       notes: '',
       termsAccepted: false
@@ -44,7 +45,8 @@ export function PlaceBidSheet({ visible, onClose, listing }: PlaceBidSheetProps)
   useEffect(() => {
     if (visible) {
       reset({
-        bidPrice: String(listing.priceTzsPerKg),
+        // No price hint → leave the bid empty; never pre-fill a fabricated "0".
+      bidPrice: listing.priceTzsPerKg == null ? '' : String(listing.priceTzsPerKg),
         paymentTerms: 'instant',
         notes: '',
         termsAccepted: false

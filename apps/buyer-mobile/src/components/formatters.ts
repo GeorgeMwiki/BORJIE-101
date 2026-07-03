@@ -19,11 +19,15 @@ export const LAUNCH_CURRENCY = 'TZS'
  * at launch · expandable"). Sub-thousand amounts render whole units.
  */
 export function formatTzs(
-  amount: number,
+  amount: number | null | undefined,
   currencyCode: string = LAUNCH_CURRENCY,
 ): string {
   const code = currencyCode.trim().toUpperCase() || LAUNCH_CURRENCY
-  if (!Number.isFinite(amount)) {
+  // An ABSENT price (null/undefined) or a non-finite value renders the honest
+  // em-dash placeholder — never a fabricated "TZS 0". A listing can legitimately
+  // have no price hint (marketplace.schema priceTzs is nullable — a solicit-bids
+  // listing), and 0 is NOT a valid stand-in for "price on request".
+  if (amount == null || !Number.isFinite(amount)) {
     return `${code} —`
   }
   const abs = Math.abs(amount)

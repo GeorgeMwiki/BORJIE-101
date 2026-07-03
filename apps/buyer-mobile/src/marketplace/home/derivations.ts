@@ -59,7 +59,8 @@ export function selectRecommended(
     if (b.seller.rating !== a.seller.rating) {
       return b.seller.rating - a.seller.rating
     }
-    return a.priceHintTzs - b.priceHintTzs
+    // A null price hint (solicit-bids listing) sorts last within a rating tier.
+    return (a.priceHintTzs ?? Infinity) - (b.priceHintTzs ?? Infinity)
   })
   return sorted.slice(0, limit)
 }

@@ -31,8 +31,11 @@ export interface Listing {
   readonly originSite: string
   readonly originRegion: string
   readonly seller: Seller
-  readonly priceTzsPerKg: number
-  readonly priceHintTzs: number
+  // `null` = no price hint (a legitimate solicit-bids listing — marketplace
+  // priceTzs is nullable). NEVER coerce an absent price to 0; the render layer
+  // shows an honest placeholder for null.
+  readonly priceTzsPerKg: number | null
+  readonly priceHintTzs: number | null
   readonly photos: readonly string[]
   readonly assayPdfUrl: string
   readonly assayResults: readonly AssayResult[]
