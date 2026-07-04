@@ -25,7 +25,6 @@ import { SectionCard } from '@/components/shared/SectionCard';
 import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
 import { MetricStrip } from '@/components/shared/MetricStrip';
 import {
-  formatMoney,
   formatLargeMoney,
   fmtDateForLocale,
   LAUNCH_CURRENCY,
@@ -115,10 +114,19 @@ export function AssetsRegister({ locale }: AssetsRegisterProps) {
   const isSw = locale === 'sw';
 
   const rows: ReadonlyArray<EstateAssetRow> = query.data?.data?.assets ?? [];
-  const totalValue = useMemo(
-    () => rows.reduce((sum, a) => sum + Number(a.currentValueTzs ?? 0), 0),
-    [rows],
-  );
+  // Portfolio total + count come from the SERVER aggregate (folds EVERY
+  // asset), never a client reduce over the ≤500-row display page — that
+  // under-reports the instant a tenant crosses the fetch limit.
+  const aggregate = query.data?.data?.aggregate;
+  const totalAssetCount = aggregate?.count ?? rows.length;
+  // Absent total (no assets) stays null → localized "—", never a
+  // fabricated 0 rendered as portfolio fact.
+  const totalValue =
+    aggregate?.totalValueTzs != null ? Number(aggregate.totalValueTzs) : null;
+  const averageValue =
+    totalValue != null && totalAssetCount > 0
+      ? totalValue / totalAssetCount
+      : null;
   const countByClass = useMemo(() => {
     const m = new Map<string, number>();
     for (const a of rows) m.set(a.assetClass, (m.get(a.assetClass) ?? 0) + 1);
@@ -152,22 +160,28 @@ export function AssetsRegister({ locale }: AssetsRegisterProps) {
         tiles={[
           {
             label: isSw ? S.assets.totalValueLabel.sw : S.assets.totalValueLabel.en,
-            value: formatLargeMoney(totalValue, LAUNCH_CURRENCY, locale),
+            value: formatLargeMoney(
+              totalValue ?? Number.NaN,
+              LAUNCH_CURRENCY,
+              locale,
+            ),
             sub: isSw ? S.assets.totalValueSub.sw : S.assets.totalValueSub.en,
             icon: Boxes,
           },
           {
             label: isSw ? S.assets.assetCountLabel.sw : S.assets.assetCountLabel.en,
-            value: rows.length.toFixed(0),
+            value: totalAssetCount.toFixed(0),
             sub: isSw
               ? S.assets.assetCountSub(countByClass.size).sw
               : S.assets.assetCountSub(countByClass.size).en,
           },
           {
             label: isSw ? S.assets.averageValueLabel.sw : S.assets.averageValueLabel.en,
-            value: rows.length
-              ? formatLargeMoney(totalValue / rows.length, LAUNCH_CURRENCY, locale)
-              : formatMoney(0, LAUNCH_CURRENCY, locale),
+            value: formatLargeMoney(
+              averageValue ?? Number.NaN,
+              LAUNCH_CURRENCY,
+              locale,
+            ),
           },
         ]}
       />

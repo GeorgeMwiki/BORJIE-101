@@ -226,6 +226,17 @@ export interface EstateAssetRow {
   readonly encumbrances: ReadonlyArray<unknown>;
 }
 
+/**
+ * Portfolio-wide aggregate folded server-side over EVERY matching
+ * asset (not the ≤limit display page). `totalValueTzs` is a precise
+ * numeric string, or null when no assets match (absent value →
+ * localized placeholder, never a fabricated 0).
+ */
+export interface EstateAssetsAggregate {
+  readonly totalValueTzs: string | null;
+  readonly count: number;
+}
+
 export function useEstateAssets(opts?: {
   readonly entityId?: string;
   readonly assetClass?: string;
@@ -241,7 +252,11 @@ export function useEstateAssets(opts?: {
       const suffix = qs.toString();
       return apiRequest<{
         success: boolean;
-        data: { assets: ReadonlyArray<EstateAssetRow>; count: number };
+        data: {
+          assets: ReadonlyArray<EstateAssetRow>;
+          count: number;
+          aggregate?: EstateAssetsAggregate;
+        };
       }>(
         `/api/v1/estate/assets${suffix ? `?${suffix}` : ''}`,
         { signal },

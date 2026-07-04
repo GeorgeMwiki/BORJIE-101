@@ -16,9 +16,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   adaptIncidentAlert,
+  adaptMyShift,
+  adaptPerformanceSnapshot,
   adaptToolboxTalk,
   adaptWorkerTask,
   fetchActiveAlerts,
+  fetchMyShift,
+  fetchPerformanceSnapshot,
   fetchTodayTasks,
   fetchToolboxTalk,
   type ListEnvelope,
@@ -205,5 +209,82 @@ describe('adaptIncidentAlert / adaptToolboxTalk — severity + fallbacks', () =>
     const talk = adaptToolboxTalk([{ id: 't', topicSw: 'Vifaa vya kujikinga' }])
     expect(talk?.titleSw).toBe('Vifaa vya kujikinga')
     expect(talk?.titleEn).toBeNull()
+  })
+})
+
+describe('fetchMyShift — GET /attendance/mine contract (A5)', () => {
+  it('unwraps { success, data } into the real shift shape', async () => {
+    const envelope = {
+      success: true,
+      data: {
+        id: 'att-1',
+        state: 'in-progress',
+        status: 'present',
+        clockedInAtIso: '2026-07-04T08:00:00.000Z',
+        siteName: null,
+        elapsedSeconds: 7200
+      }
+    }
+    const { api, calls } = fakeApi(envelope)
+    const shift = await fetchMyShift(api)
+    expect(calls).toEqual([{ path: '/attendance/mine', query: {} }])
+    expect(shift.state).toBe('in-progress')
+    expect(shift.status).toBe('present')
+    expect(shift.elapsedSeconds).toBe(7200)
+  })
+
+  it('defaults to an HONEST not-started shift for an empty envelope', async () => {
+    const { api } = fakeApi({ success: true })
+    const shift = await fetchMyShift(api)
+    // Never a fabricated running timer when the wire carries no shift.
+    expect(shift).toEqual({
+      id: '',
+      state: 'not-started',
+      status: 'unknown',
+      clockedInAtIso: null,
+      siteName: null,
+      elapsedSeconds: 0
+    })
+  })
+
+  it('clamps an unknown state/status to the honest defaults', () => {
+    const shift = adaptMyShift({ id: 'x', state: 'weird', status: 'bogus', elapsedSeconds: -5 })
+    expect(shift.state).toBe('not-started')
+    expect(shift.status).toBe('unknown')
+    expect(shift.elapsedSeconds).toBe(0)
+  })
+})
+
+describe('fetchPerformanceSnapshot — GET /attendance/me/performance (A5)', () => {
+  it('sends range and unwraps the real shift-count snapshot', async () => {
+    const envelope = {
+      success: true,
+      data: {
+        metricLabelSw: 'Zamu zilizofanyika',
+        metricLabelEn: 'Shifts worked',
+        metricValue: 5,
+        metricUnitSw: 'zamu',
+        metricUnitEn: 'shifts',
+        deltaPct: 25,
+        rangeDays: 7
+      }
+    }
+    const { api, calls } = fakeApi(envelope)
+    const snap = await fetchPerformanceSnapshot(api, 7)
+    expect(calls).toEqual([
+      { path: '/attendance/me/performance', query: { range: '7d' } }
+    ])
+    expect(snap.metricValue).toBe(5)
+    expect(snap.deltaPct).toBe(25)
+    // Locale-parallel — both sw + en present.
+    expect(snap.metricLabelSw).toBe('Zamu zilizofanyika')
+    expect(snap.metricLabelEn).toBe('Shifts worked')
+  })
+
+  it('defaults to an honest zero-count snapshot for an empty envelope', () => {
+    const snap = adaptPerformanceSnapshot(undefined)
+    expect(snap.metricValue).toBe(0)
+    expect(snap.deltaPct).toBe(0)
+    expect(snap.rangeDays).toBe(7)
   })
 })

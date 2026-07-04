@@ -4,7 +4,7 @@
 
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 
 import {
@@ -42,6 +42,39 @@ const createSchema = z.object({
 });
 
 const updateSchema = createSchema.partial().omit({ estateEntityId: true });
+
+/**
+ * Portfolio-wide aggregate over EVERY matching asset row (not the
+ * ≤`limit` display page). `totalValueTzs` is returned as a string to
+ * preserve full numeric precision across the wire; `count` is the true
+ * asset count. Both are tenant-scoped via `whereParts` built by the
+ * caller. When no rows match, `totalValueTzs` is null (absent value →
+ * localized placeholder), never a fabricated 0.
+ */
+export async function computeAssetsAggregate(
+  db: {
+    select: (cols: Record<string, unknown>) => {
+      from: (t: unknown) => { where: (w: unknown) => Promise<unknown[]> };
+    };
+  },
+  whereParts: ReadonlyArray<unknown>,
+): Promise<{ totalValueTzs: string | null; count: number }> {
+  const [agg] = (await db
+    .select({
+      total: sql<string | null>`SUM(${estateAssets.currentValueTzs})`,
+      count: sql<number>`COUNT(*)`,
+    })
+    .from(estateAssets)
+    .where(and(...(whereParts as any[])))) as Array<{
+    total: string | null;
+    count: number | string;
+  }>;
+  const count = Number(agg?.count ?? 0);
+  return {
+    totalValueTzs: count > 0 && agg?.total != null ? String(agg.total) : null,
+    count,
+  };
+}
 
 export function createEstateAssetsRouter(): Hono {
   const app = new Hono();
@@ -87,9 +120,17 @@ export function createEstateAssetsRouter(): Hono {
       .where(and(...whereParts))
       .orderBy(desc(estateAssets.valuationAt))
       .limit(parsed.data.limit);
+    // Portfolio total + count MUST fold every matching asset, not just
+    // the ≤limit display page — a client-side reduce over `rows` would
+    // under-report the moment a tenant crosses `limit` assets.
+    const aggregate = await computeAssetsAggregate(db, whereParts);
     return c.json({
       success: true,
-      data: { assets: rows, count: rows.length },
+      data: {
+        assets: rows,
+        count: rows.length,
+        aggregate,
+      },
     });
   });
 

@@ -6,9 +6,10 @@ import { useI18n } from '../../i18n/useI18n'
 import { colors } from '../../theme/colors'
 import { fontSize, radius, spacing } from '../../theme/spacing'
 import { Section } from '../../components/Section'
+import type { Lang } from '../../auth/types'
 import { COPY, pickCopy, pickSafetyLabel } from './copy'
 import { classifyEndpointError, endpointPathFromError } from './missingApi'
-import type { SitePulseData } from './types'
+import type { ShiftKey, SitePulseData } from './types'
 
 /**
  * Band 1 — Site Pulse. Five KPI tiles per research §1 (max 5 to avoid
@@ -91,25 +92,44 @@ export function SitePulse({ siteId }: SitePulseProps): JSX.Element {
     )
   }
 
+  const notTracked = pickCopy(lang, 'notTracked')
+  const siteName = data.siteName ?? pickCopy(lang, 'siteUnknown')
+  const shiftLabel = pickShiftLabel(lang, data.shiftKey)
+
   return (
-    <Section title={title} hint={`${data.siteName} — ${data.shiftLabel}`}>
+    <Section title={title} hint={`${siteName} — ${shiftLabel}`}>
       <View style={styles.tiles}>
         <KpiTile
           label={pickCopy(lang, 'kpiPlan')}
-          value={`${data.planAttainmentPct}%`}
-          tone={toneFromPct(data.planAttainmentPct, 90, 70)}
+          // planAttainmentPct has NO target source — honest em-dash, never a
+          // fabricated % that reads as a real (and always-behind) attainment.
+          value={data.planAttainmentPct === null ? notTracked : `${data.planAttainmentPct}%`}
+          tone={data.planAttainmentPct === null ? 'neutral' : toneFromPct(data.planAttainmentPct, 90, 70)}
           glyph="P"
         />
         <KpiTile
           label={pickCopy(lang, 'kpiCrew')}
-          value={`${data.crewOnShift}/${data.crewExpected}`}
-          tone={toneFromRatio(data.crewOnShift, data.crewExpected)}
+          // crewExpected is not tracked → show the real on-shift count alone,
+          // never a fabricated "/ N" denominator.
+          value={
+            data.crewOnShift === null
+              ? notTracked
+              : data.crewExpected === null
+                ? String(data.crewOnShift)
+                : `${data.crewOnShift}/${data.crewExpected}`
+          }
+          tone={
+            data.crewOnShift === null || data.crewExpected === null
+              ? 'neutral'
+              : toneFromRatio(data.crewOnShift, data.crewExpected)
+          }
           glyph="C"
         />
         <KpiTile
           label={pickCopy(lang, 'kpiEquipment')}
-          value={`${data.equipmentAvailabilityPct}%`}
-          tone={toneFromPct(data.equipmentAvailabilityPct, 85, 70)}
+          // No equipment-availability table — honest em-dash.
+          value={data.equipmentAvailabilityPct === null ? notTracked : `${data.equipmentAvailabilityPct}%`}
+          tone={data.equipmentAvailabilityPct === null ? 'neutral' : toneFromPct(data.equipmentAvailabilityPct, 85, 70)}
           glyph="E"
         />
         <KpiTile
@@ -129,15 +149,30 @@ export function SitePulse({ siteId }: SitePulseProps): JSX.Element {
   )
 }
 
+function pickShiftLabel(lang: Lang, shiftKey: ShiftKey): string {
+  return shiftKey === 'night' ? pickCopy(lang, 'shiftNight') : pickCopy(lang, 'shiftDay')
+}
+
+type Tone = 'green' | 'amber' | 'red' | 'neutral'
+
 interface KpiTileProps {
   readonly label: string
   readonly value: string
-  readonly tone: 'green' | 'amber' | 'red'
+  readonly tone: Tone
   readonly glyph: string
 }
 
 function KpiTile({ label, value, tone, glyph }: KpiTileProps): JSX.Element {
-  const toneColor = tone === 'green' ? colors.success : tone === 'amber' ? colors.warn : colors.danger
+  // 'neutral' = the metric has no real source (value is the honest em-dash) —
+  // render a muted border so an untracked tile never signals green/amber/red.
+  const toneColor =
+    tone === 'green'
+      ? colors.success
+      : tone === 'amber'
+        ? colors.warn
+        : tone === 'red'
+          ? colors.danger
+          : colors.textMuted
   return (
     <View
       accessibilityRole="summary"

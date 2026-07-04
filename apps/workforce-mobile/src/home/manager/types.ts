@@ -15,13 +15,26 @@ import type { Lang } from '../../auth/types'
 export type AlertSeverity = 'low' | 'med' | 'high'
 export type SafetyStatus = 'green' | 'amber' | 'red'
 
+export type ShiftKey = 'day' | 'night'
+
+/**
+ * Site Pulse wire contract (GET /api/v1/mining/cockpit). Nullable metrics have
+ * NO real backend source and MUST render as a localized "—"/not-tracked tile —
+ * never a fabricated number. See the gateway `site-pulse.ts` for provenance:
+ *   planAttainmentPct        — null: no production TARGET feed exists.
+ *   crewExpected             — null: no rostered-expected headcount source.
+ *   equipmentAvailabilityPct — null: no equipment-availability table.
+ *   crewOnShift              — null only when no site could be bound.
+ * `shiftKey` is a locale-neutral key; the mobile layer localizes it (no prose
+ * crosses the wire).
+ */
 export interface SitePulseData {
-  readonly siteName: string
-  readonly shiftLabel: string
-  readonly planAttainmentPct: number
-  readonly crewOnShift: number
-  readonly crewExpected: number
-  readonly equipmentAvailabilityPct: number
+  readonly siteName: string | null
+  readonly shiftKey: ShiftKey
+  readonly planAttainmentPct: number | null
+  readonly crewOnShift: number | null
+  readonly crewExpected: number | null
+  readonly equipmentAvailabilityPct: number | null
   readonly alertsCount: number
   readonly safetyStatus: SafetyStatus
 }
@@ -44,13 +57,19 @@ export interface MaintenanceAlert {
 
 export type CrewStatus = 'on_site' | 'late' | 'break' | 'absent' | 'off'
 
+/**
+ * Crew Roster row (GET /api/v1/mining/attendance/crew-roster). `fullName`,
+ * `role` and `status` come from real employees + today's attendance. Nullable
+ * fields have NO backing source and MUST NOT render a fabricated value:
+ *   workloadPct     — null: no per-worker workload/utilization source.
+ *   equipmentPaired — null: no worker↔equipment pairing table.
+ */
 export interface CrewMember {
   readonly id: string
   readonly fullName: string
   readonly role: string
   readonly status: CrewStatus
-  readonly statusDetail: string
-  readonly workloadPct: number
+  readonly workloadPct: number | null
   readonly equipmentPaired: string | null
 }
 

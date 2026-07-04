@@ -66,7 +66,14 @@ export const COPY = Object.freeze({
     en: 'Send the owner a pre-composed alert with what you tried.'
   },
   workloadLabel: { sw: 'Mzigo', en: 'Workload' },
-  pendingLabel: { sw: 'zinasubiri', en: 'pending' }
+  pendingLabel: { sw: 'zinasubiri', en: 'pending' },
+  shiftDay: { sw: 'Zamu ya mchana', en: 'Day shift' },
+  shiftNight: { sw: 'Zamu ya usiku', en: 'Night shift' },
+  // Honest "no real source" marker for a KPI tile with no backing feed — an
+  // em-dash reads the same in both locales but we key it so the render layer
+  // never hardcodes a bare string.
+  notTracked: { sw: '—', en: '—' },
+  siteUnknown: { sw: 'Mgodi', en: 'Site' }
 }) as Readonly<Record<string, LocalizedCopy>>
 
 export function pickCopy(lang: Lang, key: keyof typeof COPY): string {

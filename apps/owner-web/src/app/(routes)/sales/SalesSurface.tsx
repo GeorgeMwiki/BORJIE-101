@@ -4,11 +4,15 @@
  * O-W-13 — Sales & pipeline (client surface).
  *
  * Live data from:
- *   GET /api/v1/mining/sales — ore-parcel sale transactions.
+ *   GET /api/v1/mining/sales         — paged ore-parcel sale rows (the table).
+ *   GET /api/v1/mining/sales/summary — whole-book KPI aggregate (net/gross
+ *     SUM, count, pending) folded in SQL over EVERY sale, so the KPI strip
+ *     reports true revenue instead of folding the paged rows (which
+ *     under-reports once a tenant crosses the page size).
  *
  * Renders a KPI strip (total sales count, total net revenue, pending
- * payments, most recent sale date) followed by a transaction table.
- * Empty state is shown when no sales exist yet — never fabricated data.
+ * payments) followed by a transaction table. Empty state is shown when no
+ * sales exist yet — never fabricated data.
  *
  * Client island seeded with `initialLocale` (resolved server-side in
  * page.tsx) so the first paint matches the SSR `<html lang>` chrome and
@@ -71,6 +75,22 @@ const SaleRowSchema = z.object({
 
 type SaleRow = z.infer<typeof SaleRowSchema>;
 
+/**
+ * Whole-book aggregate the backend folds in SQL over EVERY matching sale
+ * (not the paged ≤100/≤500 rows the table renders), served by the sibling
+ * `GET /api/v1/mining/sales/summary`. The KPI strip reads these totals so
+ * revenue never under-reports past the page size. numeric SUMs ride the wire
+ * as strings; coerced to numbers here for formatting.
+ */
+const SalesSummarySchema = z.object({
+  totalNetTzs: z.coerce.number(),
+  totalGrossTzs: z.coerce.number(),
+  count: z.coerce.number(),
+  pendingCount: z.coerce.number(),
+});
+
+type SalesSummary = z.infer<typeof SalesSummarySchema>;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -119,13 +139,36 @@ function useSales(limit = 100) {
         { signal },
       ),
     select: (raw): ReadonlyArray<SaleRow> => {
-      if (Array.isArray(raw)) {
-        return z.array(SaleRowSchema).parse(raw);
-      }
-      const env = z
-        .object({ success: z.literal(true), data: z.array(SaleRowSchema) })
-        .safeParse(raw);
-      return env.success ? env.data.data : [];
+      // `apiRequest` unwraps `{ success, data }` → the rows array. An
+      // already-unwrapped array is honoured directly.
+      const payload = Array.isArray(raw)
+        ? raw
+        : (raw as { data?: unknown })?.data;
+      const parsed = z.array(SaleRowSchema).safeParse(payload);
+      return parsed.success ? parsed.data : [];
+    },
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * Whole-book KPI aggregate — a SEPARATE query so the SQL-folded totals survive
+ * `apiRequest`'s envelope-unwrap (a `summary` sibling on the list envelope
+ * would be stripped). The KPI strip reads these instead of folding the paged
+ * rows, which under-reports revenue once a tenant crosses the page size.
+ */
+function useSalesSummary() {
+  return useQuery({
+    queryKey: ['mining', 'sales', 'summary'],
+    queryFn: ({ signal }) =>
+      apiRequest<unknown>('/api/v1/mining/sales/summary', { signal }),
+    select: (raw): SalesSummary | null => {
+      const payload =
+        raw && typeof raw === 'object' && 'data' in raw
+          ? (raw as { data: unknown }).data
+          : raw;
+      const parsed = SalesSummarySchema.safeParse(payload);
+      return parsed.success ? parsed.data : null;
     },
     staleTime: 60_000,
   });
@@ -142,16 +185,30 @@ interface SalesSurfaceProps {
 export function SalesSurface({ initialLocale }: SalesSurfaceProps) {
   const locale = useLocale(initialLocale);
   const { data, isLoading, isError, error } = useSales();
+  const { data: summaryData } = useSalesSummary();
   const sales = data ?? [];
+  const summary = summaryData ?? null;
 
   const metrics = useMemo<readonly MetricTile[]>(() => {
-    const totalNet = sales.reduce((sum, s) => sum + (s.netTzs ?? 0), 0);
-    const totalGross = sales.reduce((sum, s) => sum + (s.grossPriceTzs ?? 0), 0);
-    const pending = sales.filter((s) => s.paymentStatus === 'pending').length;
+    // KPI totals come from the SERVER aggregate (whole-book SUM over every
+    // matching sale), NOT a fold over the paged rows — folding the ≤100/≤500
+    // fetched rows under-reports revenue once a tenant crosses the page size.
+    // When the aggregate is absent (legacy array response) fall back to the
+    // paged fold so the strip still renders rather than showing nothing.
+    const totalNet =
+      summary?.totalNetTzs ??
+      sales.reduce((sum, s) => sum + (s.netTzs ?? 0), 0);
+    const totalGross =
+      summary?.totalGrossTzs ??
+      sales.reduce((sum, s) => sum + (s.grossPriceTzs ?? 0), 0);
+    const totalCount = summary?.count ?? sales.length;
+    const pending =
+      summary?.pendingCount ??
+      sales.filter((s) => s.paymentStatus === 'pending').length;
     return [
       {
         label: S.totalSalesLabel[locale],
-        value: String(sales.length),
+        value: String(totalCount),
         sub: S.totalSalesSub[locale],
         icon: Package,
       },
@@ -180,7 +237,7 @@ export function SalesSurface({ initialLocale }: SalesSurfaceProps) {
         tone: pending > 0 ? 'warning' : 'default',
       },
     ];
-  }, [sales, locale]);
+  }, [sales, summary, locale]);
 
   return (
     <div className="space-y-8 px-8 py-8">

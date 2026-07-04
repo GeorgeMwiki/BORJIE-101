@@ -27,14 +27,13 @@ interface AttendanceResponse {
 
 function useAttendance(siteId: string | null): UseQueryResult<AttendanceResponse, Error> {
   return useQuery<AttendanceResponse, Error>({
-    queryKey: ['manager', 'attendance', siteId ?? 'auto'],
+    queryKey: ['manager', 'crew-roster', siteId ?? 'auto'],
     queryFn: ({ signal }) =>
-      miningApi.get<AttendanceResponse>('/attendance', {
+      // Real endpoint: the site's crew (employees + today's attendance status),
+      // NOT the caller's own attendance history. See gateway crew-roster.ts.
+      miningApi.get<AttendanceResponse>('/attendance/crew-roster', {
         signal,
-        query: {
-          shift: 'current',
-          ...(siteId ? { siteId } : {})
-        }
+        ...(siteId ? { query: { siteId } } : {})
       }),
     staleTime: 30_000,
     refetchInterval: 60_000,
@@ -105,11 +104,17 @@ function CrewRow({ member }: { readonly member: CrewMember }): JSX.Element {
   const initials = buildInitials(member.fullName)
   const tone = statusTone(member.status)
   const statusLabel = pickStatus(lang, member.status)
-  const workloadLabel = `${pickCopy(lang, 'workloadLabel')}: ${member.workloadPct}%`
+  // Detail line = the worker's role (a real field), not a fabricated status
+  // note. Workload is only surfaced when a real value exists.
+  const detail = member.role ? `${statusLabel} · ${member.role}` : statusLabel
+  const workloadA11y =
+    member.workloadPct === null
+      ? ''
+      : ` — ${pickCopy(lang, 'workloadLabel')}: ${member.workloadPct}%`
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${member.fullName} — ${statusLabel} — ${workloadLabel}`}
+      accessibilityLabel={`${member.fullName} — ${statusLabel}${workloadA11y}`}
       style={styles.row}
     >
       <View style={[styles.avatar, { borderColor: tone }]}>
@@ -120,9 +125,7 @@ function CrewRow({ member }: { readonly member: CrewMember }): JSX.Element {
         <Text style={styles.name}>{member.fullName}</Text>
         <View style={styles.metaRow}>
           <View style={[styles.statusPill, { borderColor: tone }]}>
-            <Text style={[styles.statusPillText, { color: tone }]}>
-              {`${statusLabel} · ${member.statusDetail}`}
-            </Text>
+            <Text style={[styles.statusPillText, { color: tone }]}>{detail}</Text>
           </View>
           {member.equipmentPaired ? (
             <Text style={styles.equipment} numberOfLines={1}>
@@ -130,7 +133,9 @@ function CrewRow({ member }: { readonly member: CrewMember }): JSX.Element {
             </Text>
           ) : null}
         </View>
-        <WorkloadBar pct={member.workloadPct} />
+        {/* No workload source is wired — omit the bar rather than render a
+            fabricated 0%. Renders only when a real value exists. */}
+        {member.workloadPct === null ? null : <WorkloadBar pct={member.workloadPct} />}
       </View>
     </Pressable>
   )

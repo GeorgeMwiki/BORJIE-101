@@ -50,22 +50,92 @@ const SALES_WRITE_ROLES = [
   UserRole.SUPER_ADMIN,
 ] as const;
 
-app.openapi(salesListRoute, async (c) => {
-  const { tenantId } = c.get('auth');
-  const db = c.get('db');
-  const q = c.req.valid('query');
-  const limit = Math.min(Number(q.limit ?? 100), 500);
+/**
+ * Whole-book sales KPI aggregate, folded in SQL over EVERY matching row (not
+ * the paged ≤500 the list returns). Tenant scope comes from the auth-derived
+ * `tenantId` (never the client) via the SAME filter set the list uses, so the
+ * KPI strip reports true revenue instead of under-reporting once a tenant
+ * crosses the page size. numeric SUMs come back as strings; they are surfaced
+ * as strings for the FE to parse, mirroring the per-row `net_tzs` /
+ * `gross_price_tzs` wire shape.
+ */
+interface SalesSummary {
+  readonly totalNetTzs: string;
+  readonly totalGrossTzs: string;
+  readonly count: number;
+  readonly pendingCount: number;
+}
+
+async function computeSalesSummary(
+  db: DrizzleDb,
+  where: ReturnType<typeof and>,
+): Promise<SalesSummary> {
+  const [row] = await db
+    .select({
+      totalNetTzs: sql<string>`COALESCE(SUM(${sales.netTzs}), 0)`,
+      totalGrossTzs: sql<string>`COALESCE(SUM(${sales.grossPriceTzs}), 0)`,
+      count: sql<number>`COUNT(*)::int`,
+      pendingCount: sql<number>`COUNT(*) FILTER (WHERE ${sales.paymentStatus} = 'pending')::int`,
+    })
+    .from(sales)
+    .where(where);
+  return {
+    totalNetTzs: String(row?.totalNetTzs ?? '0'),
+    totalGrossTzs: String(row?.totalGrossTzs ?? '0'),
+    count: Number(row?.count ?? 0),
+    pendingCount: Number(row?.pendingCount ?? 0),
+  };
+}
+
+/** Tenant-scoped list filters shared by the list route and the KPI aggregate. */
+function salesFilters(
+  tenantId: string,
+  q: { parcelId?: string; buyerId?: string; paymentStatus?: string },
+): ReturnType<typeof and> {
   const conds = [eq(sales.tenantId, tenantId)];
   if (q.parcelId) conds.push(eq(sales.parcelId, q.parcelId));
   if (q.buyerId) conds.push(eq(sales.buyerId, q.buyerId));
   if (q.paymentStatus) conds.push(eq(sales.paymentStatus, q.paymentStatus));
+  return and(...conds);
+}
+
+app.openapi(salesListRoute, async (c) => {
+  const { tenantId } = c.get('auth');
+  const db = c.get('db') as DrizzleDb;
+  const q = c.req.valid('query');
+  const limit = Math.min(Number(q.limit ?? 100), 500);
+  const where = salesFilters(tenantId, q);
+
+  const summary = await computeSalesSummary(db, where);
+
   const rows = await db
     .select()
     .from(sales)
-    .where(and(...conds))
+    .where(where)
     .orderBy(desc(sales.ts))
     .limit(limit);
-  return c.json({ success: true as const, data: rows }, 200);
+
+  return c.json({ success: true as const, data: rows, summary }, 200);
+});
+
+/**
+ * GET /summary — the whole-book KPI aggregate ALONE (net/gross SUM, count,
+ * pending count) so the owner cockpit can render revenue totals that survive
+ * `apiRequest`'s envelope-unwrap (which strips any sibling field). Registered
+ * as a plain Hono route (the accounting.hono.ts precedent) so it inherits the
+ * same `authMiddleware` + `databaseMiddleware` (tenant scope from auth, never
+ * the client) without a new OpenAPI response schema.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+app.get('/summary', async (c: any) => {
+  const { tenantId } = c.get('auth');
+  const db = c.get('db') as DrizzleDb;
+  const parcelId = c.req.query('parcelId');
+  const buyerId = c.req.query('buyerId');
+  const paymentStatus = c.req.query('paymentStatus');
+  const where = salesFilters(tenantId, { parcelId, buyerId, paymentStatus });
+  const summary = await computeSalesSummary(db, where);
+  return c.json({ success: true as const, data: summary }, 200);
 });
 
 app.openapi(

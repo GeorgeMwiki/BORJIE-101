@@ -33,6 +33,8 @@ import {
   grievances,
   miningApprovalItems,
   miningSicPings,
+  attendance,
+  sites,
 } from '@borjie/database';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
@@ -57,6 +59,7 @@ import {
   getCockpitDecisions,
 } from '../owner/brief.hono.js';
 import { createLogger } from '../../utils/logger';
+import { assembleSitePulse } from './site-pulse';
 
 const moduleLogger = createLogger('mining-cockpit');
 
@@ -99,6 +102,94 @@ async function getLatestFxQuotes(db: {
     tzsUsd: byPair.get('TZS_USD') ?? null,
   };
 }
+
+// ---------------------------------------------------------------------------
+// GET / — Site Pulse for the manager HOME band (workforce-mobile W-M-02M).
+//
+// Assembles SitePulseData from REAL sources only, honest-nulling every metric
+// with no backing feed (see site-pulse.ts for per-field provenance). The
+// previous mobile call to a nonexistent bare `/cockpit` 404'd, so the manager
+// saw a permanent env-missing band. Tenant scope comes from the auth context;
+// only `siteId` is client-supplied (a filter, never a trust boundary — every
+// query is still tenant-fenced by RLS + explicit tenantId eq).
+// ---------------------------------------------------------------------------
+app.get('/', async (c) => {
+  const { tenantId } = c.get('auth') as { tenantId: string };
+  const db = c.get('db');
+  const requestedSiteId = c.req.query('siteId') ?? null;
+
+  if (!db) {
+    return c.json(
+      { success: false as const, error: { code: 'DB_UNAVAILABLE', message: 'database not configured' } },
+      503,
+    );
+  }
+
+  const today = dayKey(new Date());
+
+  // Resolve the target site: the requested siteId if given, else the tenant's
+  // first site (stable ordering by name). Null when the tenant has no site.
+  const siteRows = requestedSiteId
+    ? await db
+        .select({ id: sites.id, name: sites.name })
+        .from(sites)
+        .where(and(eq(sites.tenantId, tenantId), eq(sites.id, requestedSiteId)))
+        .limit(1)
+    : await db
+        .select({ id: sites.id, name: sites.name })
+        .from(sites)
+        .where(eq(sites.tenantId, tenantId))
+        .orderBy(sites.name)
+        .limit(1);
+  const site = (siteRows as ReadonlyArray<{ id: string; name: string }>)[0] ?? null;
+  const siteId = site?.id ?? requestedSiteId;
+
+  // crewOnShift — REAL: distinct employees marked present today. Scoped to the
+  // resolved site when known; tenant-wide otherwise. `null` when we cannot bind
+  // a site (no fabricated 0 that reads as "empty site").
+  let crewOnShift: number | null = null;
+  if (siteId) {
+    const [head] = (await db
+      .select({ n: sql<number>`COUNT(DISTINCT ${attendance.employeeId})::int` })
+      .from(attendance)
+      .where(
+        and(
+          eq(attendance.tenantId, tenantId),
+          eq(attendance.siteId, siteId),
+          eq(attendance.workDate, today),
+          eq(attendance.status, 'present'),
+        ),
+      )) as ReadonlyArray<{ n: number | string | null }>;
+    crewOnShift = Number(head?.n ?? 0);
+  }
+
+  // alertsCount + safetyStatus — REAL: open incident severities for the site
+  // (tenant-wide when no site is bound).
+  const incidentConds = [eq(incidents.tenantId, tenantId), eq(incidents.status, 'open')];
+  if (siteId) {
+    incidentConds.push(eq(incidents.siteId, siteId));
+  }
+  const [sev] = (await db
+    .select({
+      critical: sql<number>`COUNT(*) FILTER (WHERE ${incidents.severity} = 'critical')::int`,
+      high: sql<number>`COUNT(*) FILTER (WHERE ${incidents.severity} = 'high')::int`,
+    })
+    .from(incidents)
+    .where(and(...incidentConds))) as ReadonlyArray<{
+    critical: number | string | null;
+    high: number | string | null;
+  }>;
+
+  const pulse = assembleSitePulse({
+    siteName: site?.name ?? null,
+    crewOnShift,
+    openCriticalCount: Number(sev?.critical ?? 0),
+    openHighCount: Number(sev?.high ?? 0),
+    localHour: new Date().getHours(),
+  });
+
+  return c.json({ success: true as const, data: pulse }, 200);
+});
 
 // ---------------------------------------------------------------------------
 // GET /daily-brief — FULL DailyBriefResponse (owner-ceo-1 fix).

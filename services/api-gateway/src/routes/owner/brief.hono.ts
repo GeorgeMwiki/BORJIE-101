@@ -529,19 +529,28 @@ export async function getCockpit27MarCliffStatus(
   tenantId: string,
 ): Promise<z.infer<typeof CliffStatusSlotSchema>> {
   const cutoff = new Date('2026-03-27T00:00:00Z');
-  const usdSales = ((await db
-    .select()
+  // Aggregate in SQL over ALL post-cliff sales — never a capped JS fold. A
+  // `.limit(500)` with no orderBy returned an arbitrary subset, so for a
+  // tenant with >500 post-cliff sales the USD-denominated ones could fall
+  // outside the window → `usdDenom === 0` falsely flipped `remediationComplete`
+  // to a green "all-clear" while USD contracts still existed (compliance
+  // banner lies). COUNT(*) FILTER counts every matching row, bounded to 1 row.
+  const [agg] = ((await db
+    .select({
+      total: sql<number>`count(*)::int`,
+      usd: sql<number>`count(*) filter (where ${sales.grossPriceUsd} is not null and ${sales.grossPriceUsd} > 0)::int`,
+    })
     .from(sales)
-    .where(and(eq(sales.tenantId, tenantId), gte(sales.ts, cutoff)))
-    .limit(500)) ?? []) as ReadonlyArray<{
-    grossPriceUsd?: number | string | null;
+    .where(and(eq(sales.tenantId, tenantId), gte(sales.ts, cutoff)))) ??
+    []) as ReadonlyArray<{
+    total?: number | string | null;
+    usd?: number | string | null;
   }>;
-  const usdDenom = usdSales.filter(
-    (s) => Number(s.grossPriceUsd ?? 0) > 0,
-  ).length;
+  const postCliffSales = Number(agg?.total ?? 0);
+  const usdDenom = Number(agg?.usd ?? 0);
   return {
     cliffDateIso: cutoff.toISOString(),
-    postCliffSales: usdSales.length,
+    postCliffSales,
     usdDenominated: usdDenom,
     remediationComplete: usdDenom === 0,
   };
@@ -551,11 +560,33 @@ export async function getOpenHighIncidents(
   db: any,
   tenantId: string,
 ): Promise<z.infer<typeof OpenHighIncidentsSlotSchema>> {
+  // The SAFETY count must be the TRUE total of open critical/high incidents,
+  // not the critical/high subset WITHIN the newest 25 — a `.limit(25)` then
+  // JS filter undercounted (falsely-low / green safety KPI) for any tenant
+  // with >25 open incidents. Severity filter + COUNT run in SQL; the item
+  // list stays capped at 25 for display but is now pre-filtered so it never
+  // shows fewer than exist.
+  const highSeverity = sql`${incidents.severity} in ('critical', 'high')`;
+  const [agg] = ((await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(incidents)
+    .where(
+      and(
+        eq(incidents.tenantId, tenantId),
+        eq(incidents.status, 'open'),
+        highSeverity,
+      ),
+    )) ?? []) as ReadonlyArray<{ total?: number | string | null }>;
+  const totalHigh = Number(agg?.total ?? 0);
   const rows = ((await db
     .select()
     .from(incidents)
     .where(
-      and(eq(incidents.tenantId, tenantId), eq(incidents.status, 'open')),
+      and(
+        eq(incidents.tenantId, tenantId),
+        eq(incidents.status, 'open'),
+        highSeverity,
+      ),
     )
     .orderBy(desc(incidents.occurredAt))
     .limit(25)) ?? []) as ReadonlyArray<{
@@ -564,12 +595,9 @@ export async function getOpenHighIncidents(
     kind?: string | null;
     occurredAt?: Date | string | null;
   }>;
-  const filtered = rows.filter(
-    (r) => r.severity === 'critical' || r.severity === 'high',
-  );
   return {
-    count: filtered.length,
-    items: filtered.map((r) => ({
+    count: totalHigh,
+    items: rows.map((r) => ({
       id: r.id,
       severity: String(r.severity ?? 'high'),
       kind: String(r.kind ?? 'incident'),

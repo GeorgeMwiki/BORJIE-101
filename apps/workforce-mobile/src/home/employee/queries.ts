@@ -13,6 +13,8 @@ import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { miningApi } from '../../api/client'
 import {
   fetchActiveAlerts,
+  fetchMyShift,
+  fetchPerformanceSnapshot,
   fetchTodayTasks,
   fetchToolboxTalk
 } from './queries.adapters'
@@ -32,8 +34,9 @@ export function useTodayShift(userId: string | null): UseQueryResult<AttendanceS
     queryKey: ['employee-home', 'attendance-mine', userId],
     enabled: Boolean(userId),
     staleTime: STALE_60S,
-    queryFn: async () =>
-      miningApi.get<AttendanceShift>('/attendance/mine')
+    // GET /attendance/mine answers { success, data: AttendanceShift } built
+    // from the caller's REAL attendance row — see queries.adapters.ts.
+    queryFn: async () => fetchMyShift(miningApi)
   })
 }
 
@@ -65,10 +68,9 @@ export function usePerformanceSnapshot(
     queryKey: ['employee-home', 'performance', userId],
     enabled: Boolean(userId),
     staleTime: STALE_60S,
-    queryFn: async () =>
-      miningApi.get<PerformanceSnapshotData>('/attendance/me/performance', {
-        query: { range: '7d' }
-      })
+    // GET /attendance/me/performance answers { success, data } — metricValue is
+    // the REAL count of the caller's shifts in the window (no fabricated trend).
+    queryFn: async () => fetchPerformanceSnapshot(miningApi, 7)
   })
 }
 

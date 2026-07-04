@@ -15,7 +15,7 @@ import { OpenAPIHono } from '@hono/zod-openapi';
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq, gte, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { attendance, miningToolboxTalks } from '@borjie/database';
+import { attendance, employees, miningToolboxTalks } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
@@ -24,6 +24,8 @@ import {
   attendanceCheckOutRoute,
 } from './_openapi/route-defs';
 import { createLogger } from '../../utils/logger';
+import { adaptCrewRoster, type CrewRosterRow } from './crew-roster';
+import { adaptMyPerformance, adaptMyShift, type MyAttendanceRow } from './my-attendance';
 
 const moduleLogger = createLogger('mining-attendance');
 
@@ -200,6 +202,166 @@ app.get('/', async (c) => {
     .orderBy(desc(attendance.workDate))
     .limit(limit);
   return c.json({ success: true as const, data: rows }, 200);
+});
+
+function dayKey(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+// ---------------------------------------------------------------------------
+// GET /mine — the caller's current/last shift (employee HOME hero card).
+//
+// Replaces the dead GET /attendance/mine the mobile hook cast. Reads the
+// caller's OWN latest attendance row (same employeeId=userId scope as GET /)
+// and projects the AttendanceShift render contract via adaptMyShift — real
+// state/timer only, never a fabricated running shift.
+// ---------------------------------------------------------------------------
+app.get('/mine', async (c) => {
+  const { tenantId, userId } = c.get('auth');
+  const db = c.get('db');
+  const now = new Date();
+  const today = dayKey(now);
+  if (!db) {
+    return c.json(
+      { success: true as const, data: adaptMyShift(null, today, now) },
+      200,
+    );
+  }
+  const [row] = (await db
+    .select({
+      id: attendance.id,
+      status: attendance.status,
+      hoursWorked: attendance.hoursWorked,
+      signedOffAt: attendance.signedOffAt,
+      workDate: attendance.workDate,
+    })
+    .from(attendance)
+    .where(
+      and(
+        eq(attendance.tenantId, tenantId),
+        eq(attendance.employeeId, userId),
+      ),
+    )
+    .orderBy(desc(attendance.workDate), desc(attendance.signedOffAt))
+    .limit(1)) as ReadonlyArray<MyAttendanceRow>;
+  return c.json(
+    { success: true as const, data: adaptMyShift(row ?? null, today, now) },
+    200,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// GET /me/performance?range=7d — the caller's attendance-derived snapshot.
+//
+// Replaces the dead GET /attendance/me/performance the mobile hook cast.
+// metricValue = REAL count of the caller's shifts in the window; deltaPct is
+// driven by the prior window (0 when the baseline is empty — no fabricated
+// trend). No streaks/charts (R2 worker-home anti-pattern).
+// ---------------------------------------------------------------------------
+const PerformanceQuerySchema = z.object({
+  range: z
+    .string()
+    .regex(/^\d{1,3}d$/u)
+    .default('7d')
+    .optional(),
+});
+
+app.get('/me/performance', async (c) => {
+  const { tenantId, userId } = c.get('auth');
+  const db = c.get('db');
+  const parsed = PerformanceQuerySchema.safeParse({ range: c.req.query('range') });
+  const rangeDays = parsed.success
+    ? Number((parsed.data.range ?? '7d').replace('d', ''))
+    : 7;
+  if (!db) {
+    return c.json(
+      { success: true as const, data: adaptMyPerformance(0, rangeDays, null) },
+      200,
+    );
+  }
+  const now = new Date();
+  const windowStart = new Date(now);
+  windowStart.setDate(windowStart.getDate() - rangeDays);
+  const priorStart = new Date(now);
+  priorStart.setDate(priorStart.getDate() - rangeDays * 2);
+
+  async function countPresent(fromKey: string, toKeyExclusive: string): Promise<number> {
+    const [agg] = (await db
+      .select({ n: sql<number>`COUNT(*)::int` })
+      .from(attendance)
+      .where(
+        and(
+          eq(attendance.tenantId, tenantId),
+          eq(attendance.employeeId, userId),
+          eq(attendance.status, 'present'),
+          gte(attendance.workDate, fromKey),
+          sql`${attendance.workDate} < ${toKeyExclusive}`,
+        ),
+      )) as ReadonlyArray<{ n: number | string | null }>;
+    return Number(agg?.n ?? 0);
+  }
+
+  // Exclusive upper bound = tomorrow, so a shift worked TODAY is counted in
+  // the current window (a bound of `today` would silently drop today's shift).
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const shiftsInWindow = await countPresent(dayKey(windowStart), dayKey(tomorrow));
+  const priorCount = await countPresent(dayKey(priorStart), dayKey(windowStart));
+  return c.json(
+    {
+      success: true as const,
+      data: adaptMyPerformance(shiftsInWindow, rangeDays, priorCount),
+    },
+    200,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// GET /crew-roster?siteId=<id> — the site's crew for the manager HOME band.
+//
+// Replaces the mobile CrewRoster's dead cast of GET /attendance (the caller's
+// OWN history) to a `{ items: CrewMember[] }`. Returns the tenant's active
+// employees (LEFT JOIN today's attendance for on-shift status), scoped to the
+// requested site when supplied. workloadPct/equipmentPaired are honest-null
+// (no source). Every row is tenant-fenced by RLS + explicit tenantId eq.
+// ---------------------------------------------------------------------------
+app.get('/crew-roster', async (c) => {
+  const { tenantId } = c.get('auth');
+  const db = c.get('db');
+  const siteId = c.req.query('siteId');
+  if (!db) {
+    return c.json({ success: true as const, data: { items: [] as const } }, 200);
+  }
+  const today = dayKey(new Date());
+  const conds = [
+    eq(employees.tenantId, tenantId),
+    eq(employees.status, 'active'),
+  ];
+  if (siteId) {
+    conds.push(eq(employees.siteId, siteId));
+  }
+  const rows = (await db
+    .select({
+      id: employees.id,
+      fullName: employees.fullName,
+      role: employees.role,
+      attendanceStatus: sql<string | null>`(
+        SELECT a.status FROM attendance a
+        WHERE a.employee_id = ${employees.id}
+          AND a.tenant_id = ${tenantId}
+          AND a.work_date = ${today}
+        ORDER BY a.signed_off_at DESC NULLS LAST
+        LIMIT 1
+      )`,
+    })
+    .from(employees)
+    .where(and(...conds))
+    .orderBy(employees.fullName)
+    .limit(200)) as ReadonlyArray<CrewRosterRow>;
+  return c.json(
+    { success: true as const, data: { items: adaptCrewRoster(rows) } },
+    200,
+  );
 });
 
 // ---------------------------------------------------------------------------

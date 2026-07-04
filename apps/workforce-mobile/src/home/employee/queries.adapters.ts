@@ -17,7 +17,11 @@
  */
 
 import type {
+  AttendanceShift,
+  AttendanceStatus,
   IncidentAlert,
+  PerformanceSnapshotData,
+  ShiftState,
   TaskPriority,
   TaskStatus,
   ToolboxTalk,
@@ -28,6 +32,12 @@ import type {
 export interface ListEnvelope {
   readonly success?: boolean
   readonly data?: ReadonlyArray<Record<string, unknown>>
+}
+
+/** Canonical api-gateway success envelope for single-object routes. */
+export interface ObjectEnvelope<T> {
+  readonly success?: boolean
+  readonly data?: T
 }
 
 /** Minimal slice of `miningApi` the fetchers need (injectable for tests). */
@@ -180,4 +190,88 @@ export async function fetchActiveAlerts(
     query: { status: 'open' }
   })
   return adaptIncidentAlerts(res?.data ?? [])
+}
+
+const SHIFT_STATES: ReadonlySet<string> = new Set([
+  'not-started',
+  'in-progress',
+  'on-break',
+  'ended'
+])
+const ATTENDANCE_STATUSES: ReadonlySet<string> = new Set([
+  'present',
+  'absent',
+  'late',
+  'unknown'
+])
+
+/**
+ * Adapt the gateway AttendanceShift envelope into the hero contract. The
+ * gateway already emits the render shape (state/status/elapsedSeconds from the
+ * caller's real attendance row); this only unwraps `{ success, data }` and
+ * clamps the discriminated unions, defaulting to an HONEST not-started shift
+ * (never a fabricated running timer) when the field is absent/unknown.
+ */
+export function adaptMyShift(
+  data: Record<string, unknown> | undefined
+): AttendanceShift {
+  const stateRaw = String(data?.state ?? '')
+  const statusRaw = String(data?.status ?? '')
+  const state: ShiftState = SHIFT_STATES.has(stateRaw)
+    ? (stateRaw as ShiftState)
+    : 'not-started'
+  const status: AttendanceStatus = ATTENDANCE_STATUSES.has(statusRaw)
+    ? (statusRaw as AttendanceStatus)
+    : 'unknown'
+  const elapsed = Number(data?.elapsedSeconds ?? 0)
+  return {
+    id: String(data?.id ?? ''),
+    state,
+    status,
+    clockedInAtIso: asNullableString(data?.clockedInAtIso),
+    siteName: asNullableString(data?.siteName),
+    elapsedSeconds: Number.isFinite(elapsed) && elapsed > 0 ? Math.floor(elapsed) : 0
+  }
+}
+
+/** GET /attendance/mine → the caller's current/last shift. */
+export async function fetchMyShift(api: MiningGetApi): Promise<AttendanceShift> {
+  const res = await api.get<ObjectEnvelope<Record<string, unknown>>>(
+    '/attendance/mine'
+  )
+  return adaptMyShift(res?.data)
+}
+
+/**
+ * Adapt the gateway performance snapshot envelope. Both locale label/unit
+ * fields are required (the gateway always emits sw+en), so a missing envelope
+ * yields an honest zero-count snapshot rather than crashing the card.
+ */
+export function adaptPerformanceSnapshot(
+  data: Record<string, unknown> | undefined
+): PerformanceSnapshotData {
+  const value = Number(data?.metricValue ?? 0)
+  const delta = Number(data?.deltaPct ?? 0)
+  const range = Number(data?.rangeDays ?? 7)
+  return {
+    metricLabelSw: String(data?.metricLabelSw ?? 'Zamu zilizofanyika'),
+    metricLabelEn: String(data?.metricLabelEn ?? 'Shifts worked'),
+    metricValue: Number.isFinite(value) ? value : 0,
+    metricUnitSw: String(data?.metricUnitSw ?? 'zamu'),
+    metricUnitEn: String(data?.metricUnitEn ?? 'shifts'),
+    deltaPct: Number.isFinite(delta) ? delta : 0,
+    rangeDays: Number.isFinite(range) && range > 0 ? range : 7
+  }
+}
+
+/** GET /attendance/me/performance?range=7d → attendance-derived snapshot. */
+export async function fetchPerformanceSnapshot(
+  api: MiningGetApi,
+  rangeDays: number
+): Promise<PerformanceSnapshotData> {
+  const res = await api.get<ObjectEnvelope<Record<string, unknown>>>(
+    '/attendance/me/performance',
+    { query: { range: `${rangeDays}d` } }
+  )
+  return adaptPerformanceSnapshot(res?.data)
 }
