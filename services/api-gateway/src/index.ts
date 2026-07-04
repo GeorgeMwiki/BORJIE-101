@@ -344,8 +344,14 @@ import { createCalendarChannelFromEnv } from './services/notification-dispatch/c
 // uses /api/v1/mining/maintenance (asset events) + workforce schemas instead.
 // Borjie mining-domain sub-app — see services/api-gateway/src/routes/mining/index.ts
 import { miningRouter } from './routes/mining/index';
+// Canonical fail-closed platform/tenant kill-switch reader — the ONE
+// definition of "the platform is halted", consulted by money-out workers.
+import { isKillswitchHalted } from './routes/mining/internal/killswitch-rbac';
 // Wave 1-2 routers (new domain features)
-import applicationsRouter from './routes/applications.router';
+// REMOVED (borjie hard-fork): applications.router — a born-null property-era
+// StationMasterRouter (assetType residential/commercial/mixed_use, propertyId,
+// "station master") that always 503'd (stationMasterRouter slot hardwired null)
+// and leaked property vocab into the published OpenAPI/SDK. Retired (D0/D24).
 // REMOVED (borjie hard-fork): import arrearsRouter from './routes/arrears.router';
 import complianceRouter from './routes/compliance.router';
 import compliancePluginsRouter from './routes/compliance-plugins.router';
@@ -2737,7 +2743,7 @@ api.route('/admin', adminPortalRouter);
 // disjoint sub-paths). Platform-admin gated inside the router.
 api.route('/admin/subscriptions', adminSubscriptionsRouter);
 // Wave 1-2 feature routers
-api.route('/applications', applicationsRouter);
+// REMOVED (borjie hard-fork): api.route('/applications', applicationsRouter) — retired station-master property residue.
 // REMOVED (borjie hard-fork): api.route('/arrears', arrearsRouter);
 api.route('/compliance', complianceRouter);
 api.route('/compliance-plugins', compliancePluginsRouter);
@@ -3326,17 +3332,49 @@ api.route('/approvals', approvalsRouter);
 // operator's name. See packages/central-intelligence/src/kernel/
 // identity.ts for the persona catalogue.
 //
-// Per-tenant token-budget — only mounted on Jarvis kernel routes so a
-// runaway tenant cannot starve the platform's Anthropic budget. Auth
-// runs first inside each surface's router, then `tenantId` is on the
-// context for the budget gate. Process-local in-memory bucket; see
-// `per-tenant-rate-budget.ts` for the documented Redis upgrade.
-const tenantBudget = getSharedPerTenantRateBudget();
-api.use('/customer/jarvis/*', tenantBudget.handler);
-api.use('/owner/jarvis/*', tenantBudget.handler);
-api.use('/manager/jarvis/*', tenantBudget.handler);
-api.use('/admin/jarvis/*', tenantBudget.handler);
-api.use('/platform/jarvis/*', tenantBudget.handler);
+// Per-tenant AI token-budget — a runaway tenant must not starve the platform's
+// shared Anthropic budget. The middleware is MOUNTED inside each jarvis sub-app
+// AFTER `authMiddleware` (see jarvis-router-factory.ts), NOT here as parent-app
+// middleware: a parent `api.use('/owner/jarvis/*', …)` runs BEFORE the mounted
+// sub-app's own auth, so `c.get('auth')` was undefined, the tenantId extractor
+// returned null, and the budget silently BYPASSED every request (never
+// enforced). This call only CONSTRUCTS the shared singleton — with a real Redis
+// store when REDIS_URL is set (cross-replica limits; fail-closed 503 while a
+// configured store is unreachable) — before the first request; the factory
+// resolves the same singleton lazily at request time.
+const budgetRedis = (() => {
+  if (!process.env.REDIS_URL) {
+    logger.info(
+      'per-tenant-budget: REDIS_URL unset — per-instance in-memory enforcement (set REDIS_URL for cross-replica limits)',
+    );
+    return null;
+  }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const ioredisMod = require('ioredis');
+    const RedisCtor = ioredisMod?.default ?? ioredisMod?.Redis ?? ioredisMod;
+    const client = new RedisCtor(process.env.REDIS_URL, {
+      maxRetriesPerRequest: 2,
+      enableOfflineQueue: false,
+      lazyConnect: false,
+    });
+    client.on?.('error', (err: Error) => {
+      logger.warn(
+        { err: err.message },
+        'per-tenant-budget: redis client error (fail-closed 503 while unreachable)',
+      );
+    });
+    logger.info('per-tenant-budget: using Redis-backed distributed token budget');
+    return client;
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      'per-tenant-budget: ioredis unavailable — per-instance in-memory enforcement',
+    );
+    return null;
+  }
+})();
+getSharedPerTenantRateBudget({ redis: budgetRedis });
 api.route('/customer/jarvis', tenantJarvisRouter);
 api.route('/owner/jarvis', ownerJarvisRouter);
 api.route('/manager/jarvis', managerJarvisRouter);
@@ -3650,7 +3688,7 @@ const openApiRouter = createOpenApiRouter({
     { prefix: '/owner', app: ownerPortalRouter, defaultTag: 'bff-owner' },
     // REMOVED (borjie hard-fork): { prefix: '/manager', app: estateManagerAppRouter, defaultTag: 'bff-manager' },
     { prefix: '/admin', app: adminPortalRouter, defaultTag: 'bff-admin' },
-    { prefix: '/applications', app: applicationsRouter, defaultTag: 'applications' },
+    // REMOVED (borjie hard-fork): { prefix: '/applications', app: applicationsRouter } — retired station-master property residue.
 // REMOVED (borjie hard-fork):     { prefix: '/arrears', app: arrearsRouter, defaultTag: 'arrears' },
     { prefix: '/compliance', app: complianceRouter, defaultTag: 'compliance' },
     { prefix: '/compliance-plugins', app: compliancePluginsRouter, defaultTag: 'compliance-plugins' },
@@ -4199,21 +4237,25 @@ const payoutsWorker = serviceRegistry.db
           > }
         : {}),
       // Blocker 5 — kill-switch gate, fail-closed. Engaged when the PLATFORM
-      // kill-switch is open OR the tenant's `killswitch_payment_reversal` flag
-      // is on. A throw inside → worker treats as ENGAGED (fail-closed). A
-      // payout must never fire while the switch is engaged.
+      // (or this tenant's) kill-switch is at level `halt` OR the tenant's
+      // `killswitch_disbursement` money-out flag is on. A throw inside →
+      // worker treats as ENGAGED (fail-closed). A payout must never fire
+      // while the switch is engaged.
+      //
+      // Previously this read a `serviceRegistry.killSwitch.isOpen()` slot
+      // that is NEVER assigned (always false → fail-OPEN) and gated on
+      // `killswitch_payment_reversal` (the REVERSAL flag, not disbursement),
+      // so a platform HALT let real owner disbursements keep flowing. We now
+      // consult the canonical `platform_killswitch_state` reader (the same
+      // definition the MCP route uses) and the correct disbursement flag.
       isKillSwitchEngaged: async ({ tenantId }) => {
-        const platformOpen = Boolean(
-          (
-            serviceRegistry as unknown as {
-              killSwitch?: { isOpen?: () => boolean };
-            }
-          ).killSwitch?.isOpen?.(),
-        );
-        if (platformOpen) return true;
+        const halted = await isKillswitchHalted(notificationWorkerDb, {
+          tenantId,
+        });
+        if (halted) return true;
         const ff = serviceRegistry.featureFlags;
         if (!ff) return false;
-        return ff.isEnabled(tenantId, 'killswitch_payment_reversal');
+        return ff.isEnabled(tenantId, 'killswitch_disbursement');
       },
       intervalMs:
         Number(process.env.BORJIE_PAYOUTS_INTERVAL_MS ?? 5_000) || 5_000,

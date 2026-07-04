@@ -39,6 +39,7 @@ import type {
 } from '@borjie/central-intelligence';
 import { createFeedbackService } from '@borjie/database';
 import { authMiddleware, requireRole } from '../middleware/hono-auth';
+import { getSharedPerTenantRateBudget } from '../middleware/per-tenant-rate-budget';
 import { UserRole } from '../types/user-role';
 
 // Local mirror of `GroundingViewRole` from `@borjie/database`. The
@@ -512,6 +513,18 @@ export function createJarvisRouter(config: JarvisRouterConfig): Hono {
   if (config.surface === 'platform-hq') {
     app.use('*', requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN));
   }
+
+  // Per-tenant AI token-budget — mounted HERE, INSIDE the jarvis sub-app and
+  // AFTER `authMiddleware`, so `c.get('auth')` (hence the tenantId the budget
+  // keys on) is resolved when the handler runs. Previously the budget was
+  // mounted as PARENT-app middleware (`api.use('/owner/jarvis/*', …)`), which
+  // in Hono runs BEFORE a mounted sub-app's own middleware — so auth was
+  // undefined, the tenantId extractor returned null, and the budget took its
+  // `!tenantId` bypass on EVERY request: it never enforced, and a runaway
+  // tenant could starve the shared Anthropic token budget. The shared singleton
+  // is resolved lazily (at request time) so the composition root can construct
+  // it with a real Redis client first.
+  app.use('*', (c, next) => getSharedPerTenantRateBudget().handler(c, next));
 
   app.post('/think', zValidator('json', ThinkSchema), withSecurityEvents({ action: 'jarvis.create', resource: 'jarvis', severity: 'info' }, async (c) => {
     const body = c.req.valid('json');

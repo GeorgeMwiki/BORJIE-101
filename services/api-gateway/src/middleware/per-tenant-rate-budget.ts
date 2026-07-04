@@ -361,6 +361,12 @@ export function createPerTenantRateBudgetMiddleware(
   const surface: RateBudgetSurface = surfaceRaw;
   const tenantIdExtractor = options.tenantIdExtractor ?? defaultTenantIdExtractor;
   const redis = options.redis ?? null;
+  // Distinguish "no distributed store CONFIGURED at all" (redis === null:
+  // enforce per-instance in-memory even in prod — a runaway tenant is still
+  // throttled on the instance it hits, far better than 503-ing every AI turn)
+  // from "redis IS configured but a call FAILED" (a genuine incident: keep the
+  // prod fail-closed 503 so unmetered spend never leaks while the store is down).
+  const redisConfigured = redis !== null;
   const nodeEnv = options.nodeEnv ?? process.env.NODE_ENV ?? 'development';
   const isProd = nodeEnv === 'production';
   const log = options.logger ?? moduleLogger;
@@ -440,12 +446,17 @@ export function createPerTenantRateBudgetMiddleware(
       return;
     }
 
-    if (isProd) {
+    if (isProd && redisConfigured) {
+      // Redis was configured but the increment failed (unreachable / breaker
+      // open) — a genuine incident. Fail CLOSED so unmetered LLM spend cannot
+      // leak while the shared store is down.
       emitDegradationWarn('redis-unreachable-prod-503');
       return buildUnavailableResponse(ctx);
     }
 
-    emitDegradationWarn('redis-unreachable-dev-fallback');
+    emitDegradationWarn(
+      redisConfigured ? 'redis-unreachable-dev-fallback' : 'redis-unconfigured-inmemory',
+    );
     const total = incrementInMemory(state.inMemory, tenantId, windowStart, cost);
     if (total > hourlyTokenBudget) {
       recordMetric();

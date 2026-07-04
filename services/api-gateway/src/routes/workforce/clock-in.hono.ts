@@ -27,6 +27,55 @@ import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { publishCockpitEvent } from '../../services/cockpit-events';
 import { withSecurityEvents } from '@borjie/observability';
+import { UserRole } from '../../types/user-role';
+
+/**
+ * Roles allowed to clock in an employee OTHER than themselves (the
+ * owner-web kiosk / on-behalf path) and to use the `manual_supervisor`
+ * biometric override. OWNER + site-manager (PROPERTY_MANAGER enum slot) +
+ * tenant/platform admins. A field worker (MAINTENANCE_STAFF) may only
+ * clock in THEMSELVES.
+ */
+const SUPERVISOR_ROLES: ReadonlySet<UserRole> = new Set<UserRole>([
+  UserRole.OWNER,
+  UserRole.PROPERTY_MANAGER,
+  UserRole.TENANT_ADMIN,
+  UserRole.ADMIN,
+  UserRole.SUPER_ADMIN,
+]);
+
+export interface ClockInAuthzInput {
+  readonly employeeId: string;
+  readonly callerUserId: string;
+  readonly callerRole: UserRole;
+  readonly biometricProvider: string;
+}
+
+/**
+ * BOLA + BFLA guard for clock-in (pure, unit-tested). Self clock-in
+ * (employeeId === caller) is always allowed; clocking ANOTHER employee, or
+ * using the biometric-bypassing `manual_supervisor` provider, requires a
+ * supervisor role. Returns the deny reason so the caller renders a 403.
+ */
+export function authorizeClockIn(
+  input: ClockInAuthzInput,
+): { readonly allowed: boolean; readonly reason?: string } {
+  const isSelf = input.employeeId === input.callerUserId;
+  const isSupervisor = SUPERVISOR_ROLES.has(input.callerRole);
+  if (!isSelf && !isSupervisor) {
+    return {
+      allowed: false,
+      reason: 'Only a supervisor may clock in another employee',
+    };
+  }
+  if (input.biometricProvider === 'manual_supervisor' && !isSupervisor) {
+    return {
+      allowed: false,
+      reason: 'The manual_supervisor override requires a supervisor role',
+    };
+  }
+  return { allowed: true };
+}
 
 const PRODUCTION_BIOMETRIC_PROVIDERS = [
   'expo_local_auth',
@@ -70,6 +119,19 @@ function auditHash(input: Record<string, unknown>): string {
   return createHash('sha256').update(JSON.stringify(input)).digest('hex');
 }
 
+function forbidden(
+  c: { json: (b: unknown, s: number) => Response },
+  message: string,
+) {
+  return c.json(
+    {
+      success: false,
+      error: { code: 'FORBIDDEN', message },
+    },
+    403,
+  );
+}
+
 function unavailable(c: { json: (b: unknown, s: number) => Response }) {
   return c.json(
     {
@@ -105,6 +167,25 @@ app.post(
       const db = c.get('db');
       if (!db) return unavailable(c);
       const body = c.req.valid('json');
+
+      // ── Authorization (BOLA + BFLA) ──────────────────────────────────
+      // `employeeId` is client-supplied. Without this guard ANY authenticated
+      // tenant user could record attendance for ANY other employee (BOLA) and
+      // self-assert a biometric pass — and attendance drives payroll, so that
+      // is payroll fraud. Two legitimate callers only:
+      //   • the employee clocking THEMSELVES in (mobile: employeeId === userId)
+      //   • a supervisor operating the owner-web kiosk (clocks in others)
+      // The `manual_supervisor` provider bypasses biometric entirely, so it is
+      // supervisor-only regardless of whose id is being clocked.
+      const authz = authorizeClockIn({
+        employeeId: body.employeeId,
+        callerUserId: auth.userId,
+        callerRole: auth.role,
+        biometricProvider: body.biometricProvider,
+      });
+      if (!authz.allowed) {
+        return forbidden(c, authz.reason ?? 'Forbidden');
+      }
 
       // Production tenants MUST pass biometric. Audit-only tenants
       // (audit / dev) can override via biometricProvider='manual_supervisor'.

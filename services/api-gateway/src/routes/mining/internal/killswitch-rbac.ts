@@ -81,6 +81,44 @@ export function parseScope(raw: string): KillswitchScope {
   throw new Error('Scope must be "platform" or "tenant:<tenantId>"');
 }
 
+/**
+ * Fail-CLOSED read of the platform / tenant kill-switch HALT state — the
+ * canonical reader every money-out / effect worker MUST consult so the
+ * platform HALT lever actually stops real-money movement.
+ *
+ * Returns true (ENGAGED — stop) when the `platform` scope OR the given
+ * `tenant:<id>` scope is at level `halt`, OR when the check itself cannot
+ * be performed (no db handle, query error). CLAUDE.md hard rule:
+ * "Kill-switch fail-closed. Never catch + ignore its errors." — an
+ * indeterminate kill-switch state must never fail OPEN on a money path.
+ *
+ * Read-only, no side effects. `level: 'degraded'` is a soft signal handled
+ * elsewhere; only `halt` engages. Mirrors the MCP route's `killSwitchOpen`
+ * so both surfaces share ONE definition of "the platform is halted".
+ */
+export async function isKillswitchHalted(
+  db: DrizzleDb,
+  opts?: { readonly tenantId?: string | null },
+): Promise<boolean> {
+  if (!db) return true; // fail-closed: cannot confirm the switch is open
+  const scopes: string[] = ['platform'];
+  if (opts?.tenantId) scopes.push(`tenant:${opts.tenantId}`);
+  try {
+    const rows = (await db
+      .select({
+        scope: platformKillswitchState.scope,
+        level: platformKillswitchState.level,
+      })
+      .from(platformKillswitchState)
+      .where(inArray(platformKillswitchState.scope, scopes))) as ReadonlyArray<{
+      level: string;
+    }>;
+    return rows.some((r) => r.level === 'halt');
+  } catch {
+    return true; // fail-closed on any query error
+  }
+}
+
 export interface ApplyTarget {
   readonly scope: string;
   readonly level: 'live' | 'degraded' | 'halt';

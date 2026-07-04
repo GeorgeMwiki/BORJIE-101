@@ -74,6 +74,7 @@ const moduleLogger = createLogger('kill-switch');
 export type KillSwitchOperation =
   | 'eviction'
   | 'payment-reversal'
+  | 'disbursement'
   | 'account-deletion'
   | 'refund'
   | 'data-export'
@@ -90,6 +91,10 @@ export const KILL_SWITCH_FLAG_KEYS: Readonly<
 > = Object.freeze({
   eviction: 'killswitch_eviction',
   'payment-reversal': 'killswitch_payment_reversal',
+  // Money-OUT lever: stops owner disbursements / payouts (M-Pesa B2C, EFT)
+  // without halting the whole platform. Distinct from 'payment-reversal',
+  // which blocks reversals — the two are NOT interchangeable.
+  disbursement: 'killswitch_disbursement',
   'account-deletion': 'killswitch_account_deletion',
   refund: 'killswitch_refund',
   'data-export': 'killswitch_data_export',

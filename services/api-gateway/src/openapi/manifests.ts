@@ -119,45 +119,10 @@ registerRoute({
   },
 });
 
-// ----------------------------------------------------------------------------
-// applications (prefix: /applications — NEW 18 station-master routing)
-// ----------------------------------------------------------------------------
-
-registerRoute({
-  prefix: '/applications',
-  method: 'get',
-  path: '/',
-  summary: 'Smoke test — returns empty applications list',
-  tags: ['applications'],
-  responses: { 200: { description: 'Empty list.' } },
-});
-
-registerRoute({
-  prefix: '/applications',
-  method: 'post',
-  path: '/route',
-  summary: 'Resolve the station master for an application',
-  tags: ['applications'],
-  permissions: ['applications:route'],
-  requestBody: z.object({
-    applicationId: z.string().min(1),
-    assetType: z.enum(['residential', 'commercial', 'land', 'mixed_use']),
-    location: z.object({
-      city: z.string().optional(),
-      country: z.string().optional(),
-      regionId: z.string().optional(),
-      propertyId: z.string().optional(),
-      latitude: z.number().optional(),
-      longitude: z.number().optional(),
-      tags: z.array(z.string()).optional(),
-    }),
-  }),
-  responses: {
-    200: { description: 'Routing result.' },
-    404: { description: 'No match.' },
-    503: { description: 'Router service not configured.' },
-  },
-});
+// REMOVED (borjie hard-fork): /applications (station-master routing) — a
+// born-null property-era route (assetType residential/commercial/mixed_use,
+// propertyId) retired from the OpenAPI/SDK to keep the published mining
+// contract free of property-domain vocabulary (D0/D24).
 
 // ----------------------------------------------------------------------------
 // waitlist (prefix: /waitlist)
