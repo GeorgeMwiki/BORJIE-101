@@ -36,7 +36,12 @@ import {
   type UiBulkChip,
   type UiBookmarkChip,
 } from './chip-schemas';
-import { publishAdminFormPrefill, publishAdminHighlight } from './bus';
+import {
+  publishAdminFormPrefill,
+  publishAdminHighlight,
+  ADMIN_FORM_PREFILL_EVENT_NAME,
+  type FormPrefillEvent,
+} from './bus';
 
 // ─── Undo chip ────────────────────────────────────────────────────────
 
@@ -96,6 +101,126 @@ export function UndoChip({
       {formatCountdown(secsLeft)})
     </button>
   );
+}
+
+// ─── Prefill receiver ─────────────────────────────────────────────────
+//
+// The ui_prefill chip publishes `borjie:admin:form-prefill` when the
+// operator taps "Pre-fill form". Without a receiver the event fell on
+// the floor — the brain "promised to fill the form" and nothing
+// happened (a dead control). This mirrors owner-web's
+// `SuperpowerListeners.applyFormPrefill`: locate the target form (by
+// `data-prefill-form={formId}` or DOM id) and write each value into the
+// matching field, firing native input/change so React-controlled forms
+// reflect it.
+
+/**
+ * Escape a value for safe interpolation into a CSS attribute / id
+ * selector. Uses `CSS.escape` when present; falls back to a conservative
+ * regex for environments (older jsdom) where it is absent.
+ */
+function cssEscape(value: string): string {
+  const css = (globalThis as { CSS?: { escape?: (s: string) => string } }).CSS;
+  if (css && typeof css.escape === 'function') return css.escape(value);
+  return value.replace(/[^a-zA-Z0-9_-]/g, (ch) => `\\${ch}`);
+}
+
+type PrefillFillable =
+  | HTMLInputElement
+  | HTMLTextAreaElement
+  | HTMLSelectElement;
+
+/**
+ * Write one value into a field so a React-controlled input reflects it:
+ * set the value via the native prototype setter, then fire the
+ * `input` + `change` events React listens for. Returns true when a field
+ * was actually written.
+ */
+export function fillAdminField(
+  scope: ParentNode,
+  name: string,
+  value: unknown,
+): boolean {
+  const field = scope.querySelector<PrefillFillable>(
+    `[name="${cssEscape(name)}"], #${cssEscape(name)}`,
+  );
+  if (!field) return false;
+  const next = value === null || value === undefined ? '' : String(value);
+
+  if (field instanceof HTMLSelectElement) {
+    field.value = next;
+    field.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  }
+
+  const proto =
+    field instanceof HTMLTextAreaElement
+      ? HTMLTextAreaElement.prototype
+      : HTMLInputElement.prototype;
+  const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+  if (setter) {
+    setter.call(field, next);
+  } else {
+    field.value = next;
+  }
+  field.dispatchEvent(new Event('input', { bubbles: true }));
+  field.dispatchEvent(new Event('change', { bubbles: true }));
+  return true;
+}
+
+/**
+ * Apply a whole prefill payload to the DOM. Exported for direct unit
+ * testing (jsdom) without round-tripping through the window event.
+ * Returns the count of fields actually written so a caller can assert
+ * the observable effect. An unmatched form is an honest no-op (0
+ * filled), never a thrown error.
+ */
+export function applyAdminFormPrefill(
+  root: ParentNode,
+  detail: FormPrefillEvent,
+): number {
+  const form =
+    root.querySelector<HTMLElement>(
+      `form[data-prefill-form="${cssEscape(detail.formId)}"]`,
+    ) ?? root.querySelector<HTMLElement>(`#${cssEscape(detail.formId)}`);
+  const scope: ParentNode = form ?? root;
+  let filled = 0;
+  let firstField: HTMLElement | null = null;
+  for (const [name, value] of Object.entries(detail.values)) {
+    if (fillAdminField(scope, name, value)) {
+      filled += 1;
+      if (!firstField) {
+        firstField = scope.querySelector<HTMLElement>(
+          `[name="${cssEscape(name)}"], #${cssEscape(name)}`,
+        );
+      }
+    }
+  }
+  if (firstField && typeof firstField.focus === 'function') {
+    firstField.focus();
+  }
+  return filled;
+}
+
+/**
+ * Always-on island that turns the ui_prefill chip's
+ * `borjie:admin:form-prefill` event into a real DOM fill. Mounted once
+ * at the admin root (via `AdminSuperpowers`) so it is live on every
+ * screen. Renders nothing — pure side-effect receiver.
+ */
+export function AdminFormPrefillReceiver(): null {
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const onPrefill = (evt: Event): void => {
+      const detail = (evt as CustomEvent<FormPrefillEvent>).detail;
+      if (!detail || typeof detail.formId !== 'string') return;
+      applyAdminFormPrefill(document, detail);
+    };
+    window.addEventListener(ADMIN_FORM_PREFILL_EVENT_NAME, onPrefill);
+    return () =>
+      window.removeEventListener(ADMIN_FORM_PREFILL_EVENT_NAME, onPrefill);
+  }, []);
+  return null;
 }
 
 // ─── Public renderer ──────────────────────────────────────────────────

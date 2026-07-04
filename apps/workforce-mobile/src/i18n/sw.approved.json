@@ -704,7 +704,10 @@
     "priorityDue": "Inakaribia",
     "priorityFlex": "Bila haraka",
     "done": "Imekamilika",
-    "blocked": "Shida"
+    "blocked": "Shida",
+    "markedDone": "Imewekwa imekamilika",
+    "markedBlocked": "Imewekwa ina shida",
+    "saveFailed": "Haikuhifadhiwa — gusa ujaribu tena"
   },
   "tabScreens": {
     "cashTitle": "Hela kwa muhtasari",

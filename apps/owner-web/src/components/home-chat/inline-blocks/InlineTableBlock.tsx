@@ -197,7 +197,8 @@ export function InlineTableBlock({
             type="button"
             disabled={safePage === 0}
             onClick={() => setPage(Math.max(0, safePage - 1))}
-            className="rounded-md p-1 text-foreground/70 transition-colors hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label={locale === 'sw' ? 'Ukurasa uliopita' : 'Previous page'}
+            className="inline-flex min-h-6 min-w-6 items-center justify-center rounded-md p-1 text-foreground/70 transition-colors hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40"
           >
             <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
@@ -208,7 +209,8 @@ export function InlineTableBlock({
             type="button"
             disabled={safePage >= totalPages - 1}
             onClick={() => setPage(Math.min(totalPages - 1, safePage + 1))}
-            className="rounded-md p-1 text-foreground/70 transition-colors hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label={locale === 'sw' ? 'Ukurasa ufuatao' : 'Next page'}
+            className="inline-flex min-h-6 min-w-6 items-center justify-center rounded-md p-1 text-foreground/70 transition-colors hover:bg-surface disabled:cursor-not-allowed disabled:opacity-40"
           >
             <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
           </button>

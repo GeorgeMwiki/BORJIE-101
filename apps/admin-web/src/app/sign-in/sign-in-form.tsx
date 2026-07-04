@@ -10,6 +10,49 @@ import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 
 type SignInInput = { readonly email: string; readonly password: string };
 
+/**
+ * Map a raw Supabase Auth error to a localized, user-facing message.
+ *
+ * Supabase returns English-only strings (e.g. "Invalid login credentials")
+ * on `error.message`; rendering that verbatim paints English on a Swahili
+ * console — a zero-mix canon violation. We classify the error and return a
+ * string in the ACTIVE locale only. The raw `error.message` is kept for
+ * logs, never for the banner.
+ */
+export function localizeAuthError(rawMessage: string, locale: Locale): string {
+  const m = rawMessage.toLowerCase();
+  if (m.includes('invalid login credentials') || m.includes('invalid')) {
+    return pickByLocale(locale, {
+      en: 'Incorrect email or password.',
+      sw: 'Barua pepe au nenosiri si sahihi.',
+    });
+  }
+  if (m.includes('email not confirmed') || m.includes('not confirmed')) {
+    return pickByLocale(locale, {
+      en: 'Confirm your email before signing in.',
+      sw: 'Thibitisha barua pepe yako kabla ya kuingia.',
+    });
+  }
+  if (m.includes('rate') || m.includes('too many')) {
+    return pickByLocale(locale, {
+      en: 'Too many attempts. Try again shortly.',
+      sw: 'Majaribio mengi mno. Jaribu tena baada ya muda.',
+    });
+  }
+  if (m.includes('network') || m.includes('fetch') || m.includes('failed to')) {
+    return pickByLocale(locale, {
+      en: 'Network problem. Check your connection and retry.',
+      sw: 'Tatizo la mtandao. Angalia muunganisho wako kisha ujaribu tena.',
+    });
+  }
+  // Unknown auth failure — a single generic localized message, never the
+  // raw English string.
+  return pickByLocale(locale, {
+    en: 'Could not sign in. Please try again.',
+    sw: 'Imeshindwa kuingia. Tafadhali jaribu tena.',
+  });
+}
+
 interface FormState {
   readonly phase: 'idle' | 'submitting' | 'error';
   readonly error?: string;
@@ -83,21 +126,29 @@ export function SignInForm({ initialLocale }: SignInFormProps = {}) {
         password: parsed.data.password,
       } satisfies SignInInput);
       if (error) {
-        setState({ phase: 'error', error: error.message });
+        // Log the raw English string for diagnostics; render a localized
+        // message so the banner never mixes English onto an SW console.
+        console.error('Console sign-in failed:', error.message);
+        setState({
+          phase: 'error',
+          error: localizeAuthError(error.message, locale),
+        });
         return;
       }
       router.replace(next);
       router.refresh();
     } catch (err) {
+      // Keep the raw failure for logs; never render `err.message` (an
+      // English exception string) onto a possibly-SW console.
+      if (err instanceof Error) {
+        console.error('Console sign-in threw:', err.message);
+      }
       setState({
         phase: 'error',
-        error:
-          err instanceof Error
-            ? err.message
-            : pickByLocale(locale, {
-                en: 'Could not reach Supabase Auth',
-                sw: 'Imeshindwa kufikia Supabase Auth',
-              }),
+        error: pickByLocale(locale, {
+          en: 'Could not reach the sign-in service. Try again.',
+          sw: 'Imeshindwa kufikia huduma ya kuingia. Jaribu tena.',
+        }),
       });
     }
   }

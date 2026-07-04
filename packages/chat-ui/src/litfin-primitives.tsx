@@ -564,7 +564,10 @@ export function ChatShellDisclaimer({
         className="shrink-0 text-emerald-600/60 dark:text-emerald-400/60"
         aria-hidden="true"
       />
-      <p className="min-w-0 flex-1 truncate text-[10px] font-medium leading-tight text-muted-foreground/80">
+      {/* NEVER single-line-ellipsis a compliance string: the SW copy (~93 chars)
+          clips mid-sentence at compact chat width. Wrap to 2+ lines instead so
+          the full AI-provenance notice always renders. */}
+      <p className="min-w-0 flex-1 text-[10px] font-medium leading-tight text-muted-foreground/80">
         {text}
       </p>
     </div>

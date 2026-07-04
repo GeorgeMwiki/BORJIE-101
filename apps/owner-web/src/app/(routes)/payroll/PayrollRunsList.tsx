@@ -62,7 +62,7 @@ const PayrollRunsResponseSchema = z.object({
   data: z.array(PayrollRunSchema),
 });
 
-type PayrollRunRow = z.infer<typeof PayrollRunSchema>;
+export type PayrollRunRow = z.infer<typeof PayrollRunSchema>;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -116,10 +116,42 @@ function statusVariant(
   }
 }
 
-function netTotal(row: PayrollRunRow, locale: Locale): string {
+/**
+ * Localized placeholder for a value that has NOT been computed yet. An
+ * em-dash is a language-neutral glyph — it renders identically under `en`
+ * and `sw`, so it cannot leak one locale's word onto the other surface
+ * (zero-mix canon) and needs no per-locale i18n key.
+ */
+const NOT_COMPUTED_PLACEHOLDER = '—';
+
+/**
+ * A payroll run only carries a *stamped* net total / worker count once it
+ * has been previewed or committed. A `draft` run stores placeholder zeros
+ * (total_tzs / worker_count default 0) that are NOT a computed money fact —
+ * rendering them as "TZS 0" / "0 workers" fabricates a figure the estate
+ * never produced (nullable-not-zero). Treat those as not-yet-computed.
+ *
+ * A run in any other status is genuinely computed: a real zero (a
+ * zero-cost committed period) MUST still render as 0 / formatted money.
+ */
+function isTotalStamped(row: PayrollRunRow): boolean {
+  if (row.status === 'draft') return false;
+  // A previewed/committed run with an absent total was never stamped.
+  return row.totalTzs !== null && row.totalTzs !== undefined;
+}
+
+export function netTotalDisplay(row: PayrollRunRow, locale: Locale): string {
+  if (!isTotalStamped(row)) return NOT_COMPUTED_PLACEHOLDER;
   const raw = row.totalTzs;
   const amount = typeof raw === 'string' ? Number(raw) : raw ?? 0;
   return formatMoney(Number.isFinite(amount) ? amount : 0, LAUNCH_CURRENCY, locale);
+}
+
+export function workerCountDisplay(row: PayrollRunRow): string {
+  if (row.status === 'draft') return NOT_COMPUTED_PLACEHOLDER;
+  return row.workerCount != null
+    ? String(row.workerCount)
+    : NOT_COMPUTED_PLACEHOLDER;
 }
 
 // ---------------------------------------------------------------------------
@@ -199,10 +231,10 @@ export function PayrollRunsList({ initialLocale }: PayrollRunsListProps) {
               </Badge>
             </TableCell>
             <TableCell className="font-mono text-xs text-muted-foreground">
-              {run.workerCount ?? 0}
+              {workerCountDisplay(run)}
             </TableCell>
             <TableCell className="font-mono text-xs text-foreground">
-              {netTotal(run, locale)}
+              {netTotalDisplay(run, locale)}
             </TableCell>
             <TableCell className="text-xs text-muted-foreground">
               {run.committedAt

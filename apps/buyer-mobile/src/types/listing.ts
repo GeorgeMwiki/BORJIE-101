@@ -93,8 +93,19 @@ export interface Bid {
   readonly listingId: string
   readonly listingTitle: string
   readonly mineral: Mineral
-  readonly offerTzsPerKg: number
-  readonly quantityKg: number
+  // `null` = the bid persists only its TOTAL bidPriceTzs and the listing carries
+  // NO quantity attribute, so a per-kg figure cannot be reconstructed. NEVER the
+  // TOTAL mislabeled as per-kg (a fabricated "TZS 50M / kg"); the render shows
+  // "TZS —". Reconstructed (total ÷ quantity) only when a real quantity exists.
+  readonly offerTzsPerKg: number | null
+  // `null` = the listing carries NO quantity attribute, so the parcel weight is
+  // unknown. NEVER a fabricated `1` (which renders "1 kg" as fact); the render
+  // shows "— kg".
+  readonly quantityKg: number | null
+  // The REAL persisted total the buyer offered (gateway `bidPriceTzs`), always
+  // present. Use THIS for the total — never `offerTzsPerKg * quantityKg`, which
+  // is null (unknown) when the listing carries no quantity.
+  readonly bidTotalTzs: number
   readonly status: BidStatus
   readonly placedAt: string
   readonly thread: readonly BidMessage[]

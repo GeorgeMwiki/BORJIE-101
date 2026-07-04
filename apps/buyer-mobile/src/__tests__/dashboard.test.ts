@@ -51,6 +51,7 @@ function buildBid(overrides: Partial<Bid> = {}): Bid {
     mineral: 'gold_concentrate',
     offerTzsPerKg: 2_400_000,
     quantityKg: 20,
+    bidTotalTzs: overrides.bidTotalTzs ?? 48_000_000,
     status: overrides.status ?? 'pending',
     placedAt: overrides.placedAt ?? '2026-05-20T08:00:00Z',
     thread: overrides.thread ?? [],

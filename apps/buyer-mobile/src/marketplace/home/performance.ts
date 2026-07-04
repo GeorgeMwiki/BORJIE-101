@@ -74,7 +74,7 @@ export function summariseBuyerPerformance(
   const latencies = recent.flatMap(buyerResponseLatencies)
   const medianResponseMs = median(latencies)
   const dealVolumeTzs = accepted.reduce(
-    (sum, bid) => sum + bid.offerTzsPerKg * bid.quantityKg,
+    (sum, bid) => sum + bid.bidTotalTzs,
     0
   )
   return {

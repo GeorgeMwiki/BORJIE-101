@@ -44,7 +44,7 @@ export function ActiveBidsSection({ bids, translate, onPressBid, onOpenChatSessi
                 </View>
                 <Text style={styles.rowMeta} numberOfLines={1}>
                   {translate('bids.your_offer')}:{' '}
-                  {formatTzs(bid.offerTzsPerKg * bid.quantityKg)}
+                  {formatTzs(bid.bidTotalTzs)}
                 </Text>
               </View>
               <View style={styles.actions}>

@@ -18,8 +18,13 @@ export interface Tenant {
   readonly country: string;
   readonly plan: TenantPlan;
   readonly status: TenantStatus;
-  /** ARR amount in the tenant's `currency` (whole units, not minor). */
-  readonly arr: number;
+  /**
+   * ARR amount in the tenant's `currency` (whole units, not minor), or
+   * `null` when the backend supplies no revenue figure. ARR is NOT a
+   * column on `tenants` and is virtually always absent — consumers MUST
+   * render a localized honest dash for `null`, never a fabricated 0.
+   */
+  readonly arr: number | null;
   /**
    * ISO-4217 code for `arr`, from the tenant's `primaryCurrency`
    * (multi-currency hard rule — never hard-code a currency at render).

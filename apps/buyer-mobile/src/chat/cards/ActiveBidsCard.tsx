@@ -51,7 +51,7 @@ export function ActiveBidsCard({ payload, translate }: ActiveBidsCardProps) {
                 {bid.listingTitle}
               </Text>
               <Text style={styles.rowMeta}>
-                {translate('bids.your_offer')}: {formatTzs(bid.offerTzsPerKg * bid.quantityKg)}
+                {translate('bids.your_offer')}: {formatTzs(bid.bidTotalTzs)}
               </Text>
             </View>
             <View style={styles.actions}>
@@ -75,6 +75,8 @@ function toBid(raw: BidSnapshot): Bid {
     mineral: raw.mineral as Mineral,
     offerTzsPerKg: raw.offerTzsPerKg,
     quantityKg: raw.quantityKg,
+    // BidSnapshot carries real per-kg + quantity, so the total is their product.
+    bidTotalTzs: raw.offerTzsPerKg * raw.quantityKg,
     status: raw.status,
     placedAt: raw.placedAt,
     thread: raw.thread

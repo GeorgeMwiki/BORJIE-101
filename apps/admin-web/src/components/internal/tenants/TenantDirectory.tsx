@@ -115,7 +115,13 @@ export function TenantDirectory({
         header: pickByLocale(locale, { en: 'ARR', sw: 'Mapato ya mwaka' }),
         cell: (ctx) => (
           <span className="tabular-nums">
-            {formatCurrency(ctx.row.original.arr, ctx.row.original.currency, bcp47For(locale))}
+            {ctx.row.original.arr === null
+              ? pickByLocale(locale, { en: '—', sw: '—' })
+              : formatCurrency(
+                  ctx.row.original.arr,
+                  ctx.row.original.currency,
+                  bcp47For(locale),
+                )}
           </span>
         ),
       },

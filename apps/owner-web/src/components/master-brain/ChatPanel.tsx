@@ -6,6 +6,7 @@ import { useLocale, type Locale } from '@/lib/locale';
 import { useScrollAnchor } from '@/components/home-chat/streaming/use-scroll-anchor';
 import { IncrementalMarkdown } from '@/components/home-chat/streaming/incremental-markdown';
 import { JumpToLatestPill } from '@/components/home-chat/streaming/JumpToLatestPill';
+import { ChatShellDisclaimer } from '@borjie/chat-ui';
 import { useT } from '@/i18n/t.client';
 import { ChatBubble } from './ChatBubble';
 import { Composer } from './Composer';
@@ -90,6 +91,11 @@ export function ChatPanel({ initialLocale }: ChatPanelProps = {}) {
           languagePreference={locale}
           onClick={jumpToLatest}
         />
+        {/* CC-12 — the canonical AI-provenance disclaimer, rendered from the
+            shared @borjie/chat-ui primitive in the owner's ACTIVE locale so it
+            stays identical (and single-language) with every other chat
+            surface. */}
+        <ChatShellDisclaimer language={locale} />
         <Composer
           locale={locale}
           busy={state.streaming}

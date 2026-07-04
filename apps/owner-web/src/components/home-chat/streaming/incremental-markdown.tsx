@@ -32,12 +32,21 @@ import { Fragment, memo, useMemo } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import { cn } from '@borjie/design-system';
 
-type Block =
+type CellAlign = 'left' | 'center' | 'right';
+
+export type Block =
   | { readonly kind: 'p'; readonly src: string }
   | { readonly kind: 'h'; readonly level: 1 | 2 | 3; readonly src: string }
   | { readonly kind: 'ul'; readonly items: ReadonlyArray<string>; readonly src: string }
   | { readonly kind: 'ol'; readonly items: ReadonlyArray<string>; readonly src: string }
   | { readonly kind: 'quote'; readonly src: string }
+  | {
+      readonly kind: 'table';
+      readonly header: ReadonlyArray<string>;
+      readonly aligns: ReadonlyArray<CellAlign>;
+      readonly rows: ReadonlyArray<ReadonlyArray<string>>;
+      readonly src: string;
+    }
   | {
       readonly kind: 'code';
       readonly code: string;
@@ -48,12 +57,46 @@ type Block =
 
 const SAFE_SCHEME = /^(https?:|mailto:)/i;
 
+/** A line that looks like a GFM pipe-table row: contains at least one `|`. */
+const TABLE_ROW = /\|/;
+
+/**
+ * A GFM delimiter row: only pipes, hyphens, colons and spaces, with at least
+ * one hyphen — e.g. `| --- | :--: |`. This is the row that CONFIRMS the
+ * preceding line is a table header (mid-stream, before it arrives, the header
+ * line renders literally as a paragraph).
+ */
+const TABLE_DELIMITER = /^\s*\|?[\s:|-]*-[\s:|-]*\|?\s*$/;
+
+/**
+ * Split a single pipe-table row into trimmed cells. Leading/trailing pipes are
+ * optional in GFM, so `| a | b |`, `a | b` and `| a | b` all yield `['a','b']`.
+ */
+function splitRow(line: string): string[] {
+  let s = line.trim();
+  if (s.startsWith('|')) s = s.slice(1);
+  if (s.endsWith('|')) s = s.slice(0, -1);
+  return s.split('|').map((c) => c.trim());
+}
+
+/** Parse a GFM delimiter row into per-column alignments. */
+function parseAligns(line: string): CellAlign[] {
+  return splitRow(line).map((cell) => {
+    const left = cell.startsWith(':');
+    const right = cell.endsWith(':');
+    if (left && right) return 'center';
+    if (right) return 'right';
+    if (left) return 'left';
+    return 'left';
+  });
+}
+
 /**
  * Split the streamed source into blocks. The final fenced code block is kept
  * even when its closing ``` has not arrived (marked `closed: false`) so its
  * skeleton can render without flicker.
  */
-function splitBlocks(source: string): ReadonlyArray<Block> {
+export function splitBlocks(source: string): ReadonlyArray<Block> {
   const lines = source.split('\n');
   const blocks: Block[] = [];
   let i = 0;
@@ -112,6 +155,45 @@ function splitBlocks(source: string): ReadonlyArray<Block> {
       continue;
     }
 
+    // GFM pipe table. A table is a header row (`| a | b |`) immediately
+    // followed by a delimiter row (`| --- | --- |`), then zero+ body rows.
+    // The header alone is ambiguous mid-stream — until the delimiter line
+    // arrives we DON'T claim a table, so a partial header falls through to
+    // paragraph handling and renders literally (settle-parse discipline).
+    if (TABLE_ROW.test(trimmed)) {
+      const next = (lines[i + 1] ?? '').trim();
+      const header = splitRow(line);
+      // The delimiter row must (a) match the delimiter shape and (b) have as
+      // many cells as the header. A mid-stream half-typed delimiter (fewer
+      // cells) does NOT yet qualify, so the header stays a literal paragraph.
+      if (
+        next.length > 0 &&
+        TABLE_DELIMITER.test(next) &&
+        splitRow(next).length >= header.length
+      ) {
+        const aligns = parseAligns(next);
+        const rows: string[][] = [];
+        let j = i + 2;
+        while (j < lines.length) {
+          const rowLine = lines[j] ?? '';
+          const rowTrim = rowLine.trim();
+          // A blank line or a non-pipe line ends the table body.
+          if (rowTrim.length === 0 || !TABLE_ROW.test(rowTrim)) break;
+          rows.push(splitRow(rowLine));
+          j += 1;
+        }
+        blocks.push({
+          kind: 'table',
+          header,
+          aligns,
+          rows,
+          src: lines.slice(i, j).join('\n'),
+        });
+        i = j;
+        continue;
+      }
+    }
+
     // Unordered list.
     if (/^[-*+]\s+/.test(trimmed)) {
       const items: string[] = [];
@@ -143,13 +225,22 @@ function splitBlocks(source: string): ReadonlyArray<Block> {
     let j = i;
     while (j < lines.length) {
       const candidate = (lines[j] ?? '').trimStart();
+      const following = (lines[j + 1] ?? '').trim();
+      // A pipe row whose NEXT line is a delimiter starts a table — break so
+      // the table isn't absorbed into this paragraph.
+      const startsTable =
+        TABLE_ROW.test(candidate) &&
+        following.length > 0 &&
+        TABLE_DELIMITER.test(following) &&
+        splitRow(following).length >= splitRow(candidate).length;
       if (
         candidate.length === 0 ||
         candidate.startsWith('```') ||
         candidate.startsWith('>') ||
         /^(#{1,3})\s+/.test(candidate) ||
         /^[-*+]\s+/.test(candidate) ||
-        /^\d+\.\s+/.test(candidate)
+        /^\d+\.\s+/.test(candidate) ||
+        startsTable
       ) {
         break;
       }
@@ -294,6 +385,57 @@ function BlockView({ block, k }: { block: Block; k: string }): ReactElement {
           {renderInline(block.src, k)}
         </blockquote>
       );
+    case 'table': {
+      const alignClass = (idx: number): string => {
+        const a = block.aligns[idx] ?? 'left';
+        return a === 'right'
+          ? 'text-right'
+          : a === 'center'
+            ? 'text-center'
+            : 'text-left';
+      };
+      return (
+        <div className="my-2 overflow-x-auto rounded-lg border border-border bg-surface/60">
+          <table className="w-full border-collapse text-sm">
+            <thead className="bg-background/60 text-tiny uppercase tracking-wide text-foreground/60">
+              <tr>
+                {block.header.map((cell, ci) => (
+                  <th
+                    key={`${k}_th${ci}`}
+                    className={cn(
+                      'px-3 py-1.5 font-medium tabular-nums',
+                      alignClass(ci),
+                    )}
+                  >
+                    {renderInline(cell, `${k}_th${ci}`)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {block.rows.map((row, ri) => (
+                <tr
+                  key={`${k}_tr${ri}`}
+                  className="border-t border-border/40"
+                >
+                  {block.header.map((_, ci) => (
+                    <td
+                      key={`${k}_tr${ri}_td${ci}`}
+                      className={cn(
+                        'px-3 py-1.5 text-foreground/85 tabular-nums',
+                        alignClass(ci),
+                      )}
+                    >
+                      {renderInline(row[ci] ?? '', `${k}_tr${ri}_td${ci}`)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
     case 'code':
       return (
         <pre

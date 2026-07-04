@@ -47,7 +47,10 @@ export function TenantOverviewTab({
 
   const arrPanel: Panel = {
     title: pickByLocale(locale, S.arr),
-    value: formatCurrency(tenant.arr, tenant.currency, bcp47For(locale)),
+    value:
+      tenant.arr === null
+        ? pickByLocale(locale, { en: '—', sw: '—' })
+        : formatCurrency(tenant.arr, tenant.currency, bcp47For(locale)),
     hint: `${tenant.plan} ${pickByLocale(locale, S.planSuffix)}`,
   };
 

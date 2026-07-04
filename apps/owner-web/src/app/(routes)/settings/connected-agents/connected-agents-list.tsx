@@ -137,8 +137,13 @@ export function ConnectedAgentsList({
         },
       );
       if (!res.ok && res.status !== 404) {
-        const text = await res.text().catch(() => '');
-        const detail = text || `HTTP ${res.status}`;
+        // NEVER render the raw gateway body (English) as toast copy — under
+        // `sw` that is language MIXING. The failure reason is a fully-localized
+        // status-only fragment; the raw body is discarded, never shown.
+        const detail = pickByLocale(
+          locale,
+          S.connectedAgentsList.httpProblem,
+        ).replace('{status}', String(res.status));
         setToastMsg(
           pickByLocale(locale, S.connectedAgentsList.revokeFailed).replace(
             '{detail}',

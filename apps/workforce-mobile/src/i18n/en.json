@@ -704,7 +704,10 @@
     "priorityDue": "Due",
     "priorityFlex": "Flex",
     "done": "Done",
-    "blocked": "Blocked"
+    "blocked": "Blocked",
+    "markedDone": "Marked done",
+    "markedBlocked": "Marked blocked",
+    "saveFailed": "Couldn't save — tap to retry"
   },
   "tabScreens": {
     "cashTitle": "Cash at a glance",

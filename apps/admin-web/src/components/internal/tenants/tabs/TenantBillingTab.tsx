@@ -72,7 +72,9 @@ export function TenantBillingTab({
               {pickByLocale(locale, S.runRate)}
             </p>
             <p className="text-3xl font-display text-foreground tabular-nums">
-              {formatCurrency(tenant.arr, tenant.currency, bcp47For(locale))}
+              {tenant.arr === null
+                ? pickByLocale(locale, { en: '—', sw: '—' })
+                : formatCurrency(tenant.arr, tenant.currency, bcp47For(locale))}
             </p>
           </div>
           <p className="text-xs text-muted-foreground">

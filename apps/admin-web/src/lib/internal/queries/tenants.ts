@@ -90,7 +90,7 @@ function statusFromRaw(raw: string | undefined): TenantStatus {
 /** Honest-empty marker for a field the backend did not supply. */
 const NO_DATA = '—';
 
-function adaptTenant(raw: RawTenant): Tenant {
+export function adaptTenant(raw: RawTenant): Tenant {
   return {
     id: raw.id,
     name: raw.name ?? raw.slug ?? raw.id,
@@ -104,11 +104,11 @@ function adaptTenant(raw: RawTenant): Tenant {
     // ARR is rendered in the tenant's own `currency`, never assumed USD. The
     // tenants list route does NOT return ARR (no such column / schema field),
     // so `raw.arr` is virtually always absent: we map the real value when a
-    // future enriched payload supplies one, and otherwise carry 0. RESIDUAL:
-    // a 0 here still renders as `<currency> 0` in the tenant tabs/directory —
-    // the fully honest fix is `Tenant.arr: number | null` + a dash render in
-    // the consumers (out of this file's scope); recorded in the run residual.
-    arr: typeof raw.arr === 'number' && Number.isFinite(raw.arr) ? raw.arr : 0,
+    // future enriched payload supplies one, and otherwise carry `null` — an
+    // HONEST "not available" the consumers render as a localized dash. NEVER a
+    // fabricated 0, which would read as `<currency> 0` owner truth.
+    arr:
+      typeof raw.arr === 'number' && Number.isFinite(raw.arr) ? raw.arr : null,
     currency: raw.primaryCurrency ?? 'TZS',
     lastActiveAt: raw.lastActiveAt ?? raw.updatedAt ?? raw.createdAt ?? new Date().toISOString(),
     createdAt: raw.createdAt ?? new Date().toISOString(),

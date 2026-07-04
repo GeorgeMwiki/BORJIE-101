@@ -10,6 +10,7 @@ import {
 } from '@borjie/owner-os-tabs';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
 import { ownerOsBStrings as S } from '@/i18n/strings/owner-os-b';
+import { useOpsSnapshotCounts } from './useOpsSnapshotCounts';
 import { PanelHero } from './PanelHero';
 import { SurfaceSkeleton } from './SurfaceSkeleton';
 import type { OwnerOSPanelProps } from './types';
@@ -71,28 +72,28 @@ export const OPS_PANEL_DESCRIPTOR = OPS_DESCRIPTOR;
 
 export function OpsPanel({ locale }: OwnerOSPanelProps): ReactElement {
   const isSw = locale === 'sw';
-  // Operating snapshot tiles. The KPI values are not yet wired to a live source,
-  // so they render an honest '—' placeholder (never fabricated numbers) — a
-  // fresh tenant with no sites/incidents/workforce sees an empty KPI strip
-  // consistent with the empty surfaces below. Wire to the real
-  // sites/incidents/workforce counts when the brief slices feed in.
-  const PENDING = '—';
+  // Operating snapshot tiles wired to the SAME live sources the sibling
+  // <SitesList>/<SafetySurface> below render from. A count that has not yet
+  // resolved (or errored) shows an honest '—' placeholder — never a
+  // fabricated 0 sitting beside real data; a settled empty tenant shows a
+  // truthful 0.
+  const counts = useOpsSnapshotCounts();
   const tiles: ReadonlyArray<MetricTile> = [
     {
       label: isSw ? S.ops.tileProducingSites.sw : S.ops.tileProducingSites.en,
-      value: PENDING,
+      value: counts.producingSites,
       icon: Mountain,
       tone: 'default',
     },
     {
       label: isSw ? S.ops.tileOpenIncidents.sw : S.ops.tileOpenIncidents.en,
-      value: PENDING,
+      value: counts.openIncidents,
       icon: AlertTriangle,
       tone: 'default',
     },
     {
       label: isSw ? S.ops.tileOnShift.sw : S.ops.tileOnShift.en,
-      value: PENDING,
+      value: counts.onShift,
       icon: HardHat,
       tone: 'default',
     },

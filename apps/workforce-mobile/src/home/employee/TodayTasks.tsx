@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useReducer } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { colors } from '../../theme/colors'
 import { fontSize, radius, spacing } from '../../theme/spacing'
@@ -7,6 +7,13 @@ import { enqueueWrite } from '../../sync/queue'
 import { pickStrings } from '../../i18n'
 import { pickByLocale } from '../../i18n/pickByLocale'
 import { MIN_TAP_DP, type WorkerTask } from './types'
+import {
+  isActionable,
+  statusFor,
+  taskAckReducer,
+  type TaskAckKind,
+  type TaskAckStatus
+} from './taskFeedback'
 
 export interface TodayTasksProps {
   readonly tasks: ReadonlyArray<WorkerTask> | undefined
@@ -34,6 +41,25 @@ function priorityChip(
   return { bg: colors.earth500, fg: colors.textInverse, label: t.priorityFlex }
 }
 
+/**
+ * Single active-locale confirmation line for a task's acknowledgement status.
+ * Returns `null` while idle/pending (no copy to show) and the localized
+ * acked/error string otherwise — always from `t.todayTasks`, never an inline
+ * cross-locale ternary.
+ */
+function confirmationLabel(
+  status: TaskAckStatus,
+  t: ReturnType<typeof pickStrings>['todayTasks']
+): string | null {
+  if (status.phase === 'acked') {
+    return status.kind === 'done' ? t.markedDone : t.markedBlocked
+  }
+  if (status.phase === 'error') {
+    return t.saveFailed
+  }
+  return null
+}
+
 export function TodayTasks({
   tasks,
   loading,
@@ -41,14 +67,33 @@ export function TodayTasks({
   userId,
   lang
 }: TodayTasksProps): JSX.Element {
+  // Per-task acknowledgement status drives the immediate on-screen feedback:
+  // an optimistic "pending" flip on tap, "acked" on enqueue success, and a
+  // revert to a re-tappable "error" state if the offline enqueue rejects — so
+  // a field action is never silently swallowed.
+  const [ackState, dispatch] = useReducer(taskAckReducer, {})
+
+  const runAck = useCallback(
+    (taskId: string, kind: TaskAckKind, enqueue: () => Promise<unknown>): void => {
+      dispatch({ type: 'tap', taskId, kind })
+      enqueue().then(
+        () => dispatch({ type: 'ack', taskId }),
+        () => dispatch({ type: 'fail', taskId })
+      )
+    },
+    []
+  )
+
   const onDone = useCallback(
     (taskId: string): void => {
       if (!userId) {
         return
       }
-      void enqueueWrite('toolbox_ack', { kind: 'task_complete', taskId, userId, at: Date.now() })
+      runAck(taskId, 'done', () =>
+        enqueueWrite('toolbox_ack', { kind: 'task_complete', taskId, userId, at: Date.now() })
+      )
     },
-    [userId]
+    [userId, runAck]
   )
 
   const onBlocked = useCallback(
@@ -56,14 +101,16 @@ export function TodayTasks({
       if (!userId) {
         return
       }
-      void enqueueWrite('incident', {
-        category: 'block',
-        taskId,
-        userId,
-        raisedAtIso: new Date().toISOString()
-      })
+      runAck(taskId, 'blocked', () =>
+        enqueueWrite('incident', {
+          category: 'block',
+          taskId,
+          userId,
+          raisedAtIso: new Date().toISOString()
+        })
+      )
     },
-    [userId]
+    [userId, runAck]
   )
 
   const sorted = useMemo<ReadonlyArray<WorkerTask>>(() => {
@@ -107,6 +154,10 @@ export function TodayTasks({
         const parallelTag = task.parallelGroupId ? ` · ${t.parallelTag}` : ''
         const doneLabel = t.done
         const blockedLabel = t.blocked
+        const status = statusFor(ackState, task.id)
+        const acked = status.phase === 'acked'
+        const canTap = isActionable(status)
+        const confirmation = confirmationLabel(status, t)
         return (
           <View key={task.id} style={styles.card} testID={`employee-home-task-${task.id}`}>
             <View style={styles.cardHeader}>
@@ -117,21 +168,41 @@ export function TodayTasks({
               </View>
               <Text style={styles.sequence}>#{task.sequence}</Text>
             </View>
-            <Text style={styles.title}>{titleLabel}</Text>
+            <Text style={[styles.title, acked ? styles.titleAcked : null]}>
+              {titleLabel}
+            </Text>
             {hasLocation ? (
               <Text style={styles.meta}>
                 {location}
                 {parallelTag}
               </Text>
             ) : null}
+            {confirmation ? (
+              <Text
+                style={[
+                  styles.confirmation,
+                  status.phase === 'error' ? styles.confirmationError : styles.confirmationAcked
+                ]}
+                accessibilityLiveRegion="polite"
+                testID={`employee-home-task-ack-${task.id}`}
+              >
+                {confirmation}
+              </Text>
+            ) : null}
             <View style={styles.actions}>
               <Pressable
                 onPress={() => onDone(task.id)}
+                disabled={!canTap}
                 accessibilityRole="button"
                 accessibilityLabel={doneLabel}
+                accessibilityState={{
+                  disabled: !canTap,
+                  selected: status.phase !== 'idle' && status.kind === 'done'
+                }}
                 style={({ pressed }) => [
                   styles.action,
                   styles.actionDone,
+                  status.phase !== 'idle' && status.kind === 'done' ? styles.actionActive : null,
                   pressed ? styles.actionPressed : null
                 ]}
                 testID={`employee-home-task-done-${task.id}`}
@@ -140,11 +211,17 @@ export function TodayTasks({
               </Pressable>
               <Pressable
                 onPress={() => onBlocked(task.id)}
+                disabled={!canTap}
                 accessibilityRole="button"
                 accessibilityLabel={blockedLabel}
+                accessibilityState={{
+                  disabled: !canTap,
+                  selected: status.phase !== 'idle' && status.kind === 'blocked'
+                }}
                 style={({ pressed }) => [
                   styles.action,
                   styles.actionBlock,
+                  status.phase !== 'idle' && status.kind === 'blocked' ? styles.actionActive : null,
                   pressed ? styles.actionPressed : null
                 ]}
                 testID={`employee-home-task-block-${task.id}`}
@@ -198,10 +275,25 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: spacing.sm
   },
+  titleAcked: {
+    textDecorationLine: 'line-through',
+    color: colors.textMuted
+  },
   meta: {
     color: colors.textMuted,
     fontSize: fontSize.body,
     marginTop: spacing.xs
+  },
+  confirmation: {
+    fontSize: fontSize.caption,
+    fontWeight: '700',
+    marginTop: spacing.sm
+  },
+  confirmationAcked: {
+    color: colors.earth700
+  },
+  confirmationError: {
+    color: colors.danger
   },
   actions: {
     flexDirection: 'row',
@@ -222,6 +314,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceAlt,
     borderWidth: 2,
     borderColor: colors.danger
+  },
+  actionActive: {
+    opacity: 0.6
   },
   actionPressed: {
     opacity: 0.85

@@ -7,6 +7,8 @@
 
 export {
   AdminSuperpowerChips,
+  AdminFormPrefillReceiver,
+  applyAdminFormPrefill,
   UndoChip,
   type AdminSuperpowerChipsProps,
 } from './AdminSuperpowerChips';

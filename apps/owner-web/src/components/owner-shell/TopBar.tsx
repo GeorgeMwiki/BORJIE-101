@@ -32,9 +32,20 @@ const ADMIN_URL = requirePublicBaseUrl(
  * cluster right (chat trigger / notifications / language / sign-out).
  * Breadcrumbs derive from the current pathname so every route gets a
  * spine without per-page wiring. The ask-Borjie button dispatches the
- * existing `borjie-open-widget` window event consumed by the chat
- * widget mount, so any route can open the conversational surface.
+ * canonical `borjie-open-chat` window event — the same one the chat
+ * widget mount (packages/chat-ui Widget) and the command palette
+ * consume — so any route can open the conversational surface.
  */
+
+// The single window event the floating chat widget listens for. Kept as a
+// named constant so the CTA and any test reference the identical string.
+export const OPEN_CHAT_EVENT = 'borjie-open-chat';
+
+/** Dispatch the canonical open-chat event (no-op during SSR). */
+export function dispatchOpenChat(): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(OPEN_CHAT_EVENT));
+}
 
 // Path segment → dictionary key. Segments missing here fall back to a
 // humanised English-ish label (path text, locale-neutral).
@@ -116,8 +127,7 @@ export function TopBar({ fullName, tenantName, languagePreference }: TopBarProps
   );
 
   function handleAskBorjie() {
-    if (typeof window === 'undefined') return;
-    window.dispatchEvent(new CustomEvent('borjie-open-widget'));
+    dispatchOpenChat();
   }
 
   // Localized portal-switcher labels — injected into the headless
