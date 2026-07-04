@@ -65,7 +65,7 @@
     "@borjie/translation": "workspace:*",
     "@borjie/translation-sota": "workspace:^",
     "@eslint/js": "^9.18.0",
-    "@playwright/test": "^1.41.2",
+    "@playwright/test": "^1.61.1",
     "@types/node": "^25.8.0",
     "eslint": "^10.4.0",
     "eslint-plugin-no-secrets": "^2.3.3",
