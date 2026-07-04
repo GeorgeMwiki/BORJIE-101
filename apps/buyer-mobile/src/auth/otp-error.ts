@@ -5,8 +5,8 @@
  * under an `sw` locale is language mixing (the active-locale canon forbids
  * it). The session layer classifies the provider error into one of these
  * CODES and the login screen maps the code to localized copy via `t()` —
- * the raw provider string never reaches user copy. Mirrors the shape of
- * `magic-link.tsx` (branch internally, show localized copy only).
+ * the raw provider string never reaches user copy (branch internally, show
+ * localized copy only).
  */
 export type OtpErrorCode =
   | 'otp_invalid'

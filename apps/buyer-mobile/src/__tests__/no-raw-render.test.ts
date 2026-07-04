@@ -117,10 +117,7 @@ describe('CLASS A — error localization (no raw error.message render)', () => {
     expect(src).not.toContain("'Upload document'")
   })
 
-  it('magic-link never shows the raw Supabase error.message as an alert body', () => {
-    const src = readSource('auth/magic-link.tsx')
-    // Mutation tripwire: Alert.alert(t.genericError, error.message) leaked
-    // raw English under sw.
-    expect(src).not.toMatch(/Alert\.alert\([^)]*,\s*\w*\.?(error|err)\??\.message/)
-  })
+  // NOTE: the former `magic-link.tsx` raw-error guard was removed with the
+  // dead magic-link screen (orphaned, superseded by the phone-OTP flow whose
+  // errors route through classifyOtpError → localized copy).
 })
