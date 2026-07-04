@@ -2033,6 +2033,9 @@ importers:
 
   packages/document-studio:
     dependencies:
+      '@borjie/report-engine':
+        specifier: workspace:*
+        version: link:../report-engine
       puppeteer:
         specifier: '>=21.0.0'
         version: 25.0.4(typescript@6.0.3)
