@@ -30,6 +30,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@borjie/report-engine": "workspace:*",
     "zod": "^3.25.76"
   },
   "peerDependencies": {

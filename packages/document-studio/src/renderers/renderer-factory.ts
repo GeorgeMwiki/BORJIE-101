@@ -21,6 +21,7 @@ import type { EngineHint } from '../registry/doc-type.js';
 import { CarboneRenderer } from './carbone-renderer.js';
 import { TypstRenderer } from './typst-renderer.js';
 import { PdfFromHtmlRenderer } from './pdf-from-html-renderer.js';
+import { ReportEngineRenderer } from './report-engine-renderer.js';
 
 /**
  * The three renderer ports the factory routes between. Inject these so
@@ -61,6 +62,26 @@ export function createDefaultRendererSet(options?: {
       ...(useStub ? { useStub: true } : {}),
     }),
   };
+}
+
+/**
+ * Build a REAL renderer set — every engine slot routes to the dependency-free
+ * `ReportEngineRenderer`, which synthesizes GENUINE documents (real OOXML zip
+ * `PK\x03\x04` for docx/xlsx/pptx, real `%PDF` for pdf, real HTML) with no
+ * network / binary / vendor SDK. This is the honest default the composition
+ * root wires so `mining.document.generate` never hands back `STUB:` bytes.
+ *
+ * The renderer is format-driven, so the same instance backs typst (pdf),
+ * carbone (docx/xlsx/pptx/pdf/html) and html-pdf (pdf) alike; the factory's
+ * routing rules below still constrain which `(engine, format)` pairs are legal.
+ */
+export function createRealRendererSet(options?: {
+  readonly brand?: import('@borjie/report-engine').TenantBrand;
+}): RendererSet {
+  const renderer = new ReportEngineRenderer(
+    options?.brand ? { brand: options.brand } : {},
+  );
+  return { typst: renderer, carbone: renderer, htmlPdf: renderer };
 }
 
 export interface RendererFactory {

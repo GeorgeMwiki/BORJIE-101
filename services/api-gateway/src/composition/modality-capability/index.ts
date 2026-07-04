@@ -128,10 +128,15 @@ export function buildModalityCapabilities(
     ...(deps.logger ? { logger: deps.logger } : {}),
     ...(deps.fetch ? { fetch: deps.fetch } : {}),
   });
-  // Stub renderers/archive by default — real Carbone/Typst/Puppeteer backends
-  // bind via the studio's injected ports in a follow-up; the FORCED gates
-  // (locale-purity, citation-coverage, WORM seal) run regardless.
-  const documentStudio: DocumentStudio = createDocumentStudioWithCoreTypes({ useStub: true });
+  // REAL document renderer — `useStub: false` wires the dependency-free
+  // ReportEngineRenderer, which synthesizes GENUINE documents (real OOXML zip
+  // `PK\x03\x04` for docx/xlsx/pptx, real `%PDF` for pdf, real HTML) with no
+  // network / binary / vendor SDK. A customer who generates a document gets an
+  // openable file, never `STUB:` placeholder bytes. The FORCED gates
+  // (locale-purity, citation-coverage, WORM seal) still run on every artifact.
+  // (Carbone/Typst/Puppeteer stay available for pixel-perfect upgrades when
+  // their transports are configured, injected via the studio's renderer port.)
+  const documentStudio: DocumentStudio = createDocumentStudioWithCoreTypes({ useStub: false });
 
   const capabilityTools: ToolHandler[] = [
     buildForecastCapabilityTool({ engine: forecastEngine }),

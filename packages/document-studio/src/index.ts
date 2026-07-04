@@ -64,9 +64,11 @@ export {
 export { CarboneRenderer } from './renderers/carbone-renderer.js';
 export { TypstRenderer } from './renderers/typst-renderer.js';
 export { PdfFromHtmlRenderer } from './renderers/pdf-from-html-renderer.js';
+export { ReportEngineRenderer } from './renderers/report-engine-renderer.js';
 export {
   createRendererFactory,
   createDefaultRendererSet,
+  createRealRendererSet,
   type RendererFactory,
   type RendererSet,
 } from './renderers/renderer-factory.js';
@@ -147,6 +149,7 @@ import { createDocTypeRegistry, type DocTypeRegistry } from './registry/doc-type
 import { registerCoreDocTypes } from './registry/core-doc-types.js';
 import {
   createDefaultRendererSet,
+  createRealRendererSet,
   createRendererFactory,
 } from './renderers/renderer-factory.js';
 import {
@@ -162,10 +165,19 @@ import {
 import type { ESignPort } from './esign/port.js';
 
 /**
- * Assemble a ready-to-use studio with the core doc types registered. By
- * default every transport is a stub/in-memory backend so this is safe in
- * any environment (tests, dev). Inject real renderers/archive/e-sign for
- * production. The returned `registry` lets callers add authored types.
+ * Assemble a ready-to-use studio with the core doc types registered.
+ *
+ * Renderer selection:
+ *   - `useStub: true` (or an explicit stub set) → the deterministic offline
+ *     stub renderers that emit `STUB:<id>:...` placeholder bytes. Safe for
+ *     unit tests that only exercise the pipeline gates, never the bytes.
+ *   - `useStub: false` / unset → the REAL, dependency-free `ReportEngineRenderer`
+ *     that synthesizes GENUINE documents (real OOXML zip for docx/xlsx/pptx,
+ *     real `%PDF`, real HTML). This is what the composition root wires so
+ *     `mining.document.generate` returns an openable document, not a stub.
+ *
+ * The archive stays in-memory by default (inject `storage` for production).
+ * The returned `registry` lets callers add authored types.
  */
 export function createDocumentStudioWithCoreTypes(deps?: {
   readonly registry?: DocTypeRegistry;
@@ -180,7 +192,9 @@ export function createDocumentStudioWithCoreTypes(deps?: {
   const renderers =
     deps?.renderers ??
     createRendererFactory(
-      createDefaultRendererSet({ useStub: deps?.useStub ?? true }),
+      deps?.useStub === true
+        ? createDefaultRendererSet({ useStub: true })
+        : createRealRendererSet(),
     );
 
   const archive = createArtifactArchive({
