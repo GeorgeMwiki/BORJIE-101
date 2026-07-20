@@ -48,9 +48,9 @@
     "clean": "rm -rf dist"
   },
   "devDependencies": {
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.6",
-    "@types/node": "^25.8.0"
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10",
+    "@types/node": "^26.1.1"
   },
   "peerDependencies": {
     "@anthropic-ai/sdk": ">=0.97.0"

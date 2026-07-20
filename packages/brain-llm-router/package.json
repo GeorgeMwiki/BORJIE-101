@@ -118,9 +118,9 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@types/node": "^22.10.5",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.6",
+    "@types/node": "^26.1.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10",
     "@vitest/coverage-v8": "^4.1.6"
   },
   "engines": {
